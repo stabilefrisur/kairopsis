@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Kairopsis</title><link rel="icon" href="{{ asset_url('icon.svg') }}">
+  <link rel="stylesheet" href="{{ asset_url('research.css') }}">
+  <script src="/static/vendor/plotly.min.js" defer></script>
+  <script src="{{ asset_url('charts.js') }}" defer></script><script src="{{ asset_url('research.js') }}" defer></script>
+</head>
+<body data-page="{{ page }}" data-mode="{{ mode }}">
+  <a class="skip" href="#content">Skip to content</a>
+  <header><a class="brand" href="/analyses"><span>K</span> Kairopsis</a>
+    <nav aria-label="Main"><a href="/analyses">Analyses</a><a href="/ideas">Ideas</a><a href="/library">Library</a></nav>
+    <small>{{ 'Demo data · Illustrative flag rules' if mode == 'mock' else 'Live · Observation dates unverified' }}</small>
+  </header>
+  <main id="content" tabindex="-1"><p role="status">Loading research…</p></main>
+  <div id="message" role="status" aria-live="polite"></div>
+</body>
+</html>

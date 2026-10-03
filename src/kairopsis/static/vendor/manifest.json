@@ -1,0 +1,44 @@
+[
+  {
+    "package": "ag-grid-community",
+    "version": "34.3.1",
+    "file": "ag-grid-community.min.js",
+    "source": "https://registry.npmjs.org/ag-grid-community/-/ag-grid-community-34.3.1.tgz",
+    "sha256": "6be4d9a4c4e3d1f1e96736e0432a74a5db112451e456dd89bdbe953367f99607"
+  },
+  {
+    "package": "ag-grid-community",
+    "version": "34.3.1",
+    "file": "ag-grid.css",
+    "source": "https://registry.npmjs.org/ag-grid-community/-/ag-grid-community-34.3.1.tgz",
+    "sha256": "3dca1e09c995ea9c4e7d90cca4e20089133b68e87aa272ddb69e7976a30e8dfd"
+  },
+  {
+    "package": "ag-grid-community",
+    "version": "34.3.1",
+    "file": "ag-theme-quartz.css",
+    "source": "https://registry.npmjs.org/ag-grid-community/-/ag-grid-community-34.3.1.tgz",
+    "sha256": "235fd72826b6398fa2f976b664d2bee69e5712ade6267ca6d955f599531f0132"
+  },
+  {
+    "package": "ag-grid-community",
+    "version": "34.3.1",
+    "file": "AG-GRID-LICENSE.txt",
+    "source": "https://registry.npmjs.org/ag-grid-community/-/ag-grid-community-34.3.1.tgz",
+    "sha256": "1cb5ddc0b89c5bf0c5ccdf3a387edc4a1408c922968d633c719265c8ccdd354b"
+  },
+  {
+    "package": "plotly.js-dist-min",
+    "version": "3.1.0",
+    "file": "plotly.min.js",
+    "source": "https://registry.npmjs.org/plotly.js-dist-min/-/plotly.js-dist-min-3.1.0.tgz",
+    "sha256": "122e3be346d66616944d0b83eaaf7242581508c3c1cfa0995a17af0d83eff770"
+  },
+  {
+    "package": "plotly.js-dist-min",
+    "version": "3.1.0",
+    "file": "PLOTLY-LICENSE.txt",
+    "source": "https://registry.npmjs.org/plotly.js-dist-min/-/plotly.js-dist-min-3.1.0.tgz",
+    "sha256": "8c45d9eaf50c2f72dd9c7ab9ef440788ba58a3538484b5c51c1f17d5128752e7"
+  }
+]

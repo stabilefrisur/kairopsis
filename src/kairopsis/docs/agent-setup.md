@@ -40,10 +40,8 @@ platform. The application wheel does not embed dependencies. Record the installe
 Kairopsis and Metapyle versions. If the environment requires a separately maintained
 Metapyle distribution, select it through the approved installation route.
 
-If only the published source tarball is available, install that artifact through
-pip, or extract it and install its directory. A compatible `uv_build` backend
-must also be available through the approved index or build environment. Neither
-route needs a GitHub clone or Node.js.
+For a local source tree when Git cloning is unavailable, follow
+[the source archive steps below](#extract-and-install-a-source-archive).
 
 The two guides are installed alongside the package. Locate them without GitHub:
 
@@ -53,6 +51,80 @@ python -c "from importlib.resources import files; print(files('kairopsis').joinp
 
 **Done:** the installed console command runs, dependency checks pass, versions are
 recorded and both guide files are available locally.
+
+### Extract and install a source archive
+
+Use this route when you can read GitHub in a browser but cannot clone it, or
+when you need local source files for inspection or adaptation.
+
+1. Open the [0.1.0 release](https://github.com/stabilefrisur/kairopsis/releases/tag/v0.1.0).
+   Under **Assets**, download the attached
+   [kairopsis-0.1.0.tar.gz](https://github.com/stabilefrisur/kairopsis/releases/download/v0.1.0/kairopsis-0.1.0.tar.gz).
+   This is the source distribution also published to PyPI. The commands below use
+   this named asset; GitHub's automatic **Source code** archives have different
+   directory names. Save it in a new empty directory and open a terminal there.
+
+2. Select a Python 3.12 or later interpreter. These commands use `python`;
+   substitute `python3` or the appropriate Windows Python launcher if needed.
+   Extract the archive and enter its source directory:
+
+   ```console
+   python --version
+   python -m tarfile --extract kairopsis-0.1.0.tar.gz . --filter data
+   cd kairopsis-0.1.0
+   ```
+
+   Confirm `pyproject.toml`, `src`, `tests`, `docs` and `scripts` are present.
+   The extracted directory is a source snapshot, with no Git history or remote.
+
+3. Create a dedicated environment in the extracted directory:
+
+   ```console
+   python -m venv .venv
+   ```
+
+   Use the organization's configured package index for dependencies and the
+   `uv_build` build backend. Browser access to GitHub does not supply these
+   packages. If using a wheelhouse, add
+   `--no-index --find-links /absolute/wheelhouse` to the install command below;
+   it must contain compatible runtime dependencies and `uv_build>=0.12.19,<0.13.0`.
+   Select any required compatible Metapyle distribution through that same route.
+
+4. Install the extracted project, check dependencies and launch the demo. The
+   explicit environment paths avoid shell activation requirements.
+
+   **Windows PowerShell:**
+
+   ```powershell
+   .\.venv\Scripts\python.exe -m pip install .
+   .\.venv\Scripts\python.exe -m pip check
+   .\.venv\Scripts\kairopsis.exe --help
+   .\.venv\Scripts\kairopsis.exe --mode mock
+   ```
+
+   **Linux/macOS:**
+
+   ```console
+   .venv/bin/python -m pip install .
+   .venv/bin/python -m pip check
+   .venv/bin/kairopsis --help
+   .venv/bin/kairopsis --mode mock
+   ```
+
+5. Open `http://127.0.0.1:8765` in the browser and confirm Analyses, Ideas and
+   Library load. Stop the foreground server with Ctrl+C. Continue at step 3 below
+   to configure launch paths, live data and the user handoff. The local guides
+   are at `src/kairopsis/docs/human-guide.md` and `src/kairopsis/docs/agent-setup.md`.
+
+The installed application keeps configuration and research outside the extracted
+source directory. Keep that directory if you intend to adapt the code; after
+editing, rerun its environment's `python -m pip install .`, or use
+`python -m pip install -e .` for an editable development installation. Preserve
+the user's workspace separately when downloading a newer source snapshot.
+
+**Done:** the source tree is available locally, installation and dependency checks
+pass, and the demo opens using the environment's installed command. No GitHub
+clone or Node.js is required.
 
 ## 3. Prepare configuration and launch
 

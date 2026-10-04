@@ -20,7 +20,7 @@ stays in a local workspace. Live data access uses Metapyle.
 - [Human guide](https://github.com/stabilefrisur/kairopsis/blob/main/src/kairopsis/docs/human-guide.md)
   — everyday investigation, Ideas and exports.
 - [Agent setup guide](https://github.com/stabilefrisur/kairopsis/blob/main/src/kairopsis/docs/agent-setup.md)
-  — give the runbook to Copilot for installation, data connections and handoff.
+  — Copilot runbook for an upstream source workspace, data connections and handoff.
 
 Both guides are included in the installed Python package and the source archive.
 Requires Python 3.12 or later. Frontend assets are bundled; no Node.js setup is

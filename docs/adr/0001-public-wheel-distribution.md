@@ -1,10 +1,17 @@
-# Distribute a complete application as a Python wheel
+# Deploy from published upstream source snapshots
 
-Installations may use restricted package indexes and lack Node.js or frontend
-build tools. Ship the application and prepared browser assets together in a
-Python wheel, with the human and agent guides available as package resources.
+The deployment route is a published PyPI source archive obtained through the
+configured package mirror and extracted into a local Windows source workspace.
+This allows private dependency routing to reuse the existing data-access
+distribution while preserving the public `metapyle` import boundary. Local
+adaptations, source overrides and the resulting environment lock remain private.
 
-Configuration, credentials and user research belong outside the installed
-package. Runtime dependencies are supplied by the approved package index or a
-prepared wheelhouse. The source archive includes the material needed to build
-and verify a release without cloning its GitHub repository.
+Ship prepared browser assets and the human/agent guides in both distribution
+artifacts. The source archive also includes tests, scripts and technical docs.
+Installation requires neither GitHub cloning, administrator rights nor Node.js.
+Resolve dependencies through the configured mirror and private sources during
+setup; launch the installed executable without runtime dependency resolution.
+
+Configuration, credentials and research belong outside the source and installed
+package. The single agent setup runbook specifies this target and deployment
+route; release-artifact verification remains a separate maintainer activity.

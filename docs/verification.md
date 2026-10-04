@@ -1,5 +1,8 @@
 # Verify a distribution
 
+These are maintainer checks for release artifacts. Target installation follows
+the single [agent setup runbook](../src/kairopsis/docs/agent-setup.md).
+
 Verify the built artifacts as well as the source checkout. Source tests establish
 application behavior; installed-package checks establish that the distribution
 contains the code, browser assets and guides needed outside the checkout.
@@ -25,8 +28,8 @@ and credentials outside published artifacts.
 Install the wheel into a separate environment with approved dependencies. Launch
 from outside the checkout using fresh writable directories. Verify all three
 navigation destinations, local assets, an Analysis, saved Idea evidence, notes,
-exports and restart persistence. Locate the two installed guides through
-`importlib.resources` as described in the [agent setup guide](../src/kairopsis/docs/agent-setup.md).
+exports and restart persistence. Verify both guides through
+`importlib.resources.files('kairopsis').joinpath('docs')`.
 
 For an automated journey against an isolated running demo instance:
 

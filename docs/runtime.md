@@ -1,6 +1,6 @@
 # Run and preserve research
 
-Python 3.12+, FastAPI/Uvicorn, Jinja2 and plain JavaScript. All browser assets are packaged locally. Install the wheel and dependencies before launch; startup never resolves dependencies. Three destinations: Analyses, Ideas, Library.
+Python 3.12, FastAPI/Uvicorn, Jinja2 and plain JavaScript. All browser assets are packaged locally. Prepare the extracted source workspace through the [agent setup runbook](../src/kairopsis/docs/agent-setup.md); startup never resolves dependencies. Three destinations: Analyses, Ideas, Library.
 
 ```powershell
 kairopsis --mode mock --host 127.0.0.1 --port 8765 --workspace C:\Users\Me\Kairopsis\rebuild-mock

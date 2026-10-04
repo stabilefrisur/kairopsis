@@ -1,322 +1,286 @@
-# Set up Kairopsis for a user
+# Agent setup: Windows source workspace
 
-Use this runbook to install Kairopsis, configure the user's data and provide a
-working local launch method. Finish with a verified handoff; installation alone
-is not completion. The [human guide](human-guide.md) covers everyday use.
+This is the single installation runbook: obtain the published source archive
+through the configured mirror, extract a local source workspace, and adapt its
+dependencies to the existing private data-access setup. The agent performs every
+technical step and hands the user a working launcher. The [human guide](human-guide.md)
+covers everyday use.
 
 ## Give this task to GitHub Copilot
 
-Use [Copilot Agent mode in your IDE](https://docs.github.com/en/copilot/how-tos/copilot-in-your-ide/use-copilot-agents/use-agent-mode?tool=vscode)
-connected to the machine where Kairopsis should run. Paste this task into chat:
+Use Copilot Agent mode in the IDE running in the target Windows session. Paste:
 
 ```text
-Set up Kairopsis 0.1.0 for me on this machine using a source tarball; GitHub
-cloning is unavailable. Read and execute this agent runbook:
+Read and execute this runbook:
 https://github.com/stabilefrisur/kairopsis/blob/main/src/kairopsis/docs/agent-setup.md
 
-You own the download, checksum verification, extraction, environment creation,
-installation, configuration and verification. Use your tools to perform these
-steps; do not hand me extraction commands to execute. Discover the OS, Python
-and existing package-index configuration. Preserve existing research and use
-the organization's approved dependency route and compatible Metapyle.
-
-Start with the demo unless I have supplied live-data access. Create and test
-a simple start/open launcher and stop method, verify save/export and restart,
-and give me the human guide and a concise setup record. Continue through the
-handoff criteria. Ask only for genuinely missing information or permissions
-required by your tools; report any exact access or policy blocker.
+Set up Kairopsis 0.1.0 as an extracted upstream source workspace on this Windows
+machine. You own archive acquisition, extraction, local dependency adaptation,
+installation, configuration, verification and launcher creation. Use the existing
+package mirror and working private Metapyle setup. Preserve existing research.
+Hand me a tested launcher, stop method and human guide. Ask only for missing
+private setup information or required tool permissions; report exact blockers
+instead of giving me technical steps to carry out.
 ```
 
-The following steps are instructions to the agent. Perform them using terminal,
-file, network and browser tools available in the target IDE. The human is not
-responsible for downloading or extracting the archive. Fetch this current
-runbook before setup; the original 0.1.0 archive contains an earlier guide.
-The [plain-text guide](https://raw.githubusercontent.com/stabilefrisur/kairopsis/main/src/kairopsis/docs/agent-setup.md)
-is available if that host is permitted; otherwise read the GitHub page through
-your available tools.
-If access to the runbook or a required tool is blocked, report that blocker
-instead of claiming the installation is complete. Keep the configured proxy,
-certificate trust and package-index settings in use.
+Read this current GitHub guide before starting; the published 0.1.0 archive
+contains an earlier guide. GitHub pages are documentation references. Archive
+and package acquisition use the existing mirror, not GitHub asset downloads.
 
-## 1. Establish the target
+## 1. Inspect the existing Windows setup
 
-Determine the operating system, available Python, approved package index, desired
-mode (demo or live), and existing Kairopsis installation/workspace. Ask only for
-missing choices. Use mock mode when no live data source has been supplied.
-For live setup, identify the authorized Metapyle installation and source access.
+Work under the ordinary user account in its active session. The target provides
+Windows, Python 3.12, Chrome, uv and virtual environments, without administrator
+rights or Node.js/npm. Public package-index access and GitHub cloning are not
+installation routes. The application serves this user on `127.0.0.1`.
 
-Keep an existing workspace intact. Use a separate empty directory for trials or
-incompatible formats. Initial deployment is one local user on loopback.
+Inspect the current IDE workspace, working data-access project and configured
+package tools. Establish these private inputs before installation:
 
-**Done:** interpreter, package route, mode and absolute writable directories are
-known; existing research has been identified.
+- Absolute paths to Python 3.12, uv and Chrome.
+- The existing mirror, authentication, proxy and certificate configuration.
+  Keep credential values out of transcripts and setup records.
+- The working renamed data-access project's actual distribution name, immutable
+  version/revision, source routing and provider environment. Its import namespace
+  remains `metapyle`; read package metadata rather than inferring the distribution
+  identity from the project directory's name.
+- Existing Kairopsis installations, research workspaces and launchers to preserve.
 
-## 2. Install through the approved package route
+Set `$KairopsisPython` and `$KairopsisMirror` from these findings. Set
+`$KairopsisRoot` to an approved writable per-user directory; inspect
+`Join-Path $env:LOCALAPPDATA 'Kairopsis'` as the default. Establish separate
+directories for downloads, source, bootstrap tools, configuration, research,
+cache, logs, launchers, private evidence and backups. Keep mutable state outside
+the source tree and environments.
 
-Use Python 3.12 or later in a dedicated virtual environment. Activate it using
-the target platform's normal mechanism, then install:
+uv does not read pip configuration. Verify the mirror is explicit for both tools
+and every active index is approved; preserve existing authentication and trust.
+Internal URLs, package identities and credentials stay in private configuration.
+Missing access is a specific blocker, not permission to install a substitute
+provider or a new toolchain.
 
-```console
-python -m pip install kairopsis
-kairopsis --help
-python -m pip check
+**Done:** tools, mirror, private provider route, preserved research and absolute
+paths are identified; a private setup record is established.
+
+## 2. Obtain the upstream source archive from the mirror
+
+Define `$KairopsisDownloads`, `$KairopsisBootstrap` and `$KairopsisSourceParent`
+under the chosen root, using fresh version-specific directories. Reuse an
+existing directory only when its record proves it belongs to this installation.
+Preserve modified source and environments. Run through your terminal tool:
+
+```powershell
+$KairopsisVersion = '0.1.0'
+New-Item -ItemType Directory -Force -Path $KairopsisDownloads | Out-Null
+uv venv $KairopsisBootstrap --python $KairopsisPython --no-python-downloads --seed --default-index $KairopsisMirror
+if ($LASTEXITCODE -ne 0) { throw 'Bootstrap environment failed' }
+$KairopsisBootstrapPython = Join-Path $KairopsisBootstrap 'Scripts\python.exe'
+& $KairopsisBootstrapPython -m pip download --index-url $KairopsisMirror --no-deps --no-binary=kairopsis --dest $KairopsisDownloads "kairopsis==$KairopsisVersion"
+if ($LASTEXITCODE -ne 0) { throw 'Upstream source download failed' }
 ```
 
-Use the approved index configuration when public PyPI is unavailable. For an
-approved local wheelhouse, use:
+Seeding pip and obtaining source metadata may require build packages, including
+`uv_build`, from that mirror. Confirm it supplies this version's source `.tar.gz`.
+If only a wheel is available, or the release/backend has not reached the mirror,
+record the exact missing artifact/package and stop this step. Retain the source
+workspace route. No manual download or extraction is assigned to the human.
 
-```console
-python -m pip install --no-index --find-links /absolute/wheelhouse kairopsis
+Verify the source distribution published for this release:
+
+```powershell
+$KairopsisArchive = Join-Path $KairopsisDownloads 'kairopsis-0.1.0.tar.gz'
+$KairopsisArchiveHash = (Get-FileHash -LiteralPath $KairopsisArchive -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($KairopsisArchiveHash -ne '3f7a049b15e6641d3bad49d05a8d9babe3e85ff57e9d93a9fc78655a50b2167c') {
+    throw 'Upstream source checksum mismatch'
+}
 ```
 
-The wheelhouse must include runtime dependencies for the target Python and
-platform. The application wheel does not embed dependencies. Record the installed
-Kairopsis and Metapyle versions. If the environment requires a separately maintained
-Metapyle distribution, select it through the approved installation route.
+**Done:** the mirror-supplied source archive matches the published SHA-256;
+version, hash and private acquisition route are recorded.
 
-For a local source tree when Git cloning is unavailable, follow
-[the source archive steps below](#extract-and-install-a-source-archive).
+## 3. Extract and preserve the source snapshot
 
-The two guides are installed alongside the package. Locate them without GitHub:
+Ensure the destination does not contain modified source. Extract with the
+discovered interpreter:
 
-```console
-python -c "from importlib.resources import files; print(files('kairopsis').joinpath('docs'))"
+```powershell
+New-Item -ItemType Directory -Force -Path $KairopsisSourceParent | Out-Null
+& $KairopsisPython -m tarfile --extract $KairopsisArchive $KairopsisSourceParent --filter data
+if ($LASTEXITCODE -ne 0) { throw 'Source extraction failed' }
+$KairopsisSource = Join-Path $KairopsisSourceParent 'kairopsis-0.1.0'
+Set-Location -LiteralPath $KairopsisSource
 ```
 
-**Done:** the installed console command runs, dependency checks pass, versions are
-recorded and both guide files are available locally.
+Confirm `pyproject.toml`, `src`, `tests`, `docs`, `scripts` and `uv.lock` exist.
+Retain the archive and pristine dependency metadata before local adaptation.
+This source tree has no upstream Git history or remote. Read its `AGENTS.md`
+and domain pointers before changing project files.
 
-### Extract and install a source archive
+**Done:** complete local source and recoverable upstream metadata exist without
+overwriting research.
 
-Use this route when you can read GitHub in a browser but cannot clone it, or
-when you need local source files for inspection or adaptation.
+## 4. Adapt private dependency routing locally
 
-1. Discover a Python 3.12 or later interpreter. Commands below use `python`;
-   substitute the discovered absolute executable, `python3` or Windows launcher
-   as needed. Select a writable per-user installation directory. Create a fresh
-   download/extraction directory there and set your tool's working directory to
-   it. Preserve existing source trees and environments; choose a new directory
-   for this trial when one already exists.
+The published project declares `metapyle>=0.1.6`. Reuse the existing working
+private distribution's established installation source and immutable revision;
+retain its `metapyle` import namespace. Edit only the extracted local project:
 
-   **Done:** the interpreter version and absolute extraction directory are known;
-   the directory is empty and existing installations remain intact.
+- Replace the public `metapyle` requirement in `[project].dependencies` with the
+  actual private distribution requirement and established source mapping. A
+  renamed distribution does not satisfy the original metadata requirement merely
+  because `import metapyle` works.
+- Copy the applicable private uv source/index definitions from the working setup.
+  Make the approved mirror the default index; retain approved package-specific
+  routing and existing authentication, with credential values outside metadata.
 
-2. Download the named source asset from the
-   [0.1.0 release](https://github.com/stabilefrisur/kairopsis/releases/tag/v0.1.0)
-   yourself. This command uses Python's standard library:
+Keep these adaptations and the resulting lockfile private. The published
+`uv.lock` contains an upstream dependency set and public artifact URLs; it is a
+reference, not a lock to force onto this environment. Resolve a local lock against
+the mirror and selected private sources next. Preserve the working provider
+project; its code/configuration is not part of the public Kairopsis distribution.
 
-   ```console
-   python -c "import urllib.request; urllib.request.urlretrieve('https://github.com/stabilefrisur/kairopsis/releases/download/v0.1.0/kairopsis-0.1.0.tar.gz', 'kairopsis-0.1.0.tar.gz')"
-   ```
+Reuse the working provider artifact, including its import/version metadata.
+Changing a distribution name alone does not establish compatible imports. If
+the selected artifact fails to import without the public package beside it,
+record that packaging mismatch instead of installing overlapping providers.
 
-   If direct asset downloads are unavailable, obtain the same source distribution
-   through the configured approved package index:
+**Done:** local metadata and routing explicitly select the established private
+distribution, with no unintended public Metapyle dependency.
 
-   ```console
-   python -m pip download --no-deps --no-binary=kairopsis --dest . kairopsis==0.1.0
-   ```
+## 5. Resolve and install the local project with uv
 
-   Downloading source metadata through pip can require build dependencies from
-   that index. If neither route is permitted, report the failed route and exact
-   error; keep extraction and installation pending.
+Run from the extracted source directory:
 
-   Verify the published source-distribution checksum before extracting:
-
-   ```console
-   python -c "from pathlib import Path; import hashlib; actual = hashlib.sha256(Path('kairopsis-0.1.0.tar.gz').read_bytes()).hexdigest(); expected = '3f7a049b15e6641d3bad49d05a8d9babe3e85ff57e9d93a9fc78655a50b2167c'; print(actual); raise SystemExit(0 if actual == expected else 'Source archive checksum mismatch')"
-   ```
-
-   **Done:** the named archive is present and its SHA-256 matches. GitHub's
-   automatic **Source code** archives are different artifacts; these commands
-   and checksum refer to the attached `kairopsis-0.1.0.tar.gz` distribution.
-
-3. Extract the verified archive, then set your tool's working directory to the
-   extracted source directory:
-
-   ```console
-   python --version
-   python -m tarfile --extract kairopsis-0.1.0.tar.gz . --filter data
-   cd kairopsis-0.1.0
-   ```
-
-   Confirm `pyproject.toml`, `src`, `tests`, `docs` and `scripts` are present.
-   The extracted directory is a source snapshot, with no Git history or remote.
-
-   **Done:** those paths exist under the absolute `kairopsis-0.1.0` source path.
-
-4. Create a dedicated environment in the extracted directory:
-
-   ```console
-   python -m venv .venv
-   ```
-
-   Use the organization's configured package index for dependencies and the
-   `uv_build` build backend. Browser access to GitHub does not supply these
-   packages. If using a wheelhouse, add
-   `--no-index --find-links /absolute/wheelhouse` to the install command below;
-   it must contain compatible runtime dependencies and `uv_build>=0.12.19,<0.13.0`.
-   Select any required compatible Metapyle distribution through that same route.
-
-   **Done:** the environment's absolute Python and console-command paths are
-   recorded, and the runtime/build dependency route is established.
-
-5. Install the extracted project, check dependencies and launch the demo. The
-   explicit environment paths avoid shell activation requirements.
-
-   **Windows PowerShell:**
-
-   ```powershell
-   .\.venv\Scripts\python.exe -m pip install .
-   .\.venv\Scripts\python.exe -m pip check
-   .\.venv\Scripts\kairopsis.exe --help
-   .\.venv\Scripts\kairopsis.exe --mode mock
-   ```
-
-   **Linux/macOS:**
-
-   ```console
-   .venv/bin/python -m pip install .
-   .venv/bin/python -m pip check
-   .venv/bin/kairopsis --help
-   .venv/bin/kairopsis --mode mock
-   ```
-
-   Pass explicit writable workspace/config/cache/log paths established in step 1
-   of the main runbook. Choose an unused loopback port if 8765 is occupied.
-   Run the server in a managed terminal or background process that allows your
-   tools to continue verification. On Windows, launch background helpers hidden.
-   Open the local browser address through your tools and confirm Analyses, Ideas
-   and Library load; HTTP checks can also verify these routes and bundled assets.
-   Stop only the process you started using its terminal interrupt or process ID.
-
-   **Done:** installation, dependency checks, console help and local page/asset
-   requests succeed in the dedicated environment.
-
-6. Continue at step 3 of the main runbook below to create the user's launcher,
-   configure live data when requested, verify persistence/exports, establish
-   backup/recovery and complete the user handoff. The local guides
-   are at `src/kairopsis/docs/human-guide.md` and `src/kairopsis/docs/agent-setup.md`.
-
-   **Done:** all applicable main-runbook completion criteria pass; unresolved
-   live-data or tool limitations are explicit in the setup record.
-
-The installed application keeps configuration and research outside the extracted
-source directory. Keep that directory if you intend to adapt the code; after
-editing, rerun its environment's `python -m pip install .`, or use
-`python -m pip install -e .` for an editable development installation. Preserve
-the user's workspace separately when downloading a newer source snapshot.
-
-**Done:** the source tree is available locally, installation and dependency checks
-pass, and the demo opens using the environment's installed command. No GitHub
-clone or Node.js is required.
-
-## 3. Prepare configuration and launch
-
-Inspect `kairopsis --help` for available options. Choose writable absolute paths
-outside the installed package for workspace, configuration, cache and logs.
-Use distinct mock/live workspaces. Keep the host at `127.0.0.1`; default port is
-8765. If it is occupied, choose another port rather than stopping another process.
-
-CLI options override `KAIROPSIS_<NAME>` environment variables, then TOML settings,
-then defaults. `--config` accepts an absolute TOML path with a `[kairopsis]` table.
-For example:
-
-```toml
-[kairopsis]
-mode = "mock"
-host = "127.0.0.1"
-port = 8765
-timezone = "Europe/London"
+```powershell
+uv sync --no-dev --python $KairopsisPython --no-python-downloads --default-index $KairopsisMirror
+if ($LASTEXITCODE -ne 0) { throw 'Local resolution or installation failed' }
+$KairopsisEnvironment = Join-Path $KairopsisSource '.venv'
+$KairopsisAppPython = Join-Path $KairopsisEnvironment 'Scripts\python.exe'
+$KairopsisCommand = Join-Path $KairopsisEnvironment 'Scripts\kairopsis.exe'
+uv pip check --python $KairopsisAppPython
+if ($LASTEXITCODE -ne 0) { throw 'Installed dependency check failed' }
+& $KairopsisCommand --help
 ```
 
-Choose the user's actual timezone for daily refresh boundaries. Use the installed
-entry point, with explicit paths in launch automation; do not depend on the current
-working directory. Create a launch shortcut or script that starts the server,
-waits for its local address to respond and opens the browser. Supply a simple stop
-method. On Windows, start background helpers hidden; automatic startup is an
-optional user preference. Start mock mode for a credential-free check:
+uv installs the project in editable form. Retain its source, `.venv` and local
+lockfile. Mirror coverage may be incomplete: report exact missing versions.
+Use an alternative set only when an existing validated setup or explicit owner
+decision supplies it; record changes and rerun relevant checks. Never silently
+relax pins. Startup uses the installed environment without dependency resolution.
 
-```console
-kairopsis --mode mock
+Verify the provider import:
+
+```powershell
+& $KairopsisAppPython -c "import json, importlib.metadata as m, metapyle; print(json.dumps({'kairopsis_version': m.version('kairopsis'), 'metapyle_import': metapyle.__file__, 'metapyle_distributions': m.packages_distributions().get('metapyle', [])}, indent=2))"
 ```
 
-**Done:** the process stays running, its local browser address loads, and the
-actual launch command and directories are recorded.
+Match it to the expected installed distribution and immutable private artifact
+or revision. An import path/version alone does not establish that identity.
+Record exact resolved dependencies and metadata changes privately. Verify
+templates, bundled JS/CSS/vendor assets and both guides under the installed
+`kairopsis` resources. No frontend compilation is needed.
 
-## 4. Configure live data when requested
+**Done:** resolution, dependencies, console command, private provider identity
+and complete local assets are checked.
 
-Start `--mode live` with the selected separate workspace. Use **Library → Data
-series → Add data series** to create entries. Enter actual source identifiers,
-symbols, applicable fields/paths, units and supported query parameters. For local
-CSV/Parquet input, supply an absolute file path and the exact column name.
-Provider installation and authentication belong to the provider's runtime setup.
+## 6. Configure and verify an isolated demo
 
-Library manages `workspace/metapyle.yaml`; do not edit it independently of Library.
-Its metadata file commits definitions and dependencies together, and startup
-rebuilds the YAML projection. For automation, use the application's local API
-contract exposed at `/openapi.json`, rather than guessing request fields or writing
-workspace files directly.
+Create a private verification TOML and fresh mock workspace outside the source
+tree. Use the CLI's actual `--help` options and `[kairopsis]` keys: `mode`, `host`,
+`port`, `timezone`, `workspace`, `config_dir`, `cache_dir`, `log_dir`. Set `mock`,
+`127.0.0.1`, an unused permitted port, the user's IANA timezone and absolute
+writable paths. Preserve existing live research separately. Resolve inherited
+`KAIROPSIS_*` settings so they cannot redirect verification to another workspace;
+CLI overrides environment and TOML.
 
-Create a Standalone Analysis for one series or a Pair for two series. Open its
-chart and verify actual observations, units and dates against the authorized
-source. Saving a series validates its structure; it does not prove a successful
-fetch or the economic meaning of a symbol. A failed source must remain explicit.
+Set `$KairopsisConfig` to the verification TOML. Start the installed command
+in an agent-managed process so your tools remain available:
 
-The public Metapyle integration leaves retrieval freshness and native observation
-dates unverified. Do not describe inspectable live charts as verified monitoring.
-Demo thresholds are illustrative; selecting live mode does not calibrate them.
+```powershell
+& $KairopsisCommand --config $KairopsisConfig
+```
 
-**Done:** each requested source is explicitly configured and its selected data
-has been checked, or the exact access/validation blocker is reported. Do not
-substitute mock observations for missing live data.
+Use Chrome/browser tools and HTTP checks for Analyses, Ideas, Library, charts
+and local assets. All frontend resources load from localhost without external
+fonts, CDNs, runtime package installation or Node.js/npm. Start background Windows
+processes hidden. Record the process you own and stop only it.
 
-## 5. Verify the installed application
+**Done:** the isolated demo starts from outside the source directory and serves
+pages/assets without external frontend requests.
 
-Run from a directory outside the checkout. Check all of the following:
+## 7. Configure the existing live-data access
 
-- Analyses, Ideas and Library load; scripts/styles/charts are served locally.
-- A configured Analysis displays expected observations and units.
-- Save a uniquely named verification Idea and chart; add a note and export it.
-- Restart using the same configuration. Reopen the Idea and confirm its chart
-  and note persist. For a clipboard failure, verify the download fallback.
-- A separate workspace remains separate from the user's existing research.
+Create a separate live configuration/workspace using the working data-access
+project's provider runtime setup. Authentication, private endpoints and environment
+requirements remain private. Launch the installed command with that configuration
+under the active user session, without installing/upgrading packages at startup.
 
-Use only fabricated data in a clearly labelled demo check, or data the user has
-provided for the live check. The application supplies its frontend assets and
-requires no runtime asset downloads. This does not remove live-provider network
-requirements.
+Read the running `/openapi.json`. Use its API or Library UI to add authorized
+series and a Standalone or Pair Analysis with established symbols, fields,
+parameters and units. Library owns `workspace/metapyle.yaml`; change entries
+through the application. The adapter requires compatible `Client`, catalogue
+validation/load/export, `get()` and `close()` behavior; see
+[runtime](../../../docs/runtime.md) in the extracted source.
 
-Perform these checks through your browser tools or the documented local API;
-read `/openapi.json` before constructing API requests. If visual or clipboard
-verification is unavailable to your tools, record it as unverified and complete
-the HTTP/API checks you can run. Report the limitation in the handoff.
+Check observations, dates and units against the authorized source. Provider
+failures remain explicit; never substitute demo observations. API freshness,
+native-date provenance and monitoring calibration remain unverified unless the
+implementation and actual data establish them. A chart alone does not establish
+fresh monitoring or calibrated thresholds.
 
-**Done:** installed launch, data display, save/export and restart checks pass;
-any remaining live-data limitations are recorded.
+**Done:** the live workflow is checked with the existing private provider, or its
+precise access/API/data limitation is recorded. Demo success alone is not live setup.
 
-## 6. Set up backup and recovery
+## 8. Verify research, persistence and recovery
 
-Stop the application before copying the entire workspace. Restore into another
-empty directory and verify the restored Ideas before redirecting the user's
-launch method. Preserve existing files on corruption or incompatible-schema
-errors; do not reset a workspace to make startup succeed.
+In the isolated demo, then authorized live workspace where available:
 
-**Done:** backup location and restore procedure are recorded; a trial restore
-opens the retained evidence without modifying the original workspace.
+- Open an Analysis; save a verification Idea/chart; add and reopen a note.
+- Export an image and spreadsheet-ready observations. Check clipboard reuse or
+  its explicit download fallback through available Chrome tools.
+- Stop/restart with the same configuration; verify retained evidence, note contents
+  and configured series remain intact.
+- Stop before backing up the whole workspace. Restore into a fresh directory and
+  verify it opens without altering the original research.
 
-## 7. Hand off to the human
+Use browser tools or the local API contract. Record unavailable visual/clipboard
+checks as unverified; HTTP success alone does not establish those behaviors.
+Preserve existing files on schema/corruption errors rather than deleting research.
 
-Provide the launch shortcut, local browser address,
-demo/live status, configured analyses, backup location and how to stop the app.
-Give the user the local `human-guide.md`. Explain any unresolved data limitations
-in plain language; keep implementation details in your setup record.
+**Done:** save/export/restart and trial restore pass; all untested behaviors and
+live-data limitations are explicit in the private record.
 
-Save a local `setup-record.md` outside the installed package with the version,
-archive checksum, source/environment paths, dependency route (without secrets),
-configuration/workspace/backup paths, launch/stop methods and check results.
-Test the launcher from outside the source directory, including its browser-open
-behavior and stop/restart path. The human handoff is the launcher, stop method
-and guide; include any remaining access or verification blockers.
+## 9. Create and test the user's launcher
 
-**Done:** the user can open the dashboard, investigate an analysis, save an Idea
-and find their notes without running installation or configuration commands.
+Create a start/open shortcut and stop method in the user's writable launcher
+directory, using absolute installed-executable/configuration paths. Start hidden,
+wait for the expected localhost page, then open it in Chrome. Track the owned
+process; repeated starts reuse the correct instance and stopping affects only it.
+Report failures with local logs rather than opening an unrelated service on an
+occupied port. Test spaces in paths and launch from another working directory.
+
+The launcher performs no `uv run`, `uv sync`, pip installation, frontend build,
+dependency resolution or external download. It runs under the active user session;
+shared hosting and operation after logout are outside this setup. Automatic
+session launch is optional only if requested, through the existing user-level
+scheduling mechanism.
+
+**Done:** start/open, duplicate launch, stop and restart work; the user needs no
+terminal commands to open the prepared workspace.
+
+## 10. Hand off and retain private evidence
+
+Save `setup-record.md` outside source/package directories with the archive hash,
+local metadata adaptations, tool/dependency versions, private provider identity,
+source/environment/configuration/research/backup paths, mirror outcome, launcher
+and stop paths, check results and exact unresolved blockers. Redact credentials;
+internal setup records and research remain private.
+
+Give the user the launcher, stop method, local browser address, backup location,
+verified demo/live status and local [human guide](human-guide.md). Explain remaining
+limitations briefly. The human manages research, not archive extraction or setup.
+
+**Done:** the source workspace uses the mirror and intended private provider;
+the tested launcher/handoff work and target-only checks are accurately recorded.
+This guide specifies the recorded target; mock checks elsewhere cannot establish
+its actual mirror or live-data availability.

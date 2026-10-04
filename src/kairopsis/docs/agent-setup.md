@@ -4,6 +4,40 @@ Use this runbook to install Kairopsis, configure the user's data and provide a
 working local launch method. Finish with a verified handoff; installation alone
 is not completion. The [human guide](human-guide.md) covers everyday use.
 
+## Give this task to GitHub Copilot
+
+Use [Copilot Agent mode in your IDE](https://docs.github.com/en/copilot/how-tos/copilot-in-your-ide/use-copilot-agents/use-agent-mode?tool=vscode)
+connected to the machine where Kairopsis should run. Paste this task into chat:
+
+```text
+Set up Kairopsis 0.1.0 for me on this machine using a source tarball; GitHub
+cloning is unavailable. Read and execute this agent runbook:
+https://github.com/stabilefrisur/kairopsis/blob/main/src/kairopsis/docs/agent-setup.md
+
+You own the download, checksum verification, extraction, environment creation,
+installation, configuration and verification. Use your tools to perform these
+steps; do not hand me extraction commands to execute. Discover the OS, Python
+and existing package-index configuration. Preserve existing research and use
+the organization's approved dependency route and compatible Metapyle.
+
+Start with the demo unless I have supplied live-data access. Create and test
+a simple start/open launcher and stop method, verify save/export and restart,
+and give me the human guide and a concise setup record. Continue through the
+handoff criteria. Ask only for genuinely missing information or permissions
+required by your tools; report any exact access or policy blocker.
+```
+
+The following steps are instructions to the agent. Perform them using terminal,
+file, network and browser tools available in the target IDE. The human is not
+responsible for downloading or extracting the archive. Fetch this current
+runbook before setup; the original 0.1.0 archive contains an earlier guide.
+The [plain-text guide](https://raw.githubusercontent.com/stabilefrisur/kairopsis/main/src/kairopsis/docs/agent-setup.md)
+is available if that host is permitted; otherwise read the GitHub page through
+your available tools.
+If access to the runbook or a required tool is blocked, report that blocker
+instead of claiming the installation is complete. Keep the configured proxy,
+certificate trust and package-index settings in use.
+
 ## 1. Establish the target
 
 Determine the operating system, available Python, approved package index, desired
@@ -57,16 +91,47 @@ recorded and both guide files are available locally.
 Use this route when you can read GitHub in a browser but cannot clone it, or
 when you need local source files for inspection or adaptation.
 
-1. Open the [0.1.0 release](https://github.com/stabilefrisur/kairopsis/releases/tag/v0.1.0).
-   Under **Assets**, download the attached
-   [kairopsis-0.1.0.tar.gz](https://github.com/stabilefrisur/kairopsis/releases/download/v0.1.0/kairopsis-0.1.0.tar.gz).
-   This is the source distribution also published to PyPI. The commands below use
-   this named asset; GitHub's automatic **Source code** archives have different
-   directory names. Save it in a new empty directory and open a terminal there.
+1. Discover a Python 3.12 or later interpreter. Commands below use `python`;
+   substitute the discovered absolute executable, `python3` or Windows launcher
+   as needed. Select a writable per-user installation directory. Create a fresh
+   download/extraction directory there and set your tool's working directory to
+   it. Preserve existing source trees and environments; choose a new directory
+   for this trial when one already exists.
 
-2. Select a Python 3.12 or later interpreter. These commands use `python`;
-   substitute `python3` or the appropriate Windows Python launcher if needed.
-   Extract the archive and enter its source directory:
+   **Done:** the interpreter version and absolute extraction directory are known;
+   the directory is empty and existing installations remain intact.
+
+2. Download the named source asset from the
+   [0.1.0 release](https://github.com/stabilefrisur/kairopsis/releases/tag/v0.1.0)
+   yourself. This command uses Python's standard library:
+
+   ```console
+   python -c "import urllib.request; urllib.request.urlretrieve('https://github.com/stabilefrisur/kairopsis/releases/download/v0.1.0/kairopsis-0.1.0.tar.gz', 'kairopsis-0.1.0.tar.gz')"
+   ```
+
+   If direct asset downloads are unavailable, obtain the same source distribution
+   through the configured approved package index:
+
+   ```console
+   python -m pip download --no-deps --no-binary=kairopsis --dest . kairopsis==0.1.0
+   ```
+
+   Downloading source metadata through pip can require build dependencies from
+   that index. If neither route is permitted, report the failed route and exact
+   error; keep extraction and installation pending.
+
+   Verify the published source-distribution checksum before extracting:
+
+   ```console
+   python -c "from pathlib import Path; import hashlib; actual = hashlib.sha256(Path('kairopsis-0.1.0.tar.gz').read_bytes()).hexdigest(); expected = '3f7a049b15e6641d3bad49d05a8d9babe3e85ff57e9d93a9fc78655a50b2167c'; print(actual); raise SystemExit(0 if actual == expected else 'Source archive checksum mismatch')"
+   ```
+
+   **Done:** the named archive is present and its SHA-256 matches. GitHub's
+   automatic **Source code** archives are different artifacts; these commands
+   and checksum refer to the attached `kairopsis-0.1.0.tar.gz` distribution.
+
+3. Extract the verified archive, then set your tool's working directory to the
+   extracted source directory:
 
    ```console
    python --version
@@ -77,7 +142,9 @@ when you need local source files for inspection or adaptation.
    Confirm `pyproject.toml`, `src`, `tests`, `docs` and `scripts` are present.
    The extracted directory is a source snapshot, with no Git history or remote.
 
-3. Create a dedicated environment in the extracted directory:
+   **Done:** those paths exist under the absolute `kairopsis-0.1.0` source path.
+
+4. Create a dedicated environment in the extracted directory:
 
    ```console
    python -m venv .venv
@@ -90,7 +157,10 @@ when you need local source files for inspection or adaptation.
    it must contain compatible runtime dependencies and `uv_build>=0.12.19,<0.13.0`.
    Select any required compatible Metapyle distribution through that same route.
 
-4. Install the extracted project, check dependencies and launch the demo. The
+   **Done:** the environment's absolute Python and console-command paths are
+   recorded, and the runtime/build dependency route is established.
+
+5. Install the extracted project, check dependencies and launch the demo. The
    explicit environment paths avoid shell activation requirements.
 
    **Windows PowerShell:**
@@ -111,10 +181,24 @@ when you need local source files for inspection or adaptation.
    .venv/bin/kairopsis --mode mock
    ```
 
-5. Open `http://127.0.0.1:8765` in the browser and confirm Analyses, Ideas and
-   Library load. Stop the foreground server with Ctrl+C. Continue at step 3 below
-   to configure launch paths, live data and the user handoff. The local guides
+   Pass explicit writable workspace/config/cache/log paths established in step 1
+   of the main runbook. Choose an unused loopback port if 8765 is occupied.
+   Run the server in a managed terminal or background process that allows your
+   tools to continue verification. On Windows, launch background helpers hidden.
+   Open the local browser address through your tools and confirm Analyses, Ideas
+   and Library load; HTTP checks can also verify these routes and bundled assets.
+   Stop only the process you started using its terminal interrupt or process ID.
+
+   **Done:** installation, dependency checks, console help and local page/asset
+   requests succeed in the dedicated environment.
+
+6. Continue at step 3 of the main runbook below to create the user's launcher,
+   configure live data when requested, verify persistence/exports, establish
+   backup/recovery and complete the user handoff. The local guides
    are at `src/kairopsis/docs/human-guide.md` and `src/kairopsis/docs/agent-setup.md`.
+
+   **Done:** all applicable main-runbook completion criteria pass; unresolved
+   live-data or tool limitations are explicit in the setup record.
 
 The installed application keeps configuration and research outside the extracted
 source directory. Keep that directory if you intend to adapt the code; after
@@ -202,6 +286,11 @@ provided for the live check. The application supplies its frontend assets and
 requires no runtime asset downloads. This does not remove live-provider network
 requirements.
 
+Perform these checks through your browser tools or the documented local API;
+read `/openapi.json` before constructing API requests. If visual or clipboard
+verification is unavailable to your tools, record it as unverified and complete
+the HTTP/API checks you can run. Report the limitation in the handoff.
+
 **Done:** installed launch, data display, save/export and restart checks pass;
 any remaining live-data limitations are recorded.
 
@@ -221,6 +310,13 @@ Provide the launch shortcut, local browser address,
 demo/live status, configured analyses, backup location and how to stop the app.
 Give the user the local `human-guide.md`. Explain any unresolved data limitations
 in plain language; keep implementation details in your setup record.
+
+Save a local `setup-record.md` outside the installed package with the version,
+archive checksum, source/environment paths, dependency route (without secrets),
+configuration/workspace/backup paths, launch/stop methods and check results.
+Test the launcher from outside the source directory, including its browser-open
+behavior and stop/restart path. The human handoff is the launcher, stop method
+and guide; include any remaining access or verification blockers.
 
 **Done:** the user can open the dashboard, investigate an analysis, save an Idea
 and find their notes without running installation or configuration commands.

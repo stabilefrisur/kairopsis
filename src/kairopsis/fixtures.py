@@ -6,6 +6,7 @@ from typing import Literal, cast
 from .models import AnalysisDefinition, AnalysisSettings, ComparisonBasis, DataFailure, DataRequest, DataResponse, Observation, SeriesBinding, SeriesResult
 
 MOCK_AS_OF = date(2026, 9, 30)
+MOCK_HISTORY_START = date(1960, 1, 1)
 
 
 def series_fixture() -> tuple[SeriesBinding, ...]:
@@ -61,7 +62,7 @@ class MockMarketData:
                 failures.append(DataFailure(binding_id=binding.id, code="unresolved_binding", message="No deterministic fixture for this source/instrument/field"))
                 continue
             observations = []
-            day = request.start
+            day = max(request.start, MOCK_HISTORY_START)
             while day <= min(request.end, MOCK_AS_OF):
                 if day.weekday() < 5:
                     observations.append(Observation(date=day, observed_on=day, value=native_value(binding.instrument, day)))

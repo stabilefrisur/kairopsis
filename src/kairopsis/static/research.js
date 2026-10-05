@@ -105,7 +105,7 @@ async function loadRows() {
     `<div class="table-region" role="region" aria-label="Analyses table" tabindex="0"><table><thead><tr><th>Analysis</th><th>Current</th><th>Change</th><th>Historical standing</th><th>Observation</th></tr></thead><tbody>${rows
       .map((r) => {
         const e = r.evaluation;
-        return `<tr><td><a href="${analysisLink(r.analysis.id)}">${esc(r.analysis.name)}</a><small>${r.analysis.calculation === "level" ? "Standalone" : esc(r.analysis.calculation)} · ${esc(e?.definition.inputs.map((s) => s.source + " / " + (s.field || s.instrument)).join(" · ") || "Not evaluated")}</small>${e?.reasons.length ? `<small>${esc(e.reasons.join(" · "))}</small>` : ""}${r.failure ? `<small class="warning">Retained result: ${esc(r.failure)}</small>` : ""}${!r.compatible && e ? "<small>Definition changed. Refresh to evaluate; previous result is retained.</small>" : ""}${e && !e.eligible ? `<small>${esc(e.limitations.join(" · "))}</small>` : ""}</td><td>${number(e?.current, e?.unit)}</td><td>${number(e?.change, e?.unit, true)}<small>/ ${esc(r.analysis.settings.horizon)}</small></td><td>${e?.percentile == null ? "Unavailable" : e.percentile.toFixed(1) + "th percentile"}<small>/ ${r.analysis.settings.history_years}y</small></td><td>${dateText(e?.observation_date)}</td></tr>`;
+        return `<tr><td><a href="${analysisLink(r.analysis.id)}">${esc(r.analysis.name)}</a><small>${r.analysis.calculation === "level" ? "Standalone" : esc(r.analysis.calculation)} · ${esc(e?.definition.inputs.map((s) => s.source + " / " + (s.field || s.instrument)).join(" · ") || "Not evaluated")}</small>${e?.reasons.length ? `<small>${esc(e.reasons.join(" · "))}</small>` : ""}${r.failure ? `<small class="warning">Retained result: ${esc(r.failure)}</small>` : ""}${!r.compatible && e ? "<small>Definition changed. Refresh to evaluate; previous result is retained.</small>" : ""}${e && !e.eligible ? `<small>${esc(e.limitations.join(" · "))}</small>` : ""}</td><td>${number(e?.current, e?.unit)}</td><td>${number(e?.change, e?.unit, true)}<small>/ ${esc(r.analysis.settings.horizon)}</small></td><td>${e?.percentile == null ? "Unavailable" : e.percentile.toFixed(1) + "th percentile"}<small>/ ${periodText(r.analysis.settings.history_years)}</small></td><td>${dateText(e?.observation_date)}</td></tr>`;
       })
       .join(
         "",
@@ -113,11 +113,28 @@ async function loadRows() {
   if (result.refresh.running)
     setTimeout(() => loadRows().catch((err) => notify(err.message)), 500);
 }
+const periodYears = [.25, .5, 1, 2, 3, 5, 7, 10, 15, 20, 30];
+function periodChoices(current) {
+  return [...new Set([...periodYears, ...(current === "all" ? [] : [current])])].sort((a, b) => a - b).concat("all");
+}
+function supportsZScore(definition) {
+  return ["difference", "regression"].includes(definition.calculation) || definition.calculation === "level" && (definition.settings.measure || "level") !== "level";
+}
+function standardizationControls(definition, library = false) {
+  if (!supportsZScore(definition)) return "";
+  const settings = definition.settings;
+  const zscore = settings.standardization === "zscore";
+  return `<label>Standardization<select ${library ? 'name="standardization"' : 'data-setting="standardization"'}><option value="none" ${!zscore ? "selected" : ""}>None</option><option value="zscore" ${zscore ? "selected" : ""}>Z-score</option></select></label>${zscore ? `<label>Z-score threshold (±)<input type="number" ${library ? 'name="z_threshold"' : 'data-setting="zscore_threshold"'} value="${settings.zscore_threshold ?? 2}" min="0.000001" step="any" required></label>` : ""}`;
+}
+function analysisCaption(e) {
+  if (e.definition.settings.standardization !== "zscore") return e.definition.calculation;
+  return ({difference: "Difference", regression: "Regression residual"}[e.definition.calculation] || (e.definition.settings.measure === "return" ? "Percentage change" : "Change")) + " Z-score";
+}
 function chartControls(e, display) {
-  return `<div class="controls"><label>Display range<select data-display="years">${[1, 3, 5].map((n) => `<option value="${n}" ${n === display.years ? "selected" : ""}>${n} years</option>`).join("")}</select></label><label>Reference history<select data-setting="history_years">${[1, 3, 5].map((n) => `<option value="${n}" ${n === e.definition.settings.history_years ? "selected" : ""}>${n} years</option>`).join("")}</select></label><label>Measure<select data-setting="measure">${[["level", "Level"], ["change", "Change"], ["return", "Percentage change"]].map(([v, label]) => `<option value="${v}" ${v === e.definition.settings.measure ? "selected" : ""}>${label}</option>`).join("")}</select></label><label>Frequency<select data-setting="horizon">${["day", "week", "month"].map((n) => `<option ${n === e.definition.settings.horizon ? "selected" : ""}>${n}</option>`).join("")}</select></label>${e.definition.calculation === "regression" ? `<label>Fitting window<select data-setting="fit_years">${[1, 3, 5].map((n) => `<option value="${n}" ${n === e.definition.settings.fit_years ? "selected" : ""}>${n} years</option>`).join("")}</select></label>` : ""}<label>Chart view<select data-display="view"><option value="analysis" ${display.view === "analysis" ? "selected" : ""}>Analysis</option>${e.definition.settings.measure !== "level" ? `<option value="changes" ${display.view === "changes" ? "selected" : ""}>Measured / adjusted series</option>` : ""}<option value="underlying" ${display.view === "underlying" ? "selected" : ""}>Underlying series</option>${e.definition.calculation === "regression" ? `<option value="scatter" ${display.view === "scatter" ? "selected" : ""}>Regression scatter</option>` : ""}</select></label></div>`;
+  return `<div class="controls"><label>Display range<select data-display="years">${[1, 3, 5].map((n) => `<option value="${n}" ${n === display.years ? "selected" : ""}>${n} years</option>`).join("")}</select></label><label>Reference history<select data-setting="history_years">${periodChoices(e.definition.settings.history_years).map((n) => `<option value="${n}" ${n === e.definition.settings.history_years ? "selected" : ""}>${periodText(n)}</option>`).join("")}</select></label><label>Measure<select data-setting="measure">${[["level", "Level"], ["change", "Change"], ["return", "Percentage change"]].map(([v, label]) => `<option value="${v}" ${v === e.definition.settings.measure ? "selected" : ""}>${label}</option>`).join("")}</select></label><label>Frequency<select data-setting="horizon">${["day", "week", "month"].map((n) => `<option ${n === e.definition.settings.horizon ? "selected" : ""}>${n}</option>`).join("")}</select></label>${e.definition.calculation === "regression" ? `<label>Fitting window<select data-setting="fit_years">${periodChoices(e.definition.settings.fit_years).map((n) => `<option value="${n}" ${n === e.definition.settings.fit_years ? "selected" : ""}>${periodText(n)}</option>`).join("")}</select></label>` : ""}${standardizationControls(e.definition)}<label>Chart view<select data-display="view"><option value="analysis" ${display.view === "analysis" ? "selected" : ""}>Analysis</option>${e.definition.settings.measure !== "level" ? `<option value="changes" ${display.view === "changes" ? "selected" : ""}>Measured / adjusted series</option>` : ""}<option value="underlying" ${display.view === "underlying" ? "selected" : ""}>Underlying series</option>${e.definition.calculation === "regression" ? `<option value="scatter" ${display.view === "scatter" ? "selected" : ""}>Regression scatter</option>` : ""}</select></label></div>`;
 }
 function metrics(e) {
-  return `<div class="metric-strip"><div><strong>${number(e.current, e.unit)}</strong><small>Current · ${dateText(e.observation_date)}</small></div><div><strong>${number(e.change, e.unit, true)}</strong><small>${esc(e.definition.settings.horizon)} · from ${dateText(e.change_start)}</small></div><div><strong>${e.percentile == null ? "Unavailable" : e.percentile.toFixed(1) + "th"}</strong><small>Percentile · ${e.definition.settings.history_years}y reference</small></div></div>`;
+  return `<div class="metric-strip"><div><strong>${number(e.current, e.unit)}</strong><small>Current · ${dateText(e.observation_date)}</small></div><div><strong>${number(e.change, e.unit, true)}</strong><small>${esc(e.definition.settings.horizon)} · from ${dateText(e.change_start)}</small></div><div><strong>${e.percentile == null ? "Unavailable" : e.percentile.toFixed(1) + "th"}</strong><small>Percentile · ${periodText(e.definition.settings.history_years)} reference</small></div></div>`;
 }
 const defaultRisk = () => ({method: "none", reference_id: null, lookback_years: 3, weighting: "equal", half_life: 63, confidence: 95, downside: "increase", minimum_samples: 60});
 function riskOptions(settings, count) {
@@ -126,7 +143,7 @@ function riskOptions(settings, count) {
 function riskFields(risk, index) {
   const select = (label, name, values) => `<label>${label}<select data-risk="${name}" data-leg="${index}">${values.map(([v, text]) => `<option value="${v}" ${String(risk[name] ?? "") === String(v) ? "selected" : ""}>${esc(text)}</option>`).join("")}</select></label>`;
   const numeric = (label, name, min, max) => `<label>${label}<input type="number" data-risk="${name}" data-leg="${index}" value="${risk[name]}" min="${min}" max="${max}" step="any" required></label>`;
-  return `<div class="risk-fields">${select("Reference series", "reference_id", [["", index === "shared" ? "Each series itself" : "This series itself"], ...state.catalogue.series.map(s => [s.id, s.name])])}${select("Adjustment method", "method", Object.entries(riskMethodNames))}${risk.method !== "none" ? `<div class="risk-calibration">${select("Lookback (years)", "lookback_years", [1, 3, 5, 10].map(n => [n, n]))}${risk.method === "volatility" ? select("Weighting", "weighting", [["equal", "Equal"], ["exponential", "Exponential"]]) + (risk.weighting === "exponential" ? numeric("Half-life (sessions)", "half_life", 1, 2520) : "") : ""}${["var", "es"].includes(risk.method) ? numeric("Confidence (%)", "confidence", 50.01, 99.99) + select("Downside", "downside", [["increase", "Increasing values"], ["decrease", "Decreasing values"]]) : ""}</div>` : ""}</div>`;
+  return `<div class="risk-fields">${select("Reference series", "reference_id", [["", index === "shared" ? "Each series itself" : "This series itself"], ...state.catalogue.series.map(s => [s.id, s.name])])}${select("Adjustment method", "method", Object.entries(riskMethodNames))}${risk.method !== "none" ? `<div class="risk-calibration">${select("Estimation period", "lookback_years", periodChoices(risk.lookback_years).map(n => [n, periodText(n)]))}${risk.method === "volatility" ? select("Weighting", "weighting", [["equal", "Equal"], ["exponential", "Exponential"]]) + (risk.weighting === "exponential" ? numeric("Half-life (sessions)", "half_life", 1, 2520) : "") : ""}${["var", "es"].includes(risk.method) ? numeric("Confidence (%)", "confidence", 50.01, 99.99) + select("Downside", "downside", [["increase", "Increasing values"], ["decrease", "Decreasing values"]]) : ""}</div>` : ""}</div>`;
 }
 function riskEditor(settings, inputs, estimates = []) {
   const customized = !!settings.risk_overrides?.length;
@@ -146,7 +163,7 @@ async function previewSettings(options) {
     const evaluation = await api(`/api/analyses/${key}/preview`, "POST", options);
     delete state.display.axis_ranges;
     state.evaluation = evaluation;
-    document.querySelector(".chart-heading small").textContent = `${evaluation.definition.calculation} · ${evaluation.unit} · ${dateText(evaluation.observation_date)}`;
+    document.querySelector(".chart-heading small").textContent = `${analysisCaption(evaluation)} · ${evaluation.unit} · ${dateText(evaluation.observation_date)}`;
     if (evaluation.definition.settings.measure === "level" && state.display.view === "changes") state.display.view = "analysis";
     document.querySelector(".metric-strip").outerHTML = metrics(evaluation);
     document.querySelector("#investigation-controls").innerHTML = chartControls(evaluation, state.display);
@@ -169,7 +186,7 @@ async function chart() {
   state.evaluation = await api(`/api/analyses/${key}/preview`, "POST", {});
   state.savedSettings = structuredClone(state.evaluation.definition.settings);
   state.catalogue = await api("/api/library");
-  if (state.evaluation.definition.settings.measure !== "level") state.display.view = "changes";
+  if (state.evaluation.definition.settings.measure !== "level" && state.evaluation.definition.settings.standardization !== "zscore") state.display.view = "changes";
   renderChart();
   await plotEvidence(
     document.querySelector("#plot"),
@@ -179,7 +196,7 @@ async function chart() {
 }
 function renderChart() {
   const e = state.evaluation;
-  main.innerHTML = `<div class="workspace risk-workspace" id="workspace"><section class="paper"><div class="chart-heading"><div><h1>${esc(e.definition.name)}</h1><small>${esc(e.definition.calculation)} · ${esc(e.unit)} · ${dateText(e.observation_date)}</small></div>${actions(button("Save to Idea", "open-save", 'class="primary"') + button("Copy chart", "chart-copy") + button("Download chart", "chart-download"))}</div>${metrics(e)}<div id="investigation-controls">${chartControls(e, state.display)}</div><div class="plot" id="plot" role="img" aria-label="${esc(e.definition.name)} chart"></div>${evidenceDetails(e, "", state.display)}</section><div class="investigation-sidebar"><aside id="risk-panel" class="paper"></aside><aside id="save-panel" class="paper save-panel" hidden></aside></div></div>`;
+  main.innerHTML = `<div class="workspace risk-workspace" id="workspace"><section class="paper"><div class="chart-heading"><div><h1>${esc(e.definition.name)}</h1><small>${esc(analysisCaption(e))} · ${esc(e.unit)} · ${dateText(e.observation_date)}</small></div>${actions(button("Save to Idea", "open-save", 'class="primary"') + button("Copy chart", "chart-copy") + button("Download chart", "chart-download"))}</div>${metrics(e)}<div id="investigation-controls">${chartControls(e, state.display)}</div><div class="plot" id="plot" role="img" aria-label="${esc(e.definition.name)} chart"></div>${evidenceDetails(e, "", state.display)}</section><div class="investigation-sidebar"><aside id="risk-panel" class="paper"></aside><aside id="save-panel" class="paper save-panel" hidden></aside></div></div>`;
   renderRiskPanel();
 }
 async function openSave() {
@@ -436,11 +453,13 @@ function readLibraryDraft() {
       monitored: f.elements.monitored.checked,
       settings: {
         ...state.draft.settings,
-        history_years: Number(data.history),
-        fit_years: Number(data.fit),
+        history_years: periodValue(data.history),
+        fit_years: periodValue(data.fit),
         horizon: data.horizon,
         measure: data.measure,
-        upper_percentile: Number(data.upper),
+        standardization: data.standardization || "none",
+        zscore_threshold: data.z_threshold ? Number(data.z_threshold) : state.draft.settings.zscore_threshold ?? 2,
+        upper_percentile: data.upper ? Number(data.upper) : state.draft.settings.upper_percentile ?? 95,
         move_threshold: data.move ? Number(data.move) : null,
         material_change: data.material ? Number(data.material) : null,
       },
@@ -519,7 +538,7 @@ function libraryEditor() {
     )
     .join(
       "",
-    )}</select></label><label>${pair ? (d.calculation === "regression" ? "Dependent series (y)" : "First input / numerator") : "Data series"}<select name="left" required>${seriesOptions(d.series_ids[0])}</select></label>${pair ? `<label>${d.calculation === "regression" ? "Explanatory series (x)" : "Second input / denominator"}<select name="right" required>${seriesOptions(d.series_ids[1] || state.catalogue.series[1]?.id)}</select></label>` : ""}<label>Reference history<select name="history">${[1, 3, 5].map((n) => `<option ${d.settings.history_years === n ? "selected" : ""}>${n}</option>`).join("")}</select></label><label>Fit window (years)<select name="fit">${[1, 3, 5].map((n) => `<option ${d.settings.fit_years === n ? "selected" : ""}>${n}</option>`).join("")}</select></label><label>Measure<select name="measure">${[["level", "Level"], ["change", "Change"], ["return", "Percentage change"]].map(([v, label]) => `<option value="${v}" ${v === (d.settings.measure || "level") ? "selected" : ""}>${label}</option>`).join("")}</select></label><label>Frequency<select name="horizon">${["day", "week", "month"].map((v) => `<option ${d.settings.horizon === v ? "selected" : ""}>${v}</option>`).join("")}</select></label>${field("Upper percentile rule (lower tail symmetric)", "upper", d.settings.upper_percentile, "number")}${field("Move threshold (analysis units, optional)", "move", d.settings.move_threshold, "number", false)}${field("Material further move (analysis units, optional)", "material", d.settings.material_change, "number", false)}</div><h3>Risk adjustment defaults</h3>${riskEditor(d.settings, d.series_ids.map(id => input(id)).filter(Boolean))}${button("Add missing data series", "inline-series", 'class="quiet"')}<p class="formula">${esc(formula)}</p><p class="meta">${[
+    )}</select></label><label>${pair ? (d.calculation === "regression" ? "Dependent series (y)" : "First input / numerator") : "Data series"}<select name="left" required>${seriesOptions(d.series_ids[0])}</select></label>${pair ? `<label>${d.calculation === "regression" ? "Explanatory series (x)" : "Second input / denominator"}<select name="right" required>${seriesOptions(d.series_ids[1] || state.catalogue.series[1]?.id)}</select></label>` : ""}<label>Reference history<select name="history">${periodChoices(d.settings.history_years).map((n) => `<option value="${n}" ${d.settings.history_years === n ? "selected" : ""}>${periodText(n)}</option>`).join("")}</select></label><label>Fitting window<select name="fit">${periodChoices(d.settings.fit_years).map((n) => `<option value="${n}" ${d.settings.fit_years === n ? "selected" : ""}>${periodText(n)}</option>`).join("")}</select></label><label>Measure<select name="measure">${[["level", "Level"], ["change", "Change"], ["return", "Percentage change"]].map(([v, label]) => `<option value="${v}" ${v === (d.settings.measure || "level") ? "selected" : ""}>${label}</option>`).join("")}</select></label><label>Frequency<select name="horizon">${["day", "week", "month"].map((v) => `<option ${d.settings.horizon === v ? "selected" : ""}>${v}</option>`).join("")}</select></label>${standardizationControls(d, true)}${d.settings.standardization === "zscore" ? "" : field("Upper percentile rule (lower tail symmetric)", "upper", d.settings.upper_percentile, "number")}${field("Move threshold (analysis units, optional)", "move", d.settings.move_threshold, "number", false)}${field("Material further move (analysis units, optional)", "material", d.settings.material_change, "number", false)}</div><h3>Risk adjustment defaults</h3>${riskEditor(d.settings, d.series_ids.map(id => input(id)).filter(Boolean))}${button("Add missing data series", "inline-series", 'class="quiet"')}<p class="formula">${esc(formula)}</p><p class="meta">${[
     left,
     ...(pair ? [right] : []),
   ]
@@ -563,12 +582,12 @@ document.addEventListener("change", async (event) => {
       } else {
         const name = e.dataset.risk;
         const risk = e.dataset.leg === "shared" ? (settings.risk_adjustment ||= defaultRisk()) : settings.risk_overrides[Number(e.dataset.leg)];
-        risk[name] = ["lookback_years", "half_life", "confidence"].includes(name) ? Number(e.value) : name === "reference_id" ? e.value || null : e.value;
+        risk[name] = name === "lookback_years" ? periodValue(e.value) : ["half_life", "confidence"].includes(name) ? Number(e.value) : name === "reference_id" ? e.value || null : e.value;
       }
       if (riskOptions(settings, 2).some(r => r.method !== "none") && (settings.measure || "level") === "level") {
         settings.measure = "change";
         if (!library) {
-          state.display.view = "changes";
+          state.display.view = settings.standardization === "zscore" ? "analysis" : "changes";
           state.display.hidden_traces = [];
         }
       }
@@ -583,18 +602,25 @@ document.addEventListener("change", async (event) => {
       }
       else await previewSettings(settings);
     } else if (e.dataset.setting) {
-      const options = {...state.evaluation.definition.settings, [e.dataset.setting]: ["horizon", "measure"].includes(e.dataset.setting) ? e.value : Number(e.value)};
+      if (e.matches("input") && !e.checkValidity()) { e.reportValidity(); return; }
+      const options = {...state.evaluation.definition.settings, [e.dataset.setting]: ["horizon", "measure", "standardization"].includes(e.dataset.setting) ? e.value : periodValue(e.value)};
       if (e.dataset.setting === "measure") {
         state.display.hidden_traces = [];
         options.move_threshold = options.material_change = null;
         if (e.value === "level") { options.risk_adjustment = defaultRisk(); options.risk_overrides = []; }
-        state.display.view = e.value === "level" ? "analysis" : "changes";
+        if (state.evaluation.definition.calculation === "level" && e.value === "level") options.standardization = "none";
+        state.display.view = e.value === "level" || options.standardization === "zscore" ? "analysis" : "changes";
+      }
+      if (e.dataset.setting === "standardization") {
+        options.move_threshold = options.material_change = null;
+        state.display.hidden_traces = [];
+        state.display.view = "analysis";
       }
       await previewSettings(options);
     } else if (
       e.closest("#library-form") &&
       state.libraryTab === "analyses" &&
-      ["calculation", "left", "right", "measure"].includes(e.name)
+      ["calculation", "left", "right", "measure", "standardization"].includes(e.name)
     ) {
       readLibraryDraft();
       if (
@@ -602,6 +628,11 @@ document.addEventListener("change", async (event) => {
         state.draft.series_ids.length < 2
       )
         state.draft.series_ids.push(state.catalogue.series[1]?.id);
+      if (e.name === "standardization") state.draft.settings.move_threshold = state.draft.settings.material_change = null;
+      if (!supportsZScore(state.draft)) {
+        if (state.draft.settings.standardization === "zscore") state.draft.settings.move_threshold = state.draft.settings.material_change = null;
+        state.draft.settings.standardization = "none";
+      }
       if (e.name === "measure") {
         state.draft.settings.move_threshold = state.draft.settings.material_change = null;
         if (e.value === "level") { state.draft.settings.risk_adjustment = defaultRisk(); state.draft.settings.risk_overrides = []; }

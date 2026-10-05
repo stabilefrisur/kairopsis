@@ -6,6 +6,12 @@ Investigation uses the Risk adjustment side panel. Changes there are exploratory
 
 Reference series can be each input itself, a common named series or an external catalogue series. Customize per series exposes independent references/methods/calibration. Each estimator has a lookback; volatility adds equal/exponential weights and half-life, while VaR/CVaR add confidence and downside direction. Frequency belongs to the Analysis and is daily, weekly or monthly. Self-beta is allowed, so both inputs can be adjusted to the first input.
 
+Reference history, regression fitting and risk-estimation periods offer 3 and 6 months; 1, 2, 3, 5, 7, 10, 15, 20 and 30 years; and Longest available history in Library and Investigation. Defaults remain three years. Calendar month windows clamp month-end dates. Existing numeric year settings remain compatible; the same fields accept `0.25`, `0.5`, whole years 1–30 or `"all"`.
+
+Longest available uses all eligible observations returned by the source, before the current observation (or before the measured interval for risk estimation). Pairs use exact-date common native observations; all-history leg risk estimates also require common valid measured dates. External references must have valid observations on those dates. Missing/carried observations remain excluded. Fixed regression windows require full-window coverage; longest-history fits require sufficient samples and recent observations, without demanding an arbitrary inception date. Minimum sample requirements still apply to short windows.
+
+Metapyle requires an explicit retrieval start, so longest-history requests begin at 22 September 1677, the first full date inside pandas' nanosecond range. Earlier data is outside the supported retrieval range; source retention and access permissions determine returned history. Fixed windows request analysis history plus risk-estimation warm-up. Synthetic demo history starts on 1 January 1960; it is generated only within that finite fixture range.
+
 Legend click toggles a trace; double-click isolates it. Axes stay fixed and hidden labels remain dimmed. Visibility changes presentation only. Save to Idea and image exports preserve the selected visibility and scales; older Snapshots remain readable. Shared source metadata and adjustment summaries appear once in the footnote, with full calibration and estimates under Source and chart details.
 
 ## Calculation contract
@@ -43,3 +49,30 @@ Definitions follow [BIS market-risk terminology](https://www.bis.org/committees/
 Mock tests establish numerical and persistence behavior. Provider calendars, actual source semantics, estimator suitability and risk-adjusted monitoring thresholds require validation in the target environment.
 
 The [verification guide](verification.md) describes source and installed-package checks. A source test result does not establish acceptance for a different operating system or data provider.
+
+## Z-score standardization
+
+Standardization is separate from input Measure and Risk Adjustment. It applies
+to the completed analysis: standalone changes/percentage changes, pair
+differences or regression residuals. Standalone levels and pair ratios are
+unsupported. Pair inputs are never standardized separately.
+
+`z = (analysis value − reference mean) / sample standard deviation`. Use eligible
+native observations in Reference history, excluding the latest observation.
+Pairs use common dates. The current reference mean and SD apply throughout the
+chart, giving one consistent scale; historical plotted scores are retrospective,
+not a rolling backtest. Regression residuals retain the current prior-only fit.
+Minimum history still applies. Zero/near-zero SD makes the score unavailable.
+
+The Analysis view uses standard-deviation units (σ) and dashed lines at the
+configured ±Z-score threshold (default 2). Monitoring uses this direct threshold
+instead of the percentile rule when standardization is enabled. Displayed
+percentiles remain descriptive. Move/materiality rules use the resulting units;
+UI changes to standardization clear existing move/materiality thresholds.
+Underlying and measured/adjusted input views retain their original units.
+
+Comparisons hold the previous Z-score reference and, for regression, the
+previous fit fixed when checking threshold crossings and material moves.
+Reference recalibration alone therefore does not establish a new market flag.
+Snapshots retain the reference mean, SD, dates, sample count and unstandardized
+analysis values; CSV/clipboard exports include those original analysis values.

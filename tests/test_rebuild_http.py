@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import base64
 import os
 import struct
@@ -45,6 +45,49 @@ def test_search_finds_unmonitored_analysis_and_preview_does_not_mutate_library(t
         assert http.get("/api/library").json() == original
         assert http.get("/analyses/usd-ig").status_code == 200
         assert http.get("/catch-up").status_code == 404
+
+
+def test_long_periods_request_estimation_history_and_survive_defaults_and_capture(tmp_path):
+    from kairopsis.fixtures import MockMarketData
+    from kairopsis.frequencies import shift_years
+
+    class ShortHistoryProvider:
+        def __init__(self):
+            self.requests = []
+
+        def fetch(self, request):
+            self.requests.append(request)
+            # A short response must not make the requested long windows shrink.
+            return MockMarketData(lambda: NOW).fetch(request.model_copy(
+                update={"start": request.end - timedelta(days=100)}))
+
+    provider = ShortHistoryProvider()
+    settings = {"history_years": 20, "fit_years": 15, "measure": "change",
+                "risk_adjustment": {"method": "volatility", "lookback_years": 30}}
+    with client(tmp_path, provider) as http:
+        before = http.get("/api/library").json()
+        response = http.post("/api/analyses/usd-ig/preview", json=settings)
+        assert response.status_code == 200, response.text
+        evaluation = response.json()
+        request = provider.requests[-1]
+        assert request.start == shift_years(request.end, -50) - timedelta(days=35)
+        assert http.get("/api/library").json() == before
+        assert any("Insufficient" in limitation for limitation in evaluation["limitations"])
+        original = next(a for a in before["analyses"] if a["id"] == "usd-ig")
+        saved = http.post("/api/library/analyses", json={**original,
+            "settings": {**original["settings"], **settings}})
+        assert saved.status_code == 200, saved.text
+        captured = http.post("/api/ideas", json={"evaluation_id": evaluation["id"],
+            "display": {"years": 3}, "image": PNG, "title": "Long-window evidence"})
+        assert captured.status_code == 200, captured.text
+        idea = captured.json()
+        assert http.post("/api/analyses/usd-ig/preview", json={"history_years": 31}).status_code == 422
+    with client(tmp_path, provider) as http:
+        definition = next(a for a in http.get("/api/library").json()["analyses"] if a["id"] == "usd-ig")
+        snapshot = http.get(f"/api/ideas/{idea['id']}").json()["snapshots"][idea["charts"][0]["id"]]
+        for options in (definition["settings"], snapshot["evaluation"]["definition"]["settings"]):
+            assert options["history_years"] == 20 and options["fit_years"] == 15
+            assert options["risk_adjustment"]["lookback_years"] == 30
 
 
 def png_fixture():

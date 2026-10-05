@@ -1,11 +1,12 @@
 """Resolved evaluations and dated refresh publication, independent of UI/storage schemas."""
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import datetime
 from threading import Lock, Thread
 from typing import Protocol
 from zoneinfo import ZoneInfo
 
-from .analytics import evaluate, shift_years
+from .analytics import evaluate
+from .periods import retrieval_start
 from .catalogue import Catalogue
 from .evaluation_comparison import compare
 from .fixtures import MOCK_AS_OF
@@ -27,10 +28,11 @@ class Research:
 
     def evaluate(self, definition: ResolvedDefinition) -> Evaluation:
         end = MOCK_AS_OF if self.repository.mode == "mock" else self.clock().astimezone(self.timezone).date()
-        years = max(definition.settings.history_years, definition.settings.fit_years, 5)
-        risk_years = max((r.lookback_years for r in definition.settings.adjustments(len(definition.inputs)) if r.method != "none"), default=0)
+        start = retrieval_start(end, (definition.settings.history_years, definition.settings.fit_years, 5),
+            (r.lookback_years for r in definition.settings.adjustments(len(definition.inputs)) if r.method != "none"),
+            definition.settings.measure != "level")
         request = DataRequest(bindings=(*definition.inputs, *definition.references),
-            start=shift_years(end, -years-risk_years) - timedelta(days=35 if definition.settings.measure != "level" else 0), end=end)
+            start=start, end=end)
         data = self.provider.fetch(request)
         if data.mode != self.repository.mode:
             raise ValueError("Provider mode does not match workspace")
@@ -123,10 +125,10 @@ class Research:
             if latest.definition.revision == saved.definition.revision and latest.definition.inputs == saved.definition.inputs and latest.definition.references == saved.definition.references:
                 # Apply saved exploratory choices to retained raw inputs, never
                 # silently substitute the catalogue's reference/fit settings.
-                risk_years = max((r.lookback_years for r in saved.definition.settings.adjustments(len(saved.definition.inputs)) if r.method != "none"), default=0)
-                required_start = shift_years(latest.request.end, -max(saved.definition.settings.history_years, saved.definition.settings.fit_years)-risk_years)
-                if saved.definition.settings.measure != "level":
-                    required_start -= timedelta(days=35)
+                required_start = retrieval_start(latest.request.end,
+                    (saved.definition.settings.history_years, saved.definition.settings.fit_years),
+                    (r.lookback_years for r in saved.definition.settings.adjustments(len(saved.definition.inputs)) if r.method != "none"),
+                    saved.definition.settings.measure != "level")
                 if latest.request.start > required_start:
                     continue
                 required = {b.id for b in (*saved.definition.inputs, *saved.definition.references)}

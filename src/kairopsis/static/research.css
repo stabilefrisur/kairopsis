@@ -363,9 +363,13 @@ td small {
   font-size: var(--small);
   color: var(--muted);
 }
-.controls select {
+.controls select,
+.controls input {
   display: block;
   margin-top: 5px;
+}
+.controls input[type="number"] {
+  width: 8rem;
 }
 .settings-label {
   font-size: var(--small);

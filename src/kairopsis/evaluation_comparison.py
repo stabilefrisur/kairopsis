@@ -1,8 +1,9 @@
 """Native observation continuity, explicit causes and deterministic finding classes."""
 from math import isclose
 from typing import cast
-from .analytics import condition_rules, shift_years
-from .models import Evaluation
+from .analytics import condition_rules
+from .periods import period_start
+from .models import Evaluation, MetricPoint
 
 
 def compare(current: Evaluation, baseline: Evaluation | None) -> Evaluation:
@@ -34,7 +35,26 @@ def compare(current: Evaluation, baseline: Evaluation | None) -> Evaluation:
     reasons = current.conditions
     added = set(current.condition_keys) - set(baseline.condition_keys)
     crossed = bool(added - ({"move"} if baseline.change is None else set()))
-    if current.fit and baseline.fit:
+    if current.standardization_estimate and baseline.standardization_estimate:
+        reference = baseline.standardization_estimate
+        if reference.mean is not None and reference.standard_deviation:
+            def prior_frame(point: MetricPoint) -> float | None:
+                values = point.transformed_inputs or point.inputs
+                raw = point.unstandardized_value
+                if baseline.fit and all(v is not None for v in values):
+                    raw = cast(float, values[0]) - baseline.fit.intercept - baseline.fit.slope * cast(float, values[1])
+                return (raw - cast(float, reference.mean)) / cast(float, reference.standard_deviation) if raw is not None else None
+            fixed = prior_frame(current.points[-1])
+            z_values = {point.date: prior_frame(point) for point in current.points if point.eligible}
+            delta = fixed - baseline.current if fixed is not None and baseline.current is not None else None
+            fixed_baseline = z_values.get(current.change_start) if current.change_start else None
+            change = fixed if current.definition.settings.measure != "level" else fixed - fixed_baseline if fixed is not None and fixed_baseline is not None else None
+            fixed_reasons, fixed_keys = condition_rules(current.definition, current.unit, None, change, current.eligible, fixed)
+            held = "prior fit and Z-score reference held fixed" if baseline.fit else "prior Z-score reference held fixed"
+            reasons = tuple(reason + f" ({held})" for reason in fixed_reasons)
+            added = set(fixed_keys) - set(baseline.condition_keys)
+            crossed = bool(added - ({"move"} if baseline.change is None else set()))
+    elif current.fit and baseline.fit:
         p = current.points[-1]
         inputs = p.transformed_inputs or p.inputs
         if all(v is not None for v in inputs) and baseline.current is not None:
@@ -43,7 +63,7 @@ def compare(current: Evaluation, baseline: Evaluation | None) -> Evaluation:
             fixed_values = {point.date: cast(float, (point.transformed_inputs or point.inputs)[0]) - baseline.fit.intercept - baseline.fit.slope * cast(float, (point.transformed_inputs or point.inputs)[1])
                 for point in current.points if point.eligible and all(v is not None for v in (point.transformed_inputs or point.inputs))}
             history = [value for day, value in fixed_values.items() if current.observation_date and
-                shift_years(current.observation_date, -current.definition.settings.history_years) <= day < current.observation_date]
+                period_start(current.observation_date, current.definition.settings.history_years) <= day < current.observation_date]
             percentile = (100 * (sum(v < fixed for v in history) + .5 * sum(v == fixed for v in history)) / len(history)) if len(history) >= current.definition.settings.minimum_history else None
             change = fixed if current.definition.settings.measure != "level" else fixed - fixed_values[current.change_start] if current.change_start in fixed_values else None
             fixed_reasons, fixed_keys = condition_rules(current.definition, current.unit, percentile, change, current.eligible)

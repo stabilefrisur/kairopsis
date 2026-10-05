@@ -1,11 +1,12 @@
 """Rolling input normalization. Estimates never include the measured interval."""
-from bisect import bisect_left, bisect_right
+from bisect import bisect_left, bisect_right, insort
 from dataclasses import dataclass
 from datetime import date
 from math import ceil, floor, fsum, isfinite, sqrt
 from typing import cast
 
-from .frequencies import horizon_target, shift_years
+from .frequencies import horizon_target
+from .periods import period_start
 from .models import AdjustmentEstimate, Observation, ResolvedDefinition, RiskAdjustment
 
 
@@ -70,12 +71,64 @@ def estimate(values: list[float], targets: list[float], ages: list[float], optio
     return scale
 
 
+def _session_distance(start: date, end: date) -> int:
+    elapsed = (end - start).days
+    return elapsed // 7 * 5 + sum((start.weekday() + i) % 7 < 5 for i in range(1, elapsed % 7 + 1))
+
+
+def _expanding_scales(days: list[date], reference: dict[date, Move], target: dict[date, Move],
+                      options: RiskAdjustment) -> list[float | None] | None:
+    """Growing history uses online moments or ordered tails, rather than repeated fits."""
+    if options.lookback_years != "all" or options.method == "none":
+        return None
+    result: list[float | None] = [None]
+    xm = ym = xx = xy = total = squared_weights = 0.
+    losses: list[float] = []
+    previous = None
+    for count, day in enumerate(days, 1):
+        x = reference[day].value
+        if options.method == "beta":
+            y = target[day].value
+            dx, dy = x - xm, y - ym
+            xm += dx / count
+            ym += dy / count
+            xx += dx * (x - xm)
+            xy += dx * (y - ym)
+            scale = xy / xx if xx > 0 else 0.
+        elif options.method == "volatility":
+            decay = 2 ** (-_session_distance(previous, day) / options.half_life) if previous and options.weighting == "exponential" else 1.
+            total *= decay
+            squared_weights *= decay ** 2
+            xx *= decay
+            total += 1.
+            squared_weights += 1.
+            dx = x - xm
+            xm += dx / total
+            xx += dx * (x - xm)
+            correction = total - squared_weights / total
+            scale = sqrt(max(0., xx) / correction) if correction > 0 else 0.
+        else:
+            insort(losses, x if options.downside == "increase" else -x)
+            if options.method == "var":
+                scale = losses[ceil(options.confidence / 100 * count) - 1]
+            else:
+                tail = (1 - options.confidence / 100) * count
+                whole = floor(tail)
+                scale = (fsum(losses[-whole:]) if whole else 0.) + (tail - whole) * losses[-whole - 1]
+                scale /= tail
+        previous = day
+        result.append(scale if isfinite(scale) and abs(scale) >= 1e-12 and
+            (options.method == "beta" or scale > 0) else None)
+    return result
+
+
 def transform_inputs(definition: ResolvedDefinition, rows: dict[str, dict[date, Observation]], days: list[date]) -> tuple[
     dict[date, tuple[float | None, ...]], dict[date, tuple[float | None, ...]],
     dict[date, tuple[date | None, ...]], tuple[str, ...], tuple[AdjustmentEstimate, ...]]:
     settings = definition.settings
     bindings = {b.id: b for b in (*definition.inputs, *definition.references)}
     moves = {key: measured_moves(value, settings.horizon, settings.measure) for key, value in rows.items()}
+    common_days = set.intersection(*(set(moves[b.id]) for b in definition.inputs))
     transformed: dict[date, tuple[float | None, ...]] = {}
     scales: dict[date, tuple[float | None, ...]] = {}
     starts: dict[date, tuple[date | None, ...]] = {}
@@ -89,16 +142,19 @@ def transform_inputs(definition: ResolvedDefinition, rows: dict[str, dict[date, 
         units.append(adjusted_unit(binding.unit, reference.unit, options.method, settings.measure))
         target_moves, ref_moves = moves[binding.id], moves[reference.id]
         sample_days = sorted(set(target_moves) & set(ref_moves) if options.method == "beta" else ref_moves)
-        legs.append((binding, reference, options, target_moves, ref_moves, sample_days))
+        if options.method == "beta":
+            sample_days = [d for d in sample_days if target_moves[d].start == ref_moves[d].start]
+        if options.lookback_years == "all":
+            sample_days = [d for d in sample_days if d in common_days]
+        expanding = _expanding_scales(sample_days, ref_moves, target_moves, options)
+        legs.append((binding, reference, options, target_moves, ref_moves, sample_days, expanding))
     for day in days:
         values, divisors, baselines, current_estimates = [], [], [], []
-        for binding, reference, options, target_moves, ref_moves, sample_days in legs:
+        for binding, reference, options, target_moves, ref_moves, sample_days, expanding in legs:
             move = target_moves.get(day)
             cutoff = move.start if move else horizon_target(day, settings.horizon)
-            start = shift_years(cutoff, -options.lookback_years)
+            start = period_start(cutoff, options.lookback_years)
             selected = sample_days[bisect_left(sample_days, start):bisect_right(sample_days, cutoff)]
-            if options.method == "beta":
-                selected = [d for d in selected if target_moves[d].start == ref_moves[d].start]
             scale: float | None = 1.
             limitation: str | None = None
             if options.method != "none":
@@ -110,10 +166,12 @@ def transform_inputs(definition: ResolvedDefinition, rows: dict[str, dict[date, 
                     limitation = "Estimation history is stale at the measured interval's start"
                 else:
                     # Half-life is in weekday sessions, independent of the move Frequency.
-                    if options.method == "beta" and binding.id == reference.id:
+                    if expanding is not None:
+                        scale = expanding[len(selected)]
+                    elif options.method == "beta" and binding.id == reference.id:
                         scale = 1. if any(ref_moves[d].value != ref_moves[selected[0]].value for d in selected) else None
                     else:
-                        ages = [float((cutoff-d).days // 7 * 5 + sum((d.weekday()+i) % 7 < 5 for i in range(1, (cutoff-d).days % 7 + 1))) for d in selected] if options.method == "volatility" and options.weighting == "exponential" else [0.] * len(selected)
+                        ages = [float(_session_distance(d, cutoff)) for d in selected] if options.method == "volatility" and options.weighting == "exponential" else [0.] * len(selected)
                         scale = estimate([ref_moves[d].value for d in selected],
                             [target_moves[d].value for d in selected] if options.method == "beta" else [], ages, options)
                     if scale is None:

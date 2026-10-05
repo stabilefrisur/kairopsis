@@ -3,16 +3,21 @@ from bisect import bisect_right
 from datetime import date, datetime
 from math import fsum, isfinite
 from typing import cast
-from .frequencies import expected_session, horizon_target, previous_session, shift_years
+from .frequencies import expected_session, horizon_target, previous_session
+from .periods import Period, period_start, period_label
 from .risk import transform_inputs
+from .standardization import standardize
 from .models import AdjustmentEstimate, DataRequest, DataResponse, Evaluation, Fit, MetricPoint, ResolvedDefinition
 
 
-def condition_rules(definition: ResolvedDefinition, unit: str, percentile: float | None, change: float | None, eligible: bool) -> tuple[tuple[str, ...], tuple[str, ...]]:
+def condition_rules(definition: ResolvedDefinition, unit: str, percentile: float | None, change: float | None, eligible: bool, current_value: float | None = None) -> tuple[tuple[str, ...], tuple[str, ...]]:
     reasons, keys = [], []
     settings = definition.settings
-    if eligible and percentile is not None and (percentile >= settings.upper_percentile or percentile <= 100 - settings.upper_percentile):
-        reasons.append(f"Historical standing {percentile:.1f}th percentile / {settings.history_years}y")
+    if eligible and settings.standardization == "zscore" and current_value is not None and abs(current_value) >= settings.zscore_threshold:
+        reasons.append(f"Z-score {current_value:+.2f} meets configured ±{settings.zscore_threshold:g} threshold / {period_label(settings.history_years)}")
+        keys.append("upper" if current_value > 0 else "lower")
+    if eligible and settings.standardization == "none" and percentile is not None and (percentile >= settings.upper_percentile or percentile <= 100 - settings.upper_percentile):
+        reasons.append(f"Historical standing {percentile:.1f}th percentile / {period_label(settings.history_years)}")
         keys.append("upper" if percentile >= settings.upper_percentile else "lower")
     if eligible and change is not None and settings.move_threshold is not None and abs(change) >= settings.move_threshold:
         reasons.append(f"{change:+.2f} {unit} / {settings.horizon} meets configured {settings.move_threshold:g} {unit} rule")
@@ -20,10 +25,10 @@ def condition_rules(definition: ResolvedDefinition, unit: str, percentile: float
     return tuple(reasons), tuple(keys)
 
 
-def regression(points: list[MetricPoint], current: date, definition: ResolvedDefinition, years: int) -> Fit | None:
-    start = shift_years(current, -years)
+def regression(points: list[MetricPoint], current: date, definition: ResolvedDefinition, years: Period) -> Fit | None:
+    start = period_start(current, years)
     sample = [p for p in points if p.eligible and start <= p.date < current]
-    if len(sample) < definition.settings.minimum_fit or (sample[0].date - start).days > 7 or (previous_session(current) - sample[-1].date).days > 7:
+    if len(sample) < definition.settings.minimum_fit or (years != "all" and (sample[0].date - start).days > 7) or (previous_session(current) - sample[-1].date).days > 7:
         return None
     xs = [cast(float, (p.transformed_inputs or p.inputs)[1]) for p in sample]
     ys = [cast(float, (p.transformed_inputs or p.inputs)[0]) for p in sample]
@@ -116,6 +121,12 @@ def evaluate(definition: ResolvedDefinition, data: DataResponse, request: DataRe
         points = [p.model_copy(update={"value": (cast(float, (p.transformed_inputs or p.inputs)[0]) - fit.intercept - fit.slope * cast(float, (p.transformed_inputs or p.inputs)[1]))
             if fit and all(v is not None for v in (p.transformed_inputs or p.inputs)) else None,
             "eligible": p.eligible and fit is not None}) for p in points]
+    standardization_estimate = None
+    if definition.settings.standardization == "zscore":
+        points, standardization_estimate = standardize(points, definition.settings, unit)
+        unit = "σ"
+        if standardization_estimate.limitation:
+            limits.append(standardization_estimate.limitation)
     current = points[-1] if points else None
     for binding, estimate in zip(definition.inputs, estimates):
         if estimate.limitation:
@@ -134,7 +145,7 @@ def evaluate(definition: ResolvedDefinition, data: DataResponse, request: DataRe
         limits.append("Upstream retrieval freshness unverified; excluded from findings")
     if current and current.value is not None:
         value = current.value
-        history = [p.value for p in points if p.eligible and p.value is not None and shift_years(current.date, -definition.settings.history_years) <= p.date < current.date]
+        history = [p.value for p in points if p.eligible and p.value is not None and period_start(current.date, definition.settings.history_years) <= p.date < current.date]
         if len(history) >= definition.settings.minimum_history:
             percentile = 100 * (sum(v < value for v in history) + .5 * sum(v == value for v in history)) / len(history)
         else:
@@ -151,9 +162,9 @@ def evaluate(definition: ResolvedDefinition, data: DataResponse, request: DataRe
             change_start = valid[idx].date
         else:
             limits.append(f"{definition.settings.horizon.title()} change unavailable: missing eligible baseline")
-    reasons, keys = condition_rules(definition, unit, percentile, change, eligible)
+    reasons, keys = condition_rules(definition, unit, percentile, change, eligible, current.value if current else None)
     return Evaluation(definition=definition, request=request, data=data, evaluated_at=now, points=tuple(points), unit=unit,
-        input_units=input_units, adjustment_estimates=estimates,
+        input_units=input_units, adjustment_estimates=estimates, standardization_estimate=standardization_estimate,
         current=current.value if current else None, observation_date=current.date if current else None,
         input_dates=current.observed_on if current else (), percentile=percentile, change=change, change_start=change_start,
         eligible=eligible, limitations=tuple(limits), fit=fit, sensitivity=tuple(sensitivity), reasons=reasons, conditions=reasons, condition_keys=keys,

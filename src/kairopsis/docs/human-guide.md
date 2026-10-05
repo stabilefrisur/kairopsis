@@ -31,7 +31,18 @@ Unavailable values and data limitations are shown explicitly.
 
 Choose the display period and reference history independently. For a closer
 comparison, change the measurement or use the **Risk adjustment** panel.
-These choices are exploratory; editing an Analysis in Library saves its defaults.
+Reference and estimation periods include 3 and 6 months, longer year windows,
+and **Longest available history**. The longest option uses common eligible
+history for pairs. Short windows still require enough observations. These choices
+are exploratory; editing an Analysis in Library saves its defaults.
+
+Choose **Standardization → Z-score** for standalone changes, percentage changes,
+pair differences or regression residuals. The score shows how many standard
+deviations the result sits above or below its reference mean. Reference history
+sets that mean and sample standard deviation; the latest observation is excluded.
+The chart uses the same current reference throughout. **Z-score threshold (±)**
+controls the extreme-value flag and dashed chart lines; the default is ±2.
+A zero-variance or insufficient reference produces an unavailable score.
 
 Click a legend label to hide or show a series; double-click to isolate it.
 The chart scales remain fixed while toggling, so the visual comparison stays

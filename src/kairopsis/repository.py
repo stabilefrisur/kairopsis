@@ -187,14 +187,16 @@ class Repository:
         data = io.StringIO()
         writer = csv.writer(data)
         measured = evaluation.definition.settings.measure != "level"
+        standardized = evaluation.standardization_estimate is not None
         extra_headers = [label for i in range(len(evaluation.definition.inputs)) for label in
             (f"measured_input_{i+1}", f"measured_unit_{i+1}", f"risk_scale_{i+1}", f"change_start_{i+1}")] if measured else []
         writer.writerow(["date", "value", "unit", *[f"input_{i+1}" for i in range(len(evaluation.definition.inputs))],
-                         *[f"observed_on_{i+1}" for i in range(len(evaluation.definition.inputs))], *extra_headers])
+                         *[f"observed_on_{i+1}" for i in range(len(evaluation.definition.inputs))], *extra_headers, *(["unstandardized_value", "unstandardized_unit"] if standardized else [])])
         for p in evaluation.points:
             extra = [value for i in range(len(p.inputs)) for value in
                 (p.transformed_inputs[i], evaluation.input_units[i], p.risk_scales[i], p.period_start[i])] if measured else []
-            writer.writerow([p.date, p.value, evaluation.unit, *p.inputs, *p.observed_on, *extra])
+            writer.writerow([p.date, p.value, evaluation.unit, *p.inputs, *p.observed_on, *extra,
+                *([p.unstandardized_value, evaluation.standardization_estimate.unit] if evaluation.standardization_estimate else [])])
         atomic_bytes(folder / "data.csv", data.getvalue().encode())
         atomic_json(folder / "snapshot.json", snapshot.model_dump(mode="json"))
         return snapshot

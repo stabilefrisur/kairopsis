@@ -5,6 +5,8 @@ from typing import Annotated, Literal
 from uuid import uuid4
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, model_validator
 
+from .periods import Period
+
 
 def identity() -> str:
     return uuid4().hex
@@ -97,7 +99,7 @@ class DataResponse(Record):
 class RiskAdjustment(Record):
     method: Literal["none", "volatility", "beta", "var", "es"] = "none"
     reference_id: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]{1,128}$")
-    lookback_years: int = Field(default=3, ge=1, le=10)
+    lookback_years: Period = 3
     weighting: Literal["equal", "exponential"] = "equal"
     half_life: float = Field(default=63, gt=0, le=2520)
     confidence: float = Field(default=95, gt=50, lt=100)
@@ -107,10 +109,12 @@ class RiskAdjustment(Record):
 
 
 class AnalysisSettings(Record):
-    history_years: int = Field(default=3, ge=1, le=10)
-    fit_years: int = Field(default=3, ge=1, le=10)
+    history_years: Period = 3
+    fit_years: Period = 3
     horizon: Literal["day", "week", "month"] = "day"
     measure: Literal["level", "change", "return"] = "level"
+    standardization: Literal["none", "zscore"] = "none"
+    zscore_threshold: float = Field(default=2, gt=0)
     risk_adjustment: RiskAdjustment = Field(default_factory=RiskAdjustment)
     risk_overrides: tuple[RiskAdjustment, ...] = Field(default=(), max_length=2)
     minimum_history: int = Field(default=60, ge=3)
@@ -125,6 +129,11 @@ class AnalysisSettings(Record):
         if self.measure == "level" and any(r.method != "none" for r in self.adjustments(2)):
             raise ValueError("Risk adjustment requires changes or percentage returns")
         return self
+
+    def check_standardization(self, calculation: str) -> None:
+        if self.standardization == "zscore" and not (calculation in ("difference", "regression") or
+                calculation == "level" and self.measure in ("change", "return")):
+            raise ValueError("Z-scores require standalone changes, pair differences or regression residuals")
 
     def adjustments(self, count: int) -> tuple[RiskAdjustment, ...]:
         return self.risk_overrides or (self.risk_adjustment,) * count
@@ -141,6 +150,7 @@ class AnalysisDefinition(Record):
 
     @model_validator(mode="after")
     def input_count(self):
+        self.settings.check_standardization(self.calculation)
         if len(self.series_ids) != (1 if self.calculation == "level" else 2):
             raise ValueError("Standalone needs one input; Pair needs two ordered inputs")
         if len(set(self.series_ids)) != len(self.series_ids):
@@ -161,6 +171,7 @@ class ResolvedDefinition(Record):
 
     @model_validator(mode="after")
     def override_count(self):
+        self.settings.check_standardization(self.calculation)
         if self.settings.risk_overrides and len(self.settings.risk_overrides) != len(self.inputs):
             raise ValueError("Risk overrides must match the input series count")
         return self
@@ -172,6 +183,7 @@ class MetricPoint(Record):
     inputs: tuple[float | None, ...]
     observed_on: tuple[Date | None, ...]
     eligible: bool
+    unstandardized_value: float | None = None
     transformed_inputs: tuple[float | None, ...] = ()
     risk_scales: tuple[float | None, ...] = ()
     period_start: tuple[Date | None, ...] = ()
@@ -197,6 +209,16 @@ class Fit(Record):
     x_max: float
 
 
+class StandardizationEstimate(Record):
+    mean: float | None = None
+    standard_deviation: float | None = None
+    sample_count: int = 0
+    start: Date | None = None
+    end: Date | None = None
+    unit: str
+    limitation: str | None = None
+
+
 class Evaluation(Record):
     id: str = Field(default_factory=identity)
     definition: ResolvedDefinition
@@ -207,6 +229,7 @@ class Evaluation(Record):
     unit: str
     input_units: tuple[str, ...] = ()
     adjustment_estimates: tuple[AdjustmentEstimate, ...] = ()
+    standardization_estimate: StandardizationEstimate | None = None
     current: float | None
     observation_date: Date | None
     input_dates: tuple[Date | None, ...]

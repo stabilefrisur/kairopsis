@@ -1,3 +1,5 @@
+const periodText = value => value === "all" ? "Longest available history" : value < 1 ? `${Math.round(value * 12)} months` : `${value} ${value === 1 ? "year" : "years"}`;
+const periodValue = value => value === "all" ? "all" : Number(value);
 /* Evidence rendering and image capture share the same resolved evaluation. */
 const esc = (value) =>
   String(value ?? "").replace(
@@ -78,6 +80,8 @@ function chartFootnote(e, display = null) {
     lines.push(
       `Regression fit: ${dateText(e.fit.start)}–${dateText(e.fit.end)}`,
     );
+  if (settings.standardization === "zscore" && display?.view !== "underlying" && display?.view !== "changes" && display?.view !== "scatter")
+    lines.push(`Z-score · ${periodText(settings.history_years)} prior reference`);
   return lines;
 }
 function detailList(items) {
@@ -120,11 +124,17 @@ function evidenceDetails(e, originalImage = "", display = null) {
         ["Fitted period", `${dateText(e.fit.start)}–${dateText(e.fit.end)}`],
       ])}`
     : "";
+  const z = e.standardization_estimate;
+  const standardizationDetails = z ? `<h3 class="disclosure-heading">Z-score reference</h3>${detailList([
+    ["Mean", number(z.mean, z.unit)], ["Sample standard deviation", number(z.standard_deviation, z.unit)],
+    ["Observations used", z.sample_count], ["Reference period", `${dateText(z.start)}–${dateText(z.end)}`],
+    ["Chart baseline", "Current reference applied throughout; latest observation excluded"],
+  ])}` : "";
   const rows = e.points
     .slice(-30)
     .map(
       (p) =>
-        `<tr><td>${dateText(p.date)}</td><td>${number(p.value)}</td>${p.inputs.map((v, i) => `<td>${number(v)}</td><td>${dateText(p.observed_on[i])}</td>`).join("")}</tr>`,
+        `<tr><td>${dateText(p.date)}</td><td>${number(p.value)}</td>${z ? `<td>${number(p.unstandardized_value)}</td>` : ""}${p.inputs.map((v, i) => `<td>${number(v)}</td><td>${dateText(p.observed_on[i])}</td>`).join("")}</tr>`,
     )
     .join("");
   return `<div class="evidence-details"><p class="meta chart-footnote">${chartFootnote(e, display).map(esc).join("<br>")}</p><details><summary>Source and chart details</summary>${sourceDetails}<h3 class="disclosure-heading">Chart settings</h3>${detailList(
@@ -132,7 +142,7 @@ function evidenceDetails(e, originalImage = "", display = null) {
       [
         "Calculation",
         {
-          level: "Series level",
+          level: "Standalone",
           difference: "First series minus second series",
           ratio: "First series divided by second series",
           regression: "Regression residual",
@@ -152,24 +162,25 @@ function evidenceDetails(e, originalImage = "", display = null) {
             ],
           ]
         : []),
-      ["Reference history", `${settings.history_years} years`],
+      ["Reference history", `${periodText(settings.history_years)}`],
+      ...(settings.standardization === "zscore" ? [["Standardization", "Z-score of completed analysis"], ["Z-score threshold", `±${settings.zscore_threshold}`]] : []),
       ["Frequency", settings.horizon],
       ["Measure", {level: "Level", change: "Change", return: "Percentage change"}[settings.measure || "level"]],
       ...riskDescription(e).map(text => ["Risk adjustment", text]),
       ...(e.adjustment_estimates || []).flatMap((r, i) => {
         const options = settings.risk_overrides?.[i] || settings.risk_adjustment;
-        return options?.method !== "none" ? [["Estimation settings", `${options.lookback_years} years; ${options.method === "volatility" ? options.weighting + (options.weighting === "exponential" ? "; half-life " + options.half_life + " sessions" : "") : ["var", "es"].includes(options.method) ? options.confidence + "% confidence; downside " + options.downside : "intercept OLS"}`], ["Estimated scale", `${r.scale ?? "Unavailable"}; ${r.sample_count} observations; ${dateText(r.start)}–${dateText(r.end)}`]] : [];
+        return options?.method !== "none" ? [["Estimation settings", `${periodText(options.lookback_years)}; ${options.method === "volatility" ? options.weighting + (options.weighting === "exponential" ? "; half-life " + options.half_life + " sessions" : "") : ["var", "es"].includes(options.method) ? options.confidence + "% confidence; downside " + options.downside : "intercept OLS"}`], ["Estimated scale", `${r.scale ?? "Unavailable"}; ${r.sample_count} observations; ${dateText(r.start)}–${dateText(r.end)}`]] : [];
       }),
       ...(e.definition.calculation === "regression"
-        ? [["Fitting window", `${settings.fit_years} years`]]
+        ? [["Fitting window", `${periodText(settings.fit_years)}`]]
         : []),
     ],
-  )}${fitDetails}<h3 class="disclosure-heading">Data and quality</h3>${detailList(
+  )}${fitDetails}${standardizationDetails}<h3 class="disclosure-heading">Data and quality</h3>${detailList(
     [
       ["Retrieved", stamp(e.data.completed_at)],
       ["Evaluated through", dateText(e.request.end)],
     ],
-  )}<p class="meta">${e.data.mode === "mock" ? "Synthetic demo data; no live provider connection. Flag thresholds are illustrative; risk-adjusted monitoring thresholds require calibration." : esc(e.data.series.map((s) => readableQuality(s.provenance)).join(" / "))}</p>${[...e.limitations, ...e.sensitivity].map((x) => `<p class="meta">${esc(readableQuality(x))}</p>`).join("")}<p class="meta">Source observation date means the date the value was observed. It can differ from the date shown on the chart.</p>${originalImage ? `<p class="meta"><a href="${esc(originalImage)}" download="kairopsis-original.png">Download original saved image</a></p>` : ""}<div class="table-region" role="region" aria-label="Underlying observations" tabindex="0"><table><thead><tr><th>Chart date</th><th>Calculated ${esc(e.unit)}</th>${e.definition.inputs.map((s) => `<th>${esc(s.name)} (${esc(s.unit)})</th><th>Source date</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div></details></div>`;
+  )}<p class="meta">${e.data.mode === "mock" ? "Synthetic demo data; no live provider connection. Flag thresholds are illustrative; risk-adjusted monitoring thresholds require calibration." : esc(e.data.series.map((s) => readableQuality(s.provenance)).join(" / "))}</p>${[...e.limitations, ...e.sensitivity].map((x) => `<p class="meta">${esc(readableQuality(x))}</p>`).join("")}<p class="meta">Source observation date means the date the value was observed. It can differ from the date shown on the chart.</p>${originalImage ? `<p class="meta"><a href="${esc(originalImage)}" download="kairopsis-original.png">Download original saved image</a></p>` : ""}<div class="table-region" role="region" aria-label="Underlying observations" tabindex="0"><table><thead><tr><th>Chart date</th><th>Calculated ${esc(e.unit)}</th>${z ? `<th>Before standardization (${esc(z.unit)})</th>` : ""}${e.definition.inputs.map((s) => `<th>${esc(s.name)} (${esc(s.unit)})</th><th>Source date</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div></details></div>`;
 }
 function displayedPoints(e, display) {
   const last = e.observation_date || e.request.end,
@@ -182,6 +193,7 @@ async function copyData(element) {
   const headers = [
     "Chart date",
     `Calculated ${e.unit}`,
+    ...(e.standardization_estimate ? [`Before standardization (${e.standardization_estimate.unit})`] : []),
     ...e.definition.inputs.flatMap((s) => [
       `${s.name} (${s.unit})`,
       "Source date",
@@ -191,6 +203,7 @@ async function copyData(element) {
   const rows = displayedPoints(e, display).map((p) => [
     p.date,
     p.value,
+    ...(e.standardization_estimate ? [p.unstandardized_value] : []),
     ...p.inputs.flatMap((value, i) => [value, p.observed_on[i]]),
     ...(e.definition.settings.measure && e.definition.settings.measure !== "level" ? e.definition.inputs.flatMap((s, i) => [p.transformed_inputs[i], p.risk_scales[i], p.period_start[i]]) : []),
   ]);
@@ -336,6 +349,10 @@ async function plotEvidence(element, e, display, exporting = false) {
         ]
       : [],
   };
+  if (display.view === "analysis" && e.definition.settings.standardization === "zscore") {
+    const threshold = e.definition.settings.zscore_threshold;
+    layout.shapes = [-threshold, threshold].map(value => ({type: "line", xref: "paper", x0: 0, x1: 1, yref: "y", y0: value, y1: value, line: {color: "#9180a8", width: 1, dash: "dash"}}));
+  }
   if ((display.view === "underlying" || display.view === "changes" && inputUnits[0] !== inputUnits[1]) && e.definition.inputs.length > 1)
     layout.yaxis2 = {
       title: {

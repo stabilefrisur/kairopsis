@@ -64,6 +64,34 @@ want to set aside.
 Saved evidence keeps the observations and settings used at capture time.
 Catalogue edits and later market moves do not overwrite it.
 
+## Preview and edit Library entries
+
+Open **Library**, then add or edit a Data Series or Analysis. The editor sits
+beside a chart. Choose **Preview** to fetch observations and inspect your
+unsaved settings. Preview does not add entries to the catalogue or save evidence.
+
+The display range defaults to 3 years; choose months, longer year windows or
+**Longest available history**. Reference history, fitting and risk-estimation
+periods control the calculation independently. Switch chart views to inspect
+underlying observations, measured inputs or regression scatter where applicable.
+
+Editing a query, setting or display range marks the previous chart **Outdated**.
+Choose **Preview** again to update it. If retrieval fails, check the reported
+problem and retry; any retained chart still shows its previous settings under
+**Source and chart details**. Demo mode previews only the labelled fixture data.
+
+Within an Analysis, use **Add data series** or **Edit** beside an input to stage
+a Series. **Preview series** inspects that Series; **Apply series** returns it
+to the unsaved Analysis. New Series can also serve as risk references. Choose
+the reference and adjustment method in the Analysis editor.
+
+**Save analysis and … series** saves the Analysis and its used staged Series
+together. The summary names the updates and other Analyses whose future
+evaluations change. Unused drafts are discarded. **Cancel** discards the draft;
+previewing or applying a Series does not save it. Saving defaults does not
+require a successful preview. Open the saved Analysis to retain chart evidence
+in an Idea.
+
 ## Revisit your view
 
 Open the Idea through **Ideas**. Use **Saved evidence** to review the captured

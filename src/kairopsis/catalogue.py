@@ -7,6 +7,10 @@ from .metapyle_catalogue import publish_catalogue
 from .repository import atomic_bytes
 
 
+class CatalogueConflict(ValueError):
+    pass
+
+
 class Catalogue:
     def __init__(self, repository: Repository):
         self.repository = repository
@@ -46,12 +50,59 @@ class Catalogue:
         series = {s["id"]: SeriesBinding.model_validate(s) for s in records["series"]}
         if settings is not None:
             analysis = AnalysisDefinition.model_validate({**analysis.model_dump(), "settings": settings})
-        reference_ids = risk_references(analysis)
-        if any(i not in series for i in reference_ids):
-            raise ValueError("Choose an existing risk reference series")
-        return ResolvedDefinition(id=analysis.id, revision=analysis.revision, name=analysis.name,
-            calculation=analysis.calculation, settings=analysis.settings, inputs=tuple(series[i] for i in analysis.series_ids),
-            references=tuple(series[i] for i in sorted(reference_ids - set(analysis.series_ids))))
+        return resolve_definition(analysis, series)
+
+    def resolve_draft(self, analysis: AnalysisDefinition, drafts: tuple[SeriesBinding, ...]) -> ResolvedDefinition:
+        series = {s["id"]: SeriesBinding.model_validate(s) for s in self.records()["series"]}
+        if len({s.id for s in drafts}) != len(drafts):
+            raise ValueError("Stage each data series only once")
+        series.update({s.id: s for s in drafts})
+        return resolve_definition(analysis, series)
+
+    def save_bundle(self, analysis: AnalysisDefinition, drafts: tuple[SeriesBinding, ...],
+                    base_revisions: dict[str, dict[str, int]] | None = None) -> dict:
+        with self.repository.transaction():
+            records = self.records()
+            if len({s.id for s in drafts}) != len(drafts):
+                raise ValueError("Stage each data series only once")
+            retained = set(analysis.series_ids) | risk_references(analysis)
+            for kind, expected in (base_revisions or {}).items():
+                if kind not in ("series", "analyses"):
+                    raise ValueError("Unknown catalogue record kind")
+                current = {r["id"]: r["revision"] for r in records[kind]}
+                for key, revision in expected.items():
+                    if (kind == "series" and key in retained or kind == "analyses" and key == analysis.id) and current.get(key) != revision:
+                        raise CatalogueConflict("A record changed or was deleted since editing began. Reload the saved entry before saving; your draft has been retained.")
+            saved_series = {s["id"]: s for s in records["series"]}
+            old_analysis = next((a for a in records["analyses"] if a["id"] == analysis.id), None)
+            if old_analysis and old_analysis["revision"] != analysis.revision:
+                raise CatalogueConflict("Analysis changed since editing began. Reload its saved defaults before saving.")
+            changed: dict[str, dict] = {}
+            for draft in drafts:
+                if draft.id not in retained:
+                    continue
+                old = saved_series.get(draft.id)
+                if old and old["revision"] != draft.revision:
+                    raise CatalogueConflict("An input series changed since editing began. Reload it before saving.")
+                value = draft.model_dump(mode="json")
+                if old == value:
+                    continue
+                value["revision"] = old["revision"] + 1 if old else 1
+                changed[draft.id] = value
+            saved_series.update(changed)
+            series = {key: SeriesBinding.model_validate(value) for key, value in saved_series.items()}
+            values = {a["id"]: a for a in records["analyses"]}
+            values[analysis.id] = analysis.model_dump(mode="json")
+            for key, value in values.items():
+                definition = AnalysisDefinition.model_validate(value)
+                affected = key == analysis.id or bool(set(changed) & (set(definition.series_ids) | risk_references(definition)))
+                if affected:
+                    resolve_definition(definition, series)
+                    old = next((a for a in records["analyses"] if a["id"] == key), None)
+                    value["revision"] = old["revision"] + 1 if old else 1
+            records = {"series": list(saved_series.values()), "analyses": list(values.values())}
+            self._commit(records)
+            return {"analysis": values[analysis.id], "series": list(changed.values())}
 
     def save(self, kind: str, record: SeriesBinding | AnalysisDefinition) -> dict:
         with self.repository.transaction():
@@ -61,15 +112,7 @@ class Catalogue:
             value["revision"] = old["revision"] + 1 if old else 1
             if kind == "analyses":
                 definition = AnalysisDefinition.model_validate(value)
-                series = {s["id"]: s for s in records["series"]}
-                if any(i not in series for i in definition.series_ids):
-                    raise ValueError("Choose existing input series")
-                if any(i not in series for i in risk_references(definition)):
-                    raise ValueError("Choose an existing risk reference series")
-                units = [adjusted_unit(series[i]["unit"], series[r.reference_id or i]["unit"] if r.method != "none" else series[i]["unit"],
-                    r.method, definition.settings.measure) for i, r in zip(definition.series_ids, definition.settings.adjustments(len(definition.series_ids)))]
-                if definition.calculation == "difference" and len(set(units)) != 1:
-                    raise ValueError("Difference requires matching units")
+                resolve_definition(definition, {s["id"]: SeriesBinding.model_validate(s) for s in records["series"]})
             elif old:
                 records["analyses"] = [{**a, "revision": a["revision"] + 1} if record.id in set(a["series_ids"]) | risk_references(AnalysisDefinition.model_validate(a)) else a for a in records["analyses"]]
             records[kind] = [value if r["id"] == record.id else r for r in records[kind]] if old else [*records[kind], value]
@@ -102,3 +145,18 @@ class Catalogue:
 def risk_references(analysis: AnalysisDefinition) -> set[str]:
     return {r.reference_id for r in analysis.settings.adjustments(len(analysis.series_ids))
             if r.method != "none" and r.reference_id is not None}
+
+
+def resolve_definition(analysis: AnalysisDefinition, series: dict[str, SeriesBinding]) -> ResolvedDefinition:
+    if any(i not in series for i in analysis.series_ids):
+        raise ValueError("Choose existing or staged input series")
+    reference_ids = risk_references(analysis)
+    if any(i not in series for i in reference_ids):
+        raise ValueError("Choose existing or staged risk reference series")
+    units = [adjusted_unit(series[i].unit, series[r.reference_id or i].unit if r.method != "none" else series[i].unit,
+        r.method, analysis.settings.measure) for i, r in zip(analysis.series_ids, analysis.settings.adjustments(len(analysis.series_ids)))]
+    if analysis.calculation == "difference" and len(set(units)) != 1:
+        raise ValueError("Difference requires matching units")
+    return ResolvedDefinition(id=analysis.id, revision=analysis.revision, name=analysis.name,
+        calculation=analysis.calculation, settings=analysis.settings, inputs=tuple(series[i] for i in analysis.series_ids),
+        references=tuple(series[i] for i in sorted(reference_ids - set(analysis.series_ids))))

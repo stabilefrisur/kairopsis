@@ -6,11 +6,11 @@ from typing import Protocol
 from zoneinfo import ZoneInfo
 
 from .analytics import evaluate
-from .periods import retrieval_start
+from .periods import Period, period_start, retrieval_start
 from .catalogue import Catalogue
 from .evaluation_comparison import compare
 from .fixtures import MOCK_AS_OF
-from .models import AnalysisSettings, DataRequest, DataResponse, Evaluation, ResolvedDefinition, identity
+from .models import AnalysisDefinition, AnalysisSettings, DataRequest, DataResponse, Evaluation, ResolvedDefinition, SeriesBinding, identity
 from .repository import Repository
 
 
@@ -20,25 +20,40 @@ class MarketData(Protocol):
 
 class Research:
     def __init__(self, repository: Repository, catalogue: Catalogue, provider: MarketData,
-                 clock: Callable[[], datetime], timezone: str):
+                 clock: Callable[[], datetime], timezone: str, preview_provider: MarketData | None = None):
         self.repository, self.catalogue, self.provider, self.clock = repository, catalogue, provider, clock
+        self.preview_provider = preview_provider or provider
         self.timezone = ZoneInfo(timezone)
         self.refresh_lock = Lock()
         self.running = False
 
-    def evaluate(self, definition: ResolvedDefinition) -> Evaluation:
+    def preview_series(self, binding: SeriesBinding, period: Period) -> dict:
         end = MOCK_AS_OF if self.repository.mode == "mock" else self.clock().astimezone(self.timezone).date()
-        start = retrieval_start(end, (definition.settings.history_years, definition.settings.fit_years, 5),
+        request = DataRequest(bindings=(binding,), start=period_start(end, period), end=end)
+        data = self.preview_provider.fetch(request)
+        if data.mode != self.repository.mode:
+            raise ValueError("Provider mode does not match workspace")
+        return {"request": request, "data": data}
+
+    def evaluate(self, definition: ResolvedDefinition) -> Evaluation:
+        result = self.compute(definition, self.provider)
+        self.repository.save_evaluation(result)
+        return result
+
+    def compute(self, definition: ResolvedDefinition, provider: MarketData, display_period: Period = 5) -> Evaluation:
+        end = MOCK_AS_OF if self.repository.mode == "mock" else self.clock().astimezone(self.timezone).date()
+        start = retrieval_start(end, (definition.settings.history_years, definition.settings.fit_years, 5, display_period),
             (r.lookback_years for r in definition.settings.adjustments(len(definition.inputs)) if r.method != "none"),
             definition.settings.measure != "level")
         request = DataRequest(bindings=(*definition.inputs, *definition.references),
             start=start, end=end)
-        data = self.provider.fetch(request)
+        data = provider.fetch(request)
         if data.mode != self.repository.mode:
             raise ValueError("Provider mode does not match workspace")
-        result = evaluate(definition, data, request, self.clock())
-        self.repository.save_evaluation(result)
-        return result
+        return evaluate(definition, data, request, self.clock())
+
+    def preview_analysis(self, analysis: AnalysisDefinition, drafts: tuple[SeriesBinding, ...], period: Period) -> Evaluation:
+        return self.compute(self.catalogue.resolve_draft(analysis, drafts), self.preview_provider, period)
 
     def preview(self, key: str, settings: dict) -> Evaluation:
         definition = self.catalogue.resolve(key)

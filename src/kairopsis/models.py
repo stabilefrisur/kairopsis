@@ -249,7 +249,7 @@ class Evaluation(Record):
 
 
 class DisplaySettings(Record):
-    years: int = Field(default=3, ge=1, le=10)
+    years: Period = 3
     view: Literal["analysis", "underlying", "scatter", "changes"] = "analysis"
     hidden_traces: tuple[Annotated[int, Field(ge=0, le=1)], ...] = Field(default=(), max_length=2)
     axis_ranges: dict[Literal["xaxis", "yaxis", "yaxis2"],

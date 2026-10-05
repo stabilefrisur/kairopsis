@@ -143,7 +143,7 @@ function riskOptions(settings, count) {
 function riskFields(risk, index) {
   const select = (label, name, values) => `<label>${label}<select data-risk="${name}" data-leg="${index}">${values.map(([v, text]) => `<option value="${v}" ${String(risk[name] ?? "") === String(v) ? "selected" : ""}>${esc(text)}</option>`).join("")}</select></label>`;
   const numeric = (label, name, min, max) => `<label>${label}<input type="number" data-risk="${name}" data-leg="${index}" value="${risk[name]}" min="${min}" max="${max}" step="any" required></label>`;
-  return `<div class="risk-fields">${select("Reference series", "reference_id", [["", index === "shared" ? "Each series itself" : "This series itself"], ...state.catalogue.series.map(s => [s.id, s.name])])}${select("Adjustment method", "method", Object.entries(riskMethodNames))}${risk.method !== "none" ? `<div class="risk-calibration">${select("Estimation period", "lookback_years", periodChoices(risk.lookback_years).map(n => [n, periodText(n)]))}${risk.method === "volatility" ? select("Weighting", "weighting", [["equal", "Equal"], ["exponential", "Exponential"]]) + (risk.weighting === "exponential" ? numeric("Half-life (sessions)", "half_life", 1, 2520) : "") : ""}${["var", "es"].includes(risk.method) ? numeric("Confidence (%)", "confidence", 50.01, 99.99) + select("Downside", "downside", [["increase", "Increasing values"], ["decrease", "Decreasing values"]]) : ""}</div>` : ""}</div>`;
+  return `<div class="risk-fields">${select("Reference series", "reference_id", [["", index === "shared" ? "Each series itself" : "This series itself"], ...librarySeriesChoices().map(s => [s.id, s.name])])}${select("Adjustment method", "method", Object.entries(riskMethodNames))}${risk.method !== "none" ? `<div class="risk-calibration">${select("Estimation period", "lookback_years", periodChoices(risk.lookback_years).map(n => [n, periodText(n)]))}${risk.method === "volatility" ? select("Weighting", "weighting", [["equal", "Equal"], ["exponential", "Exponential"]]) + (risk.weighting === "exponential" ? numeric("Half-life (sessions)", "half_life", 1, 2520) : "") : ""}${["var", "es"].includes(risk.method) ? numeric("Confidence (%)", "confidence", 50.01, 99.99) + select("Downside", "downside", [["increase", "Increasing values"], ["decrease", "Decreasing values"]]) : ""}</div>` : ""}</div>`;
 }
 function riskEditor(settings, inputs, estimates = []) {
   const customized = !!settings.risk_overrides?.length;
@@ -377,10 +377,11 @@ async function library() {
       state.catalogue.analyses.find((a) => a.id === edit),
     );
   try { state.exploratory = JSON.parse(sessionStorage.getItem("exploratory-" + edit)); } catch { state.exploratory = null; }
+  resetLibraryPreview();
   renderLibrary();
 }
 function seriesOptions(selected) {
-  return state.catalogue.series
+  return librarySeriesChoices()
     .map(
       (s) =>
         `<option value="${s.id}" ${s.id === selected ? "selected" : ""}>${esc(s.name)} · ${esc(s.unit)}</option>`,
@@ -390,6 +391,8 @@ function seriesOptions(selected) {
 function newDraft(kind) {
   return kind === "series"
     ? {
+        id: crypto.randomUUID().replaceAll("-", ""),
+        revision: 1,
         name: "",
         source: "bloomberg",
         instrument: "",
@@ -401,6 +404,8 @@ function newDraft(kind) {
         currency: "USD",
       }
     : {
+        id: crypto.randomUUID().replaceAll("-", ""),
+        revision: 1,
         name: "",
         calculation: "level",
         series_ids: [state.catalogue.series[0]?.id],
@@ -421,28 +426,7 @@ function readLibraryDraft() {
   if (!f) return;
   const data = Object.fromEntries(new FormData(f));
   if (state.libraryTab === "series") {
-    const provider = data.provider || state.draft.source;
-    const source = provider === "custom" ? data.custom_source : provider;
-    const legacy = !["bloomberg", "macrobond", "localfile", "custom"].includes(provider);
-    let params;
-    try { params = JSON.parse(data.query_params || "{}"); }
-    catch { throw Error("Query parameters must be a JSON object."); }
-    if (!params || Array.isArray(params) || typeof params !== "object") throw Error("Query parameters must be a JSON object.");
-    const currency = data.currency?.trim() || "Not applicable";
-    state.draft = {
-      ...state.draft,
-      name: data.name,
-      source,
-      instrument: data.instrument,
-      field: ["macrobond", "localfile"].includes(source) ? null : data.field?.trim() || null,
-      unit: data.unit,
-      currency,
-      catalog_name: legacy ? null : data.catalog_name?.trim() || state.draft.catalog_name ||
-        (data.name.trim() ? data.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 128) || "series_" + crypto.randomUUID().replaceAll("-", "") : ""),
-      path: data.path?.trim() || null,
-      params,
-      description: data.description?.trim() || null,
-    };
+    state.draft = readSeriesDraft(f, state.draft);
   } else
     state.draft = {
       ...state.draft,
@@ -503,21 +487,23 @@ async function saveMonitoring(control) {
 }
 function renderLibrary() {
   const tab = state.libraryTab;
-  main.innerHTML = `<h1>Library</h1><p class="intro">Data series and defined analyses. Saving here changes future evaluations; older evidence keeps its definition.</p><div class="toolbar">${button("Analyses", "library-tab", 'data-tab="analyses" aria-pressed="' + (tab === "analyses") + '"')}${button("Data series", "library-tab", 'data-tab="series" aria-pressed="' + (tab === "series") + '"')}${button(tab === "series" ? "Add data series" : "Add analysis", "library-new", 'class="primary"')}</div>${state.draft ? libraryEditor() : `<div class="table-region" role="region" aria-label="Library ${tab}" tabindex="0"><table><thead><tr><th>Name</th><th>${tab === "series" ? "Source / symbol" : "Calculation / inputs"}</th><th>${tab === "series" ? "Units / currency" : "Monitoring"}</th><th>Actions</th></tr></thead><tbody>${state.catalogue[tab].map((r) => `<tr><td>${esc(r.name)}</td><td>${tab === "series" ? `${esc(r.source)} / ${esc(r.instrument)}${r.field ? " / " + esc(r.field) : ""}` : `${esc(r.calculation)}<small>${r.series_ids.map((id) => esc(state.catalogue.series.find((s) => s.id === id)?.name)).join(" / ")}</small>`}</td><td>${tab === "series" ? `${esc(r.unit)}<small>${esc(r.currency)}</small>` : monitoringCheckbox(r)}</td><td><div class="library-actions">${button("Edit", "library-edit", `data-id="${r.id}"`)}${button("Delete", "library-delete", `class="quiet" data-id="${r.id}"`)}</div></td></tr>`).join("")}</tbody></table>${state.catalogue[tab].length ? "" : '<p class="empty">No entries. Add a data series, then define an analysis.</p>'}</div>`}`;
+  if (state.draft && document.querySelector("#library-workspace")) {
+    replaceLibraryEditor();
+    return;
+  }
+  main.innerHTML = `<h1>Library</h1><p class="intro">Data series and defined analyses. Saving here changes future evaluations; older evidence keeps its definition.</p><div class="toolbar">${button("Analyses", "library-tab", 'data-tab="analyses" aria-pressed="' + (tab === "analyses") + '"')}${button("Data series", "library-tab", 'data-tab="series" aria-pressed="' + (tab === "series") + '"')}${button(tab === "series" ? "Add data series" : "Add analysis", "library-new", 'class="primary"')}</div>${state.draft ? libraryWorkspace(libraryEditor()) : `<div class="table-region" role="region" aria-label="Library ${tab}" tabindex="0"><table><thead><tr><th>Name</th><th>${tab === "series" ? "Source / symbol" : "Calculation / inputs"}</th><th>${tab === "series" ? "Units / currency" : "Monitoring"}</th><th>Actions</th></tr></thead><tbody>${state.catalogue[tab].map((r) => `<tr><td>${esc(r.name)}</td><td>${tab === "series" ? `${esc(r.source)} / ${esc(r.instrument)}${r.field ? " / " + esc(r.field) : ""}` : `${esc(r.calculation)}<small>${r.series_ids.map((id) => esc(state.catalogue.series.find((s) => s.id === id)?.name)).join(" / ")}</small>`}</td><td>${tab === "series" ? `${esc(r.unit)}<small>${esc(r.currency)}</small>` : monitoringCheckbox(r)}</td><td><div class="library-actions">${button("Edit", "library-edit", `data-id="${r.id}"`)}${button("Delete", "library-delete", `class="quiet" data-id="${r.id}"`)}</div></td></tr>`).join("")}</tbody></table>${state.catalogue[tab].length ? "" : '<p class="empty">No entries. Add a data series, then define an analysis.</p>'}</div>`}`;
 }
-function libraryEditor() {
-  const d = state.draft,
-    series = state.libraryTab === "series",
-    pair = d.calculation !== "level";
+function libraryEditor(d = state.draft, kind = state.libraryTab) {
+  const series = kind === "series", pair = d.calculation !== "level";
   if (series) {
     const providers = [["bloomberg", "Bloomberg"], ["macrobond", "Macrobond"], ["localfile", "Local file"], ["custom", "Other registered source"]];
-    const legacy = !d.catalog_name && !!d.id;
+    const legacy = !d.catalog_name && state.catalogue.series.some(s => s.id === d.id);
     if (legacy && !providers.some(([v]) => v === d.source)) providers.unshift([d.source, d.source]);
     const provider = providers.some(([v]) => v === d.source) ? d.source : "custom";
     const local = provider === "localfile", macro = provider === "macrobond", custom = provider === "custom";
-    return `<section class="paper editor"><h2>${d.id ? "Edit" : "Add"} data series</h2><form id="library-form"><div class="fields">${field("Name", "name", d.name)}<label>Source<select name="provider" aria-label="Source">${providers.map(([v, label]) => `<option value="${esc(v)}" ${provider === v ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label>${custom ? field("Registered source name", "custom_source", d.source === "custom" ? "" : d.source) : ""}${field(local ? "Column name" : macro ? "Series symbol" : "Symbol / ticker", "instrument", d.instrument)}${!local && !macro ? field("Field", "field", d.field, "text", !custom) : ""}${local || custom ? field("File path (absolute)", "path", d.path, "text", local) : ""}${field("Units", "unit", d.unit)}${field("Currency", "currency", d.currency === "Not applicable" ? "" : d.currency, "text", false)}</div><details class="series-options"><summary>Catalogue name and additional details</summary><div class="fields">${field("Catalogue name (my_name)", "catalog_name", d.catalog_name, "text", false)}${field("Description", "description", d.description, "text", false)}</div>${custom ? `<label>Query parameters (JSON)<textarea name="query_params" spellcheck="false">${esc(JSON.stringify(d.params || {}, null, 2))}</textarea></label>` : `<input type="hidden" name="query_params" value="${esc(JSON.stringify(d.params || {}))}">`}<p class="meta">Catalogue name defaults to the name with underscores.</p></details><p class="meta">${legacy ? "Existing binding. Choose a provider and enter its symbol to move it into the Metapyle catalogue." : "Save writes a Metapyle catalogue entry. Symbols and fields use the provider’s exact identifiers."}${document.body.dataset.mode === "mock" ? " Demo observations remain limited to the existing fixtures." : ""}</p>${actions('<button class="primary" type="submit">Save data series</button>' + button("Cancel", "library-cancel"))}</form></section>`;
+    return `<section class="paper editor"><h2>${state.catalogue.series.some(s => s.id === d.id) ? "Edit" : "Add"} data series</h2><form id="library-form"><div class="fields">${field("Name", "name", d.name)}<label>Source<select name="provider" aria-label="Source">${providers.map(([v, label]) => `<option value="${esc(v)}" ${provider === v ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label>${custom ? field("Registered source name", "custom_source", d.source === "custom" ? "" : d.source) : ""}${field(local ? "Column name" : macro ? "Series symbol" : "Symbol / ticker", "instrument", d.instrument)}${!local && !macro ? field("Field", "field", d.field, "text", !custom) : ""}${local || custom ? field("File path (absolute)", "path", d.path, "text", local) : ""}${field("Units", "unit", d.unit)}${field("Currency", "currency", d.currency === "Not applicable" ? "" : d.currency, "text", false)}</div><details class="series-options"><summary>Catalogue name and additional details</summary><div class="fields">${field("Catalogue name (my_name)", "catalog_name", d.catalog_name, "text", false)}${field("Description", "description", d.description, "text", false)}</div>${custom ? `<label>Query parameters (JSON)<textarea name="query_params" spellcheck="false">${esc(JSON.stringify(d.params || {}, null, 2))}</textarea></label>` : `<input type="hidden" name="query_params" value="${esc(JSON.stringify(d.params || {}))}">`}<p class="meta">Catalogue name defaults to the name with underscores.</p></details><p class="meta">${legacy ? "Existing binding. Choose a provider and enter its symbol to move it into the Metapyle catalogue." : "Save writes a Metapyle catalogue entry. Symbols and fields use the provider’s exact identifiers."}${document.body.dataset.mode === "mock" ? " Demo observations remain limited to the existing fixtures." : ""}</p>${actions('<button class="primary" type="submit">Save data series</button>' + button("Cancel", "library-cancel"))}</form></section>`;
   }
-  const input = (id) => state.catalogue.series.find((s) => s.id === id);
+  const input = (id) => librarySeriesChoices().find((s) => s.id === id);
   const left = input(d.series_ids[0]),
     right = input(d.series_ids[1]);
   const formula =
@@ -526,7 +512,7 @@ function libraryEditor() {
       : d.calculation === "regression"
         ? `${left?.name || "y"} explained by ${right?.name || "x"}`
         : `${left?.name || "A"} ${d.calculation === "ratio" ? "÷" : "−"} ${right?.name || "B"}`;
-  return `<section class="paper editor"><h2>${d.id ? "Edit analysis defaults" : "Add analysis"}</h2><p class="meta">Saved defaults apply when this Analysis opens and during monitoring. Earlier Idea evidence keeps its captured settings.</p>${state.exploratory && d.id === new URLSearchParams(location.search).get("edit") ? button("Use exploratory settings", "use-exploratory") : ""}<form id="library-form"><div class="fields">${field("Name", "name", d.name)}<label>Type / calculation<select name="calculation" id="calculation">${[
+  return `<section class="paper editor"><h2>${state.catalogue.analyses.some(a => a.id === d.id) ? "Edit analysis defaults" : "Add analysis"}</h2><p class="meta">Saved defaults apply when this Analysis opens and during monitoring. Earlier Idea evidence keeps its captured settings.</p>${state.exploratory && d.id === new URLSearchParams(location.search).get("edit") ? button("Use exploratory settings", "use-exploratory") : ""}<form id="library-form"><div class="fields">${field("Name", "name", d.name)}<label>Type / calculation<select name="calculation" id="calculation">${[
     ["level", "Standalone level"],
     ["ratio", "Pair ratio"],
     ["difference", "Pair difference"],
@@ -538,7 +524,7 @@ function libraryEditor() {
     )
     .join(
       "",
-    )}</select></label><label>${pair ? (d.calculation === "regression" ? "Dependent series (y)" : "First input / numerator") : "Data series"}<select name="left" required>${seriesOptions(d.series_ids[0])}</select></label>${pair ? `<label>${d.calculation === "regression" ? "Explanatory series (x)" : "Second input / denominator"}<select name="right" required>${seriesOptions(d.series_ids[1] || state.catalogue.series[1]?.id)}</select></label>` : ""}<label>Reference history<select name="history">${periodChoices(d.settings.history_years).map((n) => `<option value="${n}" ${d.settings.history_years === n ? "selected" : ""}>${periodText(n)}</option>`).join("")}</select></label><label>Fitting window<select name="fit">${periodChoices(d.settings.fit_years).map((n) => `<option value="${n}" ${d.settings.fit_years === n ? "selected" : ""}>${periodText(n)}</option>`).join("")}</select></label><label>Measure<select name="measure">${[["level", "Level"], ["change", "Change"], ["return", "Percentage change"]].map(([v, label]) => `<option value="${v}" ${v === (d.settings.measure || "level") ? "selected" : ""}>${label}</option>`).join("")}</select></label><label>Frequency<select name="horizon">${["day", "week", "month"].map((v) => `<option ${d.settings.horizon === v ? "selected" : ""}>${v}</option>`).join("")}</select></label>${standardizationControls(d, true)}${d.settings.standardization === "zscore" ? "" : field("Upper percentile rule (lower tail symmetric)", "upper", d.settings.upper_percentile, "number")}${field("Move threshold (analysis units, optional)", "move", d.settings.move_threshold, "number", false)}${field("Material further move (analysis units, optional)", "material", d.settings.material_change, "number", false)}</div><h3>Risk adjustment defaults</h3>${riskEditor(d.settings, d.series_ids.map(id => input(id)).filter(Boolean))}${button("Add missing data series", "inline-series", 'class="quiet"')}<p class="formula">${esc(formula)}</p><p class="meta">${[
+    )}</select></label><label>${pair ? (d.calculation === "regression" ? "Dependent series (y)" : "First input / numerator") : "Data series"}<select name="left" required>${seriesOptions(d.series_ids[0])}</select></label>${pair ? `<label>${d.calculation === "regression" ? "Explanatory series (x)" : "Second input / denominator"}<select name="right" required>${seriesOptions(d.series_ids[1] || librarySeriesChoices()[1]?.id)}</select></label>` : ""}<label>Reference history<select name="history">${periodChoices(d.settings.history_years).map((n) => `<option value="${n}" ${d.settings.history_years === n ? "selected" : ""}>${periodText(n)}</option>`).join("")}</select></label><label>Fitting window<select name="fit">${periodChoices(d.settings.fit_years).map((n) => `<option value="${n}" ${d.settings.fit_years === n ? "selected" : ""}>${periodText(n)}</option>`).join("")}</select></label><label>Measure<select name="measure">${[["level", "Level"], ["change", "Change"], ["return", "Percentage change"]].map(([v, label]) => `<option value="${v}" ${v === (d.settings.measure || "level") ? "selected" : ""}>${label}</option>`).join("")}</select></label><label>Frequency<select name="horizon">${["day", "week", "month"].map((v) => `<option ${d.settings.horizon === v ? "selected" : ""}>${v}</option>`).join("")}</select></label>${standardizationControls(d, true)}${d.settings.standardization === "zscore" ? "" : field("Upper percentile rule (lower tail symmetric)", "upper", d.settings.upper_percentile, "number")}${field("Move threshold (analysis units, optional)", "move", d.settings.move_threshold, "number", false)}${field("Material further move (analysis units, optional)", "material", d.settings.material_change, "number", false)}</div><h3>Risk adjustment defaults</h3>${riskEditor(d.settings, d.series_ids.map(id => input(id)).filter(Boolean))}${librarySeriesActions(d)}<p class="formula">${esc(formula)}</p><p class="meta">${[
     left,
     ...(pair ? [right] : []),
   ]
@@ -546,7 +532,7 @@ function libraryEditor() {
     .map((s) => esc(inputLabel(s)))
     .join(
       "<br>",
-    )}</p><label class="monitor"><input name="monitored" type="checkbox" ${d.monitored ? "checked" : ""}> Include in flag monitoring</label><p class="meta">Native-unit thresholds are explicitly configured; risk-adjusted thresholds require separate calibration.</p>${actions(`<button class="primary" type="submit">${d.id ? "Save defaults" : "Save analysis"}</button>` + button("Cancel", "library-cancel"))}</form></section>`;
+    )}</p><label class="monitor"><input name="monitored" type="checkbox" ${d.monitored ? "checked" : ""}> Include in flag monitoring</label><p class="meta">Native-unit thresholds are explicitly configured; risk-adjusted thresholds require separate calibration.</p><div id="library-save-summary"></div>${actions(`<button class="primary" type="submit">${librarySaveLabel(d)}</button>` + button("Cancel", "library-cancel"))}</form></section>`;
 }
 document.addEventListener("change", async (event) => {
   try {
@@ -750,18 +736,8 @@ document.addEventListener("click", async (event) => {
       await api(`/api/library/${state.libraryTab}/${b.dataset.id}`, "DELETE");
       state.catalogue = await api("/api/library");
       renderLibrary();
-    } else if (a === "inline-series") {
-      readLibraryDraft();
-      state.returnDraft = state.draft;
-      state.libraryTab = "series";
-      state.draft = newDraft("series");
-      renderLibrary();
     } else if (a === "library-cancel") {
-      if (state.returnDraft) {
-        state.libraryTab = "analyses";
-        state.draft = state.returnDraft;
-        state.returnDraft = null;
-      } else state.draft = null;
+      state.draft = null;
       renderLibrary();
     }
   } catch (e) {
@@ -788,51 +764,6 @@ document.addEventListener("submit", async (event) => {
         image,
       });
       location.href = "/ideas/" + idea.id;
-    } else if (form.id === "library-form") {
-      readLibraryDraft();
-      let record;
-      if (state.libraryTab === "series") {
-        const d = state.draft;
-        record = Object.fromEntries(
-          [
-            "id",
-            "name",
-            "source",
-            "instrument",
-            "field",
-            "unit",
-            "currency",
-            "basis",
-            "catalog_name",
-            "path",
-            "params",
-            "description",
-          ]
-            .filter((n) => d[n] != null)
-            .map((n) => [n, d[n]]),
-        );
-      } else record = state.draft;
-      const saved = await api(
-        "/api/library/" + state.libraryTab,
-        "POST",
-        record,
-      );
-      state.catalogue = await api("/api/library");
-      if (state.libraryTab === "analyses" && saved.id === new URLSearchParams(location.search).get("edit")) {
-        sessionStorage.removeItem("exploratory-" + saved.id);
-        location.href = "/analyses/" + encodeURIComponent(saved.id);
-        return;
-      }
-      if (state.returnDraft) {
-        state.libraryTab = "analyses";
-        state.draft = state.returnDraft;
-        state.returnDraft = null;
-        if (state.draft.calculation === "level")
-          state.draft.series_ids = [saved.id];
-        else state.draft.series_ids = [state.draft.series_ids[0], saved.id];
-      } else state.draft = null;
-      renderLibrary();
-      notify("Saved. Earlier evidence remains unchanged.");
     } else if (form.dataset.form === "idea-edit") {
       await api(`/api/ideas/${key}`, "PATCH", data);
       await idea();

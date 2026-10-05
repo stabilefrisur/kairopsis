@@ -87,9 +87,8 @@ function chartFootnote(e, display = null) {
 function detailList(items) {
   return `<dl class="chart-detail-list">${items.map(([label, value]) => `<dt>${esc(label)}</dt><dd>${esc(value)}</dd>`).join("")}</dl>`;
 }
-function evidenceDetails(e, originalImage = "", display = null) {
-  const settings = e.definition.settings;
-  const sourceDetails = [...e.definition.inputs, ...(e.definition.references || [])]
+function sourceDetailsHTML(bindings, data, inputDates = []) {
+  return bindings
     .map(
       (s, i) =>
         `<h3 class="disclosure-heading">${esc(s.name)}</h3>${detailList([
@@ -109,10 +108,14 @@ function evidenceDetails(e, originalImage = "", display = null) {
             : []),
           ["Adjustment", adjustmentText(s)],
           ] : []),
-          ["Source observation date", dateText(e.input_dates[i] || e.data.series.find(row => row.binding.id === s.id)?.observations.at(-1)?.observed_on)],
+          ["Source observation date", dateText(inputDates[i] || data.series.find(row => row.binding.id === s.id)?.observations.at(-1)?.observed_on)],
         ])}`,
     )
     .join("");
+}
+function evidenceDetails(e, originalImage = "", display = null) {
+  const settings = e.definition.settings;
+  const sourceDetails = sourceDetailsHTML([...e.definition.inputs, ...(e.definition.references || [])], e.data, e.input_dates);
   const fitDetails = e.fit
     ? `<h3 class="disclosure-heading">Regression fit</h3>${detailList([
         [
@@ -150,7 +153,7 @@ function evidenceDetails(e, originalImage = "", display = null) {
       ],
       ...(display
         ? [
-            ["Displayed period", `${display.years} years`],
+            ["Displayed period", periodText(display.years)],
             [
               "Chart view",
               {
@@ -183,10 +186,16 @@ function evidenceDetails(e, originalImage = "", display = null) {
   )}<p class="meta">${e.data.mode === "mock" ? "Synthetic demo data; no live provider connection. Flag thresholds are illustrative; risk-adjusted monitoring thresholds require calibration." : esc(e.data.series.map((s) => readableQuality(s.provenance)).join(" / "))}</p>${[...e.limitations, ...e.sensitivity].map((x) => `<p class="meta">${esc(readableQuality(x))}</p>`).join("")}<p class="meta">Source observation date means the date the value was observed. It can differ from the date shown on the chart.</p>${originalImage ? `<p class="meta"><a href="${esc(originalImage)}" download="kairopsis-original.png">Download original saved image</a></p>` : ""}<div class="table-region" role="region" aria-label="Underlying observations" tabindex="0"><table><thead><tr><th>Chart date</th><th>Calculated ${esc(e.unit)}</th>${z ? `<th>Before standardization (${esc(z.unit)})</th>` : ""}${e.definition.inputs.map((s) => `<th>${esc(s.name)} (${esc(s.unit)})</th><th>Source date</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div></details></div>`;
 }
 function displayedPoints(e, display) {
-  const last = e.observation_date || e.request.end,
-    start = new Date(last + "T12:00:00Z");
-  start.setUTCFullYear(start.getUTCFullYear() - display.years);
-  return e.points.filter((p) => p.date >= start.toISOString().slice(0, 10));
+  return e.points.filter(p => p.date >= displayStart(e.observation_date || e.request.end, display.years));
+}
+function displayStart(end, period) {
+  if (period === "all") return "1677-09-22";
+  const start = new Date(end + "T12:00:00Z"), day = start.getUTCDate();
+  start.setUTCDate(1);
+  start.setUTCMonth(start.getUTCMonth() - Math.round(period * 12));
+  const lastDay = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0)).getUTCDate();
+  start.setUTCDate(Math.min(day, lastDay));
+  return start.toISOString().slice(0, 10);
 }
 async function copyData(element) {
   const { evaluation: e, display } = element.evidence;
@@ -286,9 +295,28 @@ async function plotEvidence(element, e, display, exporting = false) {
       connectgaps: false,
     });
   const info = chartFootnote(e, display);
-  const layout = {
+  const layout = chartLayout(e.definition.name, xTitle, yTitle, display, info, exporting, e.definition.inputs.length);
+  if (display.view === "analysis" && e.definition.settings.standardization === "zscore") {
+    const threshold = e.definition.settings.zscore_threshold;
+    layout.shapes = [-threshold, threshold].map(value => ({type: "line", xref: "paper", x0: 0, x1: 1, yref: "y", y0: value, y1: value, line: {color: "#9180a8", width: 1, dash: "dash"}}));
+  }
+  if ((display.view === "underlying" || display.view === "changes" && inputUnits[0] !== inputUnits[1]) && e.definition.inputs.length > 1)
+    layout.yaxis2 = {
+      title: {
+        text: `${esc(e.definition.inputs[1].name)} (${esc(display.view === "changes" ? inputUnits[1] : e.definition.inputs[1].unit)})`,
+      },
+      overlaying: "y",
+      side: "right",
+      showgrid: false,
+      automargin: true,
+      fixedrange: true,
+    };
+  await renderPlot(element, traces, layout, display, exporting);
+}
+function chartLayout(name, xTitle, yTitle, display, info, exporting, inputCount) {
+  return {
     title: {
-      text: esc(e.definition.name),
+      text: esc(name),
       font: { size: 20 },
       x: 0.06,
       y: 0.98,
@@ -305,7 +333,7 @@ async function plotEvidence(element, e, display, exporting = false) {
       t: display.view === "analysis" ? 60 : 110,
       l: 80,
       r:
-        ["underlying", "changes"].includes(display.view) && e.definition.inputs.length > 1
+        ["underlying", "changes"].includes(display.view) && inputCount > 1
           ? 110
           : 30,
       b: exporting ? 140 + (info.length - 1) * 20 : 70,
@@ -349,21 +377,8 @@ async function plotEvidence(element, e, display, exporting = false) {
         ]
       : [],
   };
-  if (display.view === "analysis" && e.definition.settings.standardization === "zscore") {
-    const threshold = e.definition.settings.zscore_threshold;
-    layout.shapes = [-threshold, threshold].map(value => ({type: "line", xref: "paper", x0: 0, x1: 1, yref: "y", y0: value, y1: value, line: {color: "#9180a8", width: 1, dash: "dash"}}));
-  }
-  if ((display.view === "underlying" || display.view === "changes" && inputUnits[0] !== inputUnits[1]) && e.definition.inputs.length > 1)
-    layout.yaxis2 = {
-      title: {
-        text: `${esc(e.definition.inputs[1].name)} (${esc(display.view === "changes" ? inputUnits[1] : e.definition.inputs[1].unit)})`,
-      },
-      overlaying: "y",
-      side: "right",
-      showgrid: false,
-      automargin: true,
-      fixedrange: true,
-    };
+}
+async function renderPlot(element, traces, layout, display, exporting = false) {
   element.removeAllListeners?.("plotly_restyle");
   await Plotly.newPlot(element, traces, layout, {
     responsive: true,
@@ -415,6 +430,24 @@ async function chartPNG(element) {
     Plotly.purge(exportPlot);
     exportPlot.remove();
   }
+}
+async function plotSeries(element, preview, display) {
+  const row = preview.data.series[0];
+  const points = row.observations.filter(p => p.date >= displayStart(preview.request.end, display.years));
+  element.evidence = {series: preview, display: structuredClone(display)};
+  const traces = [{x: points.map(p => p.date), y: points.map(p => p.value), type: "scatter", mode: "lines",
+    name: row.binding.name, line: {width: 2, color: "#255cc5"}, connectgaps: false}];
+  await renderPlot(element, traces, chartLayout(row.binding.name, "", row.binding.unit,
+    {...display, view: "analysis"}, [], false, 1), display);
+}
+function seriesPreviewDetails(preview, display) {
+  const data = preview.data, row = data.series[0], binding = row.binding;
+  const points = row.observations.filter(p => p.date >= displayStart(preview.request.end, display.years));
+  const footnote = `${data.mode === "mock" ? "Demo data · " : ""}${binding.source} · ${binding.currency} · ${dateText(row.observations.at(-1)?.observed_on)}`;
+  return `<div class="evidence-details"><p class="meta chart-footnote">${esc(footnote)}</p><details><summary>Source and chart details</summary>${sourceDetailsHTML([binding], data)}${detailList([
+    ["Displayed period", periodText(display.years)], ["Retrieved", stamp(data.completed_at)],
+    ["Requested through", dateText(preview.request.end)], ["Query range", `${dateText(preview.request.start)}–${dateText(preview.request.end)}`],
+  ])}<p class="meta">${esc(readableQuality(row.provenance))}</p>${data.failures.map(f => `<p class="warning">${esc(f.message)}</p>`).join("")}<p class="meta">Source observation dates can differ from chart dates; unknown dates remain unknown.</p><div class="table-region" role="region" aria-label="Underlying observations" tabindex="0"><table><thead><tr><th>Chart date</th><th>${esc(binding.name)} (${esc(binding.unit)})</th><th>Source date</th></tr></thead><tbody>${points.slice(-30).map(p => `<tr><td>${dateText(p.date)}</td><td>${number(p.value)}</td><td>${dateText(p.observed_on)}</td></tr>`).join("")}</tbody></table></div></details></div>`;
 }
 function downloadBlob(blob, name = "kairopsis-chart.png") {
   const a = document.createElement("a");

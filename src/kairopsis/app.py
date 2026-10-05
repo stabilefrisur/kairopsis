@@ -10,13 +10,14 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
-from .catalogue import Catalogue
+from .catalogue import Catalogue, CatalogueConflict
 from .config import Settings
 from .fixtures import MockMarketData
 from .metapyle_adapter import MetapyleMarketData
 from .models import AnalysisDefinition, DisplaySettings, SeriesBinding
+from .periods import Period
 from .repository import Repository
 from .service import MarketData, Research
 
@@ -53,6 +54,31 @@ class MonitoringEdit(BaseModel):
     monitored: bool = Field(strict=True)
 
 
+class SeriesQuery(SeriesBinding):
+    @model_validator(mode="before")
+    @classmethod
+    def omit_catalogue_name(cls, values):
+        # Catalogue naming is a Save concern; raw queries use source identifiers.
+        return {**values, "catalog_name": None} if isinstance(values, dict) else values
+
+
+class SeriesPreviewRequest(BaseModel):
+    series: SeriesQuery
+    period: Period = 3
+
+
+class AnalysisPreviewRequest(BaseModel):
+    analysis: AnalysisDefinition
+    series_drafts: tuple[SeriesQuery, ...] = ()
+    period: Period = 3
+
+
+class AnalysisBundleRequest(BaseModel):
+    analysis: AnalysisDefinition
+    series_drafts: tuple[SeriesBinding, ...] = ()
+    base_revisions: dict[str, dict[str, int]] = Field(default_factory=dict)
+
+
 def create_app(settings: Settings | None = None, market_data: MarketData | None = None,
                clock: Callable[[], datetime] | None = None) -> FastAPI:
     settings = settings or Settings()
@@ -60,7 +86,9 @@ def create_app(settings: Settings | None = None, market_data: MarketData | None 
     repository = Repository(settings.workspace, settings.mode)
     catalogue = Catalogue(repository)
     provider = market_data or (MockMarketData(clock) if settings.mode == "mock" else MetapyleMarketData(settings, clock))
-    research = Research(repository, catalogue, provider, clock, settings.timezone)
+    preview_provider = market_data or (provider if settings.mode == "mock" else MetapyleMarketData(settings, clock, ad_hoc=True,
+        legacy_bindings=lambda: tuple(SeriesBinding.model_validate(s) for s in catalogue.records()["series"] if s.get("catalog_name") is None)))
+    research = Research(repository, catalogue, provider, clock, settings.timezone, preview_provider)
     app = FastAPI(title="Kairopsis", docs_url=None, redoc_url=None)
     app.state.repository, app.state.research = repository, research
     app.state.settings = settings
@@ -81,6 +109,10 @@ def create_app(settings: Settings | None = None, market_data: MarketData | None 
     @app.exception_handler(ValueError)
     async def invalid(request: Request, error: ValueError):
         return JSONResponse(status_code=422, content={"detail": str(error)})
+
+    @app.exception_handler(CatalogueConflict)
+    async def conflict(request: Request, error: CatalogueConflict):
+        return JSONResponse(status_code=409, content={"detail": str(error)})
 
     @app.exception_handler(OSError)
     async def write_failed(request: Request, error: OSError):
@@ -136,6 +168,18 @@ def create_app(settings: Settings | None = None, market_data: MarketData | None 
     @app.post("/api/library/analyses")
     def save_analysis(record: AnalysisDefinition):
         return catalogue.save("analyses", record)
+
+    @app.post("/api/library/series/preview")
+    def preview_series(body: SeriesPreviewRequest):
+        return research.preview_series(body.series, body.period)
+
+    @app.post("/api/library/analyses/preview")
+    def preview_analysis(body: AnalysisPreviewRequest):
+        return research.preview_analysis(body.analysis, body.series_drafts, body.period)
+
+    @app.post("/api/library/analyses/bundle")
+    def save_bundle(body: AnalysisBundleRequest):
+        return catalogue.save_bundle(body.analysis, body.series_drafts, body.base_revisions)
 
     @app.patch("/api/library/analyses/{key}/monitoring")
     def edit_monitoring(key: str, options: MonitoringEdit):

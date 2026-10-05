@@ -76,6 +76,17 @@ class Catalogue:
             self._commit(records)
             return value
 
+    def set_monitoring(self, key: str, monitored: bool) -> dict:
+        with self.repository.transaction():
+            records = self.records()
+            analysis = next((a for a in records["analyses"] if a["id"] == key), None)
+            if analysis is None:
+                raise FileNotFoundError("Analysis not found")
+            # Monitoring membership does not change the evaluated definition.
+            analysis["monitored"] = monitored
+            self.repository.write_json("catalogue", records)
+            return analysis
+
     def delete(self, kind: str, key: str) -> None:
         with self.repository.transaction():
             records = self.records()

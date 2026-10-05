@@ -49,6 +49,10 @@ class NoteEdit(BaseModel):
     text: str = Field(max_length=50000)
 
 
+class MonitoringEdit(BaseModel):
+    monitored: bool = Field(strict=True)
+
+
 def create_app(settings: Settings | None = None, market_data: MarketData | None = None,
                clock: Callable[[], datetime] | None = None) -> FastAPI:
     settings = settings or Settings()
@@ -132,6 +136,10 @@ def create_app(settings: Settings | None = None, market_data: MarketData | None 
     @app.post("/api/library/analyses")
     def save_analysis(record: AnalysisDefinition):
         return catalogue.save("analyses", record)
+
+    @app.patch("/api/library/analyses/{key}/monitoring")
+    def edit_monitoring(key: str, options: MonitoringEdit):
+        return catalogue.set_monitoring(key, options.monitored)
 
     @app.delete("/api/library/{kind}/{key}")
     def delete_catalogue(kind: Literal["series", "analyses"], key: str):

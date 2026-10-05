@@ -449,9 +449,42 @@ function readLibraryDraft() {
 function field(label, name, value, type = "text", required = true) {
   return `<label>${label}<input name="${name}" value="${esc(value ?? "")}" type="${type}" ${type === "number" ? 'step="any"' : ""} ${required ? "required" : ""}></label>`;
 }
+function monitoringCheckbox(analysis) {
+  const pending = state.monitoringPending?.has(analysis.id);
+  return `<label class="monitor"><input type="checkbox" data-monitoring="${esc(analysis.id)}" aria-label="Include ${esc(analysis.name)} in monitoring" ${analysis.monitored ? "checked" : ""} ${pending ? "disabled" : ""}><span>${pending ? "Saving…" : analysis.monitored ? "Included" : "Not monitored"}</span></label>`;
+}
+async function saveMonitoring(control) {
+  const id = control.dataset.monitoring,
+    analysis = state.catalogue.analyses.find(a => a.id === id),
+    previous = analysis.monitored;
+  state.monitoringPending ||= new Set();
+  state.monitoringPending.add(id);
+  control.disabled = true;
+  const label = control.nextElementSibling;
+  label.textContent = "Saving…";
+  try {
+    const saved = await api(`/api/library/analyses/${encodeURIComponent(id)}/monitoring`, "PATCH", {monitored: control.checked});
+    state.catalogue.analyses = state.catalogue.analyses.map(a => a.id === id ? saved : a);
+    if (state.draft?.id === id && state.libraryTab === "analyses") {
+      state.draft.monitored = saved.monitored;
+      document.querySelector('#library-form [name="monitored"]').checked = saved.monitored;
+    }
+    label.textContent = saved.monitored ? "Included" : "Not monitored";
+    notify(`${saved.name}: ${saved.monitored ? "included in" : "removed from"} monitoring.`);
+  } catch (error) {
+    control.checked = previous;
+    label.textContent = previous ? "Included" : "Not monitored";
+    throw error;
+  } finally {
+    state.monitoringPending.delete(id);
+    control.disabled = false;
+    // Tab changes can replace the control while its save is in flight.
+    if (!control.isConnected && !state.draft) renderLibrary();
+  }
+}
 function renderLibrary() {
   const tab = state.libraryTab;
-  main.innerHTML = `<h1>Library</h1><p class="intro">Data series and defined analyses. Saving here changes future evaluations; older evidence keeps its definition.</p><div class="toolbar">${button("Analyses", "library-tab", 'data-tab="analyses" aria-pressed="' + (tab === "analyses") + '"')}${button("Data series", "library-tab", 'data-tab="series" aria-pressed="' + (tab === "series") + '"')}${button(tab === "series" ? "Add data series" : "Add analysis", "library-new", 'class="primary"')}</div>${state.draft ? libraryEditor() : `<div class="table-region" role="region" aria-label="Library ${tab}" tabindex="0"><table><thead><tr><th>Name</th><th>${tab === "series" ? "Source / symbol" : "Calculation / inputs"}</th><th>${tab === "series" ? "Units / currency" : "Monitoring"}</th><th>Actions</th></tr></thead><tbody>${state.catalogue[tab].map((r) => `<tr><td>${esc(r.name)}</td><td>${tab === "series" ? `${esc(r.source)} / ${esc(r.instrument)}${r.field ? " / " + esc(r.field) : ""}` : `${esc(r.calculation)}<small>${r.series_ids.map((id) => esc(state.catalogue.series.find((s) => s.id === id)?.name)).join(" / ")}</small>`}</td><td>${tab === "series" ? `${esc(r.unit)}<small>${esc(r.currency)}</small>` : r.monitored ? "Included" : "Not monitored"}</td><td><div class="library-actions">${button("Edit", "library-edit", `data-id="${r.id}"`)}${button("Delete", "library-delete", `class="quiet" data-id="${r.id}"`)}</div></td></tr>`).join("")}</tbody></table>${state.catalogue[tab].length ? "" : '<p class="empty">No entries. Add a data series, then define an analysis.</p>'}</div>`}`;
+  main.innerHTML = `<h1>Library</h1><p class="intro">Data series and defined analyses. Saving here changes future evaluations; older evidence keeps its definition.</p><div class="toolbar">${button("Analyses", "library-tab", 'data-tab="analyses" aria-pressed="' + (tab === "analyses") + '"')}${button("Data series", "library-tab", 'data-tab="series" aria-pressed="' + (tab === "series") + '"')}${button(tab === "series" ? "Add data series" : "Add analysis", "library-new", 'class="primary"')}</div>${state.draft ? libraryEditor() : `<div class="table-region" role="region" aria-label="Library ${tab}" tabindex="0"><table><thead><tr><th>Name</th><th>${tab === "series" ? "Source / symbol" : "Calculation / inputs"}</th><th>${tab === "series" ? "Units / currency" : "Monitoring"}</th><th>Actions</th></tr></thead><tbody>${state.catalogue[tab].map((r) => `<tr><td>${esc(r.name)}</td><td>${tab === "series" ? `${esc(r.source)} / ${esc(r.instrument)}${r.field ? " / " + esc(r.field) : ""}` : `${esc(r.calculation)}<small>${r.series_ids.map((id) => esc(state.catalogue.series.find((s) => s.id === id)?.name)).join(" / ")}</small>`}</td><td>${tab === "series" ? `${esc(r.unit)}<small>${esc(r.currency)}</small>` : monitoringCheckbox(r)}</td><td><div class="library-actions">${button("Edit", "library-edit", `data-id="${r.id}"`)}${button("Delete", "library-delete", `class="quiet" data-id="${r.id}"`)}</div></td></tr>`).join("")}</tbody></table>${state.catalogue[tab].length ? "" : '<p class="empty">No entries. Add a data series, then define an analysis.</p>'}</div>`}`;
 }
 function libraryEditor() {
   const d = state.draft,
@@ -499,7 +532,9 @@ function libraryEditor() {
 document.addEventListener("change", async (event) => {
   try {
     const e = event.target;
-    if (e.closest("#library-form") && state.libraryTab === "series" && e.name === "provider") {
+    if (e.hasAttribute("data-monitoring")) {
+      await saveMonitoring(e);
+    } else if (e.closest("#library-form") && state.libraryTab === "series" && e.name === "provider") {
       readLibraryDraft();
       state.draft.field = e.value === "bloomberg" ? "PX_LAST" : null;
       state.draft.path = null;

@@ -21,6 +21,10 @@ illustrative. Live data depends on the sources your setup agent configured.
 
 ## Investigate an analysis
 
+For help defining an analysis, ask your agent to use the bundled
+[analysis configuration skill](../skills/kairopsis-analysis/SKILL.md). It explains
+parameter choices, data preparation and the questions each combination answers.
+
 Open **Analyses**, find a name and select it. Use **All** to browse the full set;
 **Flagged** draws attention to configured conditions worth investigating.
 A quiet Flagged view can be empty even when analyses are available in All.
@@ -29,20 +33,44 @@ Read the chart alongside its current value, period change and historical
 standing. Check the observation date before treating a value as current.
 Unavailable values and data limitations are shown explicitly.
 
-Choose the display period and reference history independently. For a closer
-comparison, change the measurement or use the **Risk adjustment** panel.
-Reference and estimation periods include 3 and 6 months, longer year windows,
-and **Longest available history**. The longest option uses common eligible
-history for pairs. Short windows still require enough observations. These choices
-are exploratory; editing an Analysis in Library saves its defaults.
+The Analysis settings panel follows **Inputs → Measure → Scale inputs →
+Compare → Historical context**, matching Library. Choose Standalone or Pair,
+then Level, Absolute change or Percentage change and its Frequency. Pair
+comparison is Difference, Ratio or Regression residual. Display range and chart
+view stay beside the chart, separately from estimation/reference histories.
 
-Choose **Standardization → Z-score** for standalone changes, percentage changes,
-pair differences or regression residuals. The score shows how many standard
-deviations the result sits above or below its reference mean. Reference history
-sets that mean and sample standard deviation; the latest observation is excluded.
-The chart uses the same current reference throughout. **Z-score threshold (±)**
-controls the extreme-value flag and dashed chart lines; the default is ±2.
-A zero-variance or insufficient reference produces an unavailable score.
+Scale inputs offers None, Volatility, Beta to reference, VaR or Expected Shortfall
+for every measure. **Estimate risk from** follows the input automatically, using
+absolute changes for Level; choose explicit Absolute/Percentage changes to retain
+that basis when changing Measure. Level stays a level when scaling is selected.
+Shared settings are the default; **Customize per series** allows independent risk
+bases and references. Inspect the formula, actual units, scales and sample dates.
+For example, spread level / spread-change SD measures level per movement risk;
+spread level / percentage-change SD has composite bp/% units.
+
+Reference, fitting and estimation histories include 3 and 6 months, longer year
+windows and **Longest available history**. Short windows still need sufficient
+observations. Daily-endpoint weekly/monthly changes overlap; monthly-only series
+remain subject to existing weekday/freshness and regression coverage limits.
+
+Choose **Output scale → Z-score** for any completed calculation. The score shows
+distance above/below its prior mean in sample standard deviations. Latest is
+excluded; the current reference applies throughout the chart. Original units
+retain any input scaling. Inspect the unstandardized magnitude alongside the
+score. Z-score does not establish stationarity, reversal or investment return.
+Insufficient/constant references produce an unavailable result.
+
+**Monitoring** is separate and collapsed. Original output uses symmetric
+percentile tails; Z-score uses its absolute threshold and dashed chart lines.
+Formula changes clear optional move/materiality thresholds with an explanation,
+retaining monitoring enable state and extreme-rule settings. Defaults require
+calibration. Exploratory edits save only through **Edit defaults in Library →
+Use exploratory settings → Save defaults**. Preview failures retain a labelled
+previous chart and your edited values; Preview again before saving evidence.
+
+New definitions use the v2 calculation contract. Existing saved definitions and
+Snapshots retain v1; choosing a v2-only feature revises the draft explicitly.
+Earlier evidence and its Latest calculations keep their captured definition.
 
 Click a legend label to hide or show a series; double-click to isolate it.
 The chart scales remain fixed while toggling, so the visual comparison stays

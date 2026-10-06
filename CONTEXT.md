@@ -65,7 +65,7 @@ A time-ordered set of observations for a particular asset measure, with an ident
 A defined investigation of one or two Data Series, including its calculation and analytical settings. Its type is Standalone or Pair.
 
 **Risk Adjustment**:
-An adjustment of spread changes or returns using an estimated risk measure or sensitivity to support comparison between exposures.
+Scaling of input levels, changes or percentage changes using a risk measure or sensitivity estimated from explicitly selected absolute or percentage changes, to support comparison between exposures.
 
 **Frequency**:
 The daily, weekly or monthly interval over which an Analysis measures changes or returns. Risk Adjustment estimates use the same interval.

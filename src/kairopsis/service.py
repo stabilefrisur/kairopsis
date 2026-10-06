@@ -44,7 +44,7 @@ class Research:
         end = MOCK_AS_OF if self.repository.mode == "mock" else self.clock().astimezone(self.timezone).date()
         start = retrieval_start(end, (definition.settings.history_years, definition.settings.fit_years, 5, display_period),
             (r.lookback_years for r in definition.settings.adjustments(len(definition.inputs)) if r.method != "none"),
-            definition.settings.measure != "level")
+            definition.settings.needs_moves(len(definition.inputs)))
         request = DataRequest(bindings=(*definition.inputs, *definition.references),
             start=start, end=end)
         data = provider.fetch(request)
@@ -57,6 +57,14 @@ class Research:
 
     def preview(self, key: str, settings: dict) -> Evaluation:
         definition = self.catalogue.resolve(key)
+        if "analysis" in settings:
+            draft = AnalysisDefinition.model_validate(settings["analysis"])
+            if draft.id != key or draft.revision != definition.revision:
+                raise ValueError("Preview must retain this Analysis identity and current revision")
+            resolved = self.catalogue.resolve_draft(draft, ())
+            result = self.compute(resolved, self.preview_provider)
+            self.repository.save_evaluation(result)
+            return result
         options = AnalysisSettings.model_validate({**definition.settings.model_dump(), **settings})
         return self.evaluate(self.catalogue.resolve(key, options))
 
@@ -143,7 +151,7 @@ class Research:
                 required_start = retrieval_start(latest.request.end,
                     (saved.definition.settings.history_years, saved.definition.settings.fit_years),
                     (r.lookback_years for r in saved.definition.settings.adjustments(len(saved.definition.inputs)) if r.method != "none"),
-                    saved.definition.settings.measure != "level")
+                    saved.definition.settings.needs_moves(len(saved.definition.inputs)))
                 if latest.request.start > required_start:
                     continue
                 required = {b.id for b in (*saved.definition.inputs, *saved.definition.references)}

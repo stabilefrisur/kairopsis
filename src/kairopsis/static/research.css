@@ -293,6 +293,42 @@ td small {
 .risk-estimate {
   overflow-wrap: anywhere;
 }
+.analysis-controls > fieldset {
+  min-width: 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  padding: 12px 0 0;
+  margin: 18px 0;
+}
+.analysis-controls > fieldset > legend {
+  font-size: var(--small);
+  font-weight: 600;
+  padding-right: 10px;
+}
+.analysis-controls label {
+  display: block;
+  font-size: var(--small);
+  margin-bottom: 12px;
+}
+.analysis-controls select, .analysis-controls input:not([type="checkbox"]) {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin-top: 6px;
+}
+.analysis-controls .fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.analysis-controls .formula {
+  font-size: 15px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.analysis-controls .monitoring-controls {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
 .paper {
   background: white;
   border: 1px solid var(--line);

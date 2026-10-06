@@ -178,7 +178,22 @@ Match it to the expected installed distribution and immutable private artifact
 or revision. An import path/version alone does not establish that identity.
 Record exact resolved dependencies and metadata changes privately. Verify
 templates, bundled JS/CSS/vendor assets and both guides under the installed
-`kairopsis` resources. No frontend compilation is needed.
+`kairopsis` resources. Also verify the complete `skills/kairopsis-analysis` folder,
+including its references. No frontend compilation is needed.
+
+Locate the bundled analysis skill through the installed interpreter:
+
+```powershell
+& $KairopsisAppPython -c "from importlib.resources import files; print(files('kairopsis').joinpath('skills', 'kairopsis-analysis', 'SKILL.md'))"
+```
+
+Read that entry point when configuring analyses. In the extracted source workspace,
+`AGENTS.md` points to the same skill under `src/kairopsis/skills`. For an agent using
+a separate workspace, load the entry point directly or copy the **whole**
+`kairopsis-analysis` folder into that agent's supported skill directory (for
+example, `.agents/skills` for an agent supporting that convention). Preserve any
+existing customized copy; record the package version and refresh the copy when
+upgrading. Package inclusion alone does not register a skill with every agent.
 
 **Done:** resolution, dependencies, console command, private provider identity
 and complete local assets are checked.
@@ -215,7 +230,9 @@ project's provider runtime setup. Authentication, private endpoints and environm
 requirements remain private. Launch the installed command with that configuration
 under the active user session, without installing/upgrading packages at startup.
 
-Read the running `/openapi.json`. Use its API or Library UI to add authorized
+Read the [analysis configuration skill](../skills/kairopsis-analysis/SKILL.md)
+before selecting series, shaping and analytical settings. Read the running
+`/openapi.json`. Use its API or Library UI to add authorized
 series and a Standalone or Pair Analysis with established symbols, fields,
 parameters and units. Library owns `workspace/metapyle.yaml`; change entries
 through the application. The adapter requires compatible `Client`, catalogue

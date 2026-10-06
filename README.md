@@ -21,7 +21,11 @@ stays in a local workspace. Live data access uses Metapyle.
   — everyday investigation, Ideas and exports.
 - [Agent setup guide](https://github.com/stabilefrisur/kairopsis/blob/main/src/kairopsis/docs/agent-setup.md)
   — Copilot runbook for an upstream source workspace, data connections and handoff.
+- [Analysis configuration skill](https://github.com/stabilefrisur/kairopsis/blob/main/src/kairopsis/skills/kairopsis-analysis/SKILL.md)
+  — agent guidance for economic questions, data shaping and analytical settings,
+  with a complete combination map and worked examples.
 
-Both guides are included in the installed Python package and the source archive.
+Both guides and the self-contained analysis skill are included in the installed
+Python package and the source archive.
 Requires Python 3.12 or later. Frontend assets are bundled; no Node.js setup is
 needed.

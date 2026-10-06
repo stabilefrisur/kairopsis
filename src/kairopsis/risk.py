@@ -8,6 +8,7 @@ from typing import cast
 from .frequencies import horizon_target
 from .periods import period_start
 from .models import AdjustmentEstimate, Observation, ResolvedDefinition, RiskAdjustment
+from .units import Unit, transformed_unit
 
 
 @dataclass(frozen=True)
@@ -122,7 +123,7 @@ def _expanding_scales(days: list[date], reference: dict[date, Move], target: dic
     return result
 
 
-def transform_inputs(definition: ResolvedDefinition, rows: dict[str, dict[date, Observation]], days: list[date]) -> tuple[
+def _legacy_transform_inputs(definition: ResolvedDefinition, rows: dict[str, dict[date, Observation]], days: list[date]) -> tuple[
     dict[date, tuple[float | None, ...]], dict[date, tuple[float | None, ...]],
     dict[date, tuple[date | None, ...]], tuple[str, ...], tuple[AdjustmentEstimate, ...]]:
     settings = definition.settings
@@ -186,3 +187,94 @@ def transform_inputs(definition: ResolvedDefinition, rows: dict[str, dict[date, 
         transformed[day], scales[day], starts[day] = tuple(values), tuple(divisors), tuple(baselines)
         estimates = current_estimates
     return transformed, scales, starts, tuple(units), tuple(estimates)
+
+
+def input_unit_expressions(definition: ResolvedDefinition) -> tuple[Unit, ...]:
+    settings = definition.settings
+    bindings = {b.id: b for b in (*definition.inputs, *definition.references)}
+    units = []
+    for binding, options in zip(definition.inputs, settings.adjustments(len(definition.inputs))):
+        reference = binding if options.method == "none" else bindings.get(options.reference_id or binding.id)
+        if reference is None:
+            raise ValueError("Missing resolved risk reference")
+        numerator = "%" if settings.measure == "return" else binding.unit
+        basis = settings.estimation_basis(options)
+        target_unit = "%" if basis == "return" else binding.unit
+        reference_unit = "%" if basis == "return" else reference.unit
+        units.append(transformed_unit(numerator, target_unit, reference_unit, options.method))
+    return tuple(units)
+
+
+def transform_inputs(definition: ResolvedDefinition, rows: dict[str, dict[date, Observation]], days: list[date]) -> tuple[
+    dict[date, tuple[float | None, ...]], dict[date, tuple[float | None, ...]],
+    dict[date, tuple[date | None, ...]], tuple[str, ...], tuple[AdjustmentEstimate, ...]]:
+    if definition.settings.calculation_contract == "input-pipeline-v1":
+        return _legacy_transform_inputs(definition, rows, days)
+    settings = definition.settings
+    bindings = {b.id: b for b in (*definition.inputs, *definition.references)}
+    # Numerators and estimation moves have separate eligibility and baselines.
+    numerators = {b.id: measured_moves(rows[b.id], settings.horizon, settings.measure)
+        for b in definition.inputs} if settings.measure != "level" else {
+        b.id: {d: Move(d, cast(float, p.value)) for d, p in rows[b.id].items()
+            if d.weekday() < 5 and p.observed_on == d and p.value is not None}
+        for b in definition.inputs}
+    common_days = set.intersection(*(set(numerators[b.id]) for b in definition.inputs))
+    move_cache: dict[tuple[str, str], dict[date, Move]] = {}
+    def moves(key: str, basis: str) -> dict[date, Move]:
+        if (key, basis) not in move_cache:
+            move_cache[key, basis] = measured_moves(rows[key], settings.horizon, basis)
+        return move_cache[key, basis]
+    legs = []
+    for binding, options in zip(definition.inputs, settings.adjustments(len(definition.inputs))):
+        reference = binding if options.method == "none" else bindings.get(options.reference_id or binding.id)
+        if reference is None:
+            raise ValueError("Missing resolved risk reference")
+        basis = settings.estimation_basis(options)
+        target_moves = moves(binding.id, basis) if options.method == "beta" else {}
+        ref_moves = moves(reference.id, basis) if options.method != "none" else {}
+        sample_days = sorted(set(target_moves) & set(ref_moves) if options.method == "beta" else ref_moves)
+        if options.method == "beta":
+            sample_days = [d for d in sample_days if target_moves[d].start == ref_moves[d].start]
+        if options.lookback_years == "all":
+            sample_days = [d for d in sample_days if d in common_days]
+        legs.append((binding, reference, options, basis, target_moves, ref_moves, sample_days,
+            _expanding_scales(sample_days, ref_moves, target_moves, options)))
+    transformed, scales, starts = {}, {}, {}
+    estimates = []
+    for day in days:
+        values, divisors, baselines, current_estimates = [], [], [], []
+        for binding, reference, options, basis, target_moves, ref_moves, sample_days, expanding in legs:
+            numerator = numerators[binding.id].get(day)
+            cutoff = numerator.start if numerator and settings.measure != "level" else horizon_target(day, settings.horizon)
+            start = period_start(cutoff, options.lookback_years)
+            selected = sample_days[bisect_left(sample_days, start):bisect_right(sample_days, cutoff)]
+            scale: float | None = 1.
+            limitation = None
+            if options.method != "none":
+                if len(selected) < options.minimum_samples:
+                    scale = None
+                    limitation = f"Insufficient estimation history: {len(selected)} observations; require {options.minimum_samples}"
+                elif (cutoff - selected[-1]).days > 7:
+                    scale = None
+                    limitation = "Estimation history is stale at the measured interval's start"
+                else:
+                    if expanding is not None:
+                        scale = expanding[len(selected)]
+                    else:
+                        ages = [float(_session_distance(d, cutoff)) for d in selected] if options.method == "volatility" and options.weighting == "exponential" else [0.] * len(selected)
+                        scale = estimate([ref_moves[d].value for d in selected],
+                            [target_moves[d].value for d in selected] if options.method == "beta" else [], ages, options)
+                    if scale is None:
+                        limitation = "Risk scale unavailable: zero/near-zero beta, constant reference or nonpositive downside estimate"
+            value = numerator.value / scale if numerator and scale is not None else None
+            values.append(value if value is not None and isfinite(value) else None)
+            divisors.append(scale)
+            baselines.append(numerator.start if numerator and settings.measure != "level" else None)
+            current_estimates.append(AdjustmentEstimate(reference_id=reference.id, scale=scale,
+                sample_count=len(selected), start=selected[0] if selected else None, end=selected[-1] if selected else None,
+                estimation_measure=basis if options.method != "none" else None, cutoff=cutoff if options.method != "none" else None,
+                sample_dates=tuple(selected),
+                limitation=limitation or ("Input numerator unavailable: missing native observation or eligible measurement baseline" if not numerator else None)))
+        transformed[day], scales[day], starts[day] = tuple(values), tuple(divisors), tuple(baselines)
+        estimates = current_estimates
+    return transformed, scales, starts, tuple(u.label() for u in input_unit_expressions(definition)), tuple(estimates)

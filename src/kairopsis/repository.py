@@ -186,17 +186,22 @@ class Repository:
         atomic_bytes(folder / "image.png", image)
         data = io.StringIO()
         writer = csv.writer(data)
-        measured = evaluation.definition.settings.measure != "level"
+        measured = evaluation.definition.settings.needs_moves(len(evaluation.definition.inputs))
+        v2 = evaluation.definition.settings.calculation_contract == "input-pipeline-v2"
         standardized = evaluation.standardization_estimate is not None
         extra_headers = [label for i in range(len(evaluation.definition.inputs)) for label in
             (f"measured_input_{i+1}", f"measured_unit_{i+1}", f"risk_scale_{i+1}", f"change_start_{i+1}")] if measured else []
         writer.writerow(["date", "value", "unit", *[f"input_{i+1}" for i in range(len(evaluation.definition.inputs))],
-                         *[f"observed_on_{i+1}" for i in range(len(evaluation.definition.inputs))], *extra_headers, *(["unstandardized_value", "unstandardized_unit"] if standardized else [])])
+                         *[f"observed_on_{i+1}" for i in range(len(evaluation.definition.inputs))], *extra_headers, *(["unstandardized_value", "unstandardized_unit"] if standardized else []),
+                         *(["calculation_contract", "numerator_measure", "frequency", *[label for i in range(len(evaluation.definition.inputs)) for label in (f"risk_reference_{i+1}", f"estimation_measure_{i+1}")]] if v2 else [])])
         for p in evaluation.points:
             extra = [value for i in range(len(p.inputs)) for value in
                 (p.transformed_inputs[i], evaluation.input_units[i], p.risk_scales[i], p.period_start[i])] if measured else []
             writer.writerow([p.date, p.value, evaluation.unit, *p.inputs, *p.observed_on, *extra,
-                *([p.unstandardized_value, evaluation.standardization_estimate.unit] if evaluation.standardization_estimate else [])])
+                *([p.unstandardized_value, evaluation.standardization_estimate.unit] if evaluation.standardization_estimate else []),
+                *([evaluation.definition.settings.calculation_contract, evaluation.definition.settings.measure, evaluation.definition.settings.horizon,
+                    *[value for binding, options in zip(evaluation.definition.inputs, evaluation.definition.settings.adjustments(len(evaluation.definition.inputs)))
+                        for value in (options.reference_id or binding.id if options.method != "none" else "", evaluation.definition.settings.estimation_basis(options) if options.method != "none" else "")]] if v2 else [])])
         atomic_bytes(folder / "data.csv", data.getvalue().encode())
         atomic_json(folder / "snapshot.json", snapshot.model_dump(mode="json"))
         return snapshot

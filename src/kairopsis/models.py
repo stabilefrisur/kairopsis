@@ -98,6 +98,7 @@ class DataResponse(Record):
 
 class RiskAdjustment(Record):
     method: Literal["none", "volatility", "beta", "var", "es"] = "none"
+    estimation_measure: Literal["change", "return"] | None = None
     reference_id: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]{1,128}$")
     lookback_years: Period = 3
     weighting: Literal["equal", "exponential"] = "equal"
@@ -109,6 +110,7 @@ class RiskAdjustment(Record):
 
 
 class AnalysisSettings(Record):
+    calculation_contract: Literal["input-pipeline-v1", "input-pipeline-v2"] = "input-pipeline-v1"
     history_years: Period = 3
     fit_years: Period = 3
     horizon: Literal["day", "week", "month"] = "day"
@@ -126,17 +128,28 @@ class AnalysisSettings(Record):
 
     @model_validator(mode="after")
     def risk_measure(self):
-        if self.measure == "level" and any(r.method != "none" for r in self.adjustments(2)):
-            raise ValueError("Risk adjustment requires changes or percentage returns")
+        if self.calculation_contract == "input-pipeline-v1":
+            if self.measure == "level" and any(r.method != "none" for r in self.adjustments(2)):
+                raise ValueError("Risk adjustment requires changes or percentage returns")
+            if any(r.method != "none" and r.estimation_measure is not None for r in self.adjustments(2)):
+                raise ValueError("Explicit risk estimation measure requires input-pipeline-v2")
         return self
 
     def check_standardization(self, calculation: str) -> None:
-        if self.standardization == "zscore" and not (calculation in ("difference", "regression") or
+        if self.calculation_contract == "input-pipeline-v1" and self.standardization == "zscore" and not (calculation in ("difference", "regression") or
                 calculation == "level" and self.measure in ("change", "return")):
             raise ValueError("Z-scores require standalone changes, pair differences or regression residuals")
 
     def adjustments(self, count: int) -> tuple[RiskAdjustment, ...]:
         return self.risk_overrides or (self.risk_adjustment,) * count
+
+    def estimation_basis(self, options: RiskAdjustment) -> Literal["change", "return"]:
+        if self.calculation_contract == "input-pipeline-v2" and options.estimation_measure:
+            return options.estimation_measure
+        return "return" if self.measure == "return" else "change"
+
+    def needs_moves(self, count: int) -> bool:
+        return self.measure != "level" or any(r.method != "none" for r in self.adjustments(count))
 
 
 class AnalysisDefinition(Record):
@@ -196,6 +209,9 @@ class AdjustmentEstimate(Record):
     start: Date | None = None
     end: Date | None = None
     limitation: str | None = None
+    estimation_measure: Literal["change", "return"] | None = None
+    cutoff: Date | None = None
+    sample_dates: tuple[Date, ...] = ()
 
 
 class Fit(Record):

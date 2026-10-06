@@ -12,7 +12,7 @@ const esc = (value) =>
 const number = (value, unit = "", signed = false) =>
   value == null
     ? "Unavailable"
-    : `${signed && value >= 0 ? "+" : ""}${Number(value).toFixed(2)} ${esc(unit)}`;
+    : `${signed && value >= 0 ? "+" : ""}${value !== 0 && Math.abs(value) < .005 ? Number(value).toExponential(3) : Number(value).toFixed(2)} ${esc(unit)}`;
 const dateText = (date) =>
   date
     ? new Date(date.slice(0, 10) + "T12:00:00Z").toLocaleDateString("en-GB", {
@@ -42,14 +42,45 @@ const readableQuality = (text) =>
     .replace(/native[- ]dates?/gi, "source observation date")
     .replace(/native observation/gi, "source observation");
 const riskMethodNames = {none: "None", volatility: "Volatility", beta: "Beta to reference", var: "Value at Risk (VaR)", es: "Expected Shortfall (CVaR)"};
+function hasTransformedInputs(e) {
+  return e.definition.settings.measure !== "level" || (e.adjustment_estimates || []).length > 0;
+}
+function effectiveRiskMeasure(settings, risk) {
+  return risk.estimation_measure || (settings.measure === "return" ? "return" : "change");
+}
+function analysisFormula(d, inputs = d.inputs) {
+  const s = d.settings, frequency = {day: "daily", week: "weekly", month: "monthly"}[s.horizon];
+  const bindings = [...(inputs || []), ...(d.references || []), ...(typeof state !== "undefined" ? state.catalogue?.series || [] : [])];
+  const legs = (inputs || []).map((b, i) => {
+    let text = `${b.name} ${s.measure === "return" ? `${frequency} percentage change` : s.measure === "change" ? `${frequency} absolute change` : "level"}`;
+    const r = s.risk_overrides?.[i] || s.risk_adjustment;
+    if (r && r.method !== "none") {
+      const ref = bindings.find(b => b.id === (r.reference_id || (inputs || [])[i]?.id))?.name || "this series";
+      const basis = effectiveRiskMeasure(s, r) === "return" ? "percentage changes" : "absolute changes";
+      const estimator = r.method === "volatility" ? `${r.weighting === "exponential" ? "exponentially weighted " : ""}SD` : r.method === "beta" ? "signed beta" : riskMethodNames[r.method];
+      text += ` / ${estimator} of prior ${frequency} ${ref} ${basis} (${periodText(r.lookback_years)})`;
+    }
+    return text;
+  });
+  let text = d.calculation === "level" ? legs[0] : d.calculation === "regression" ? `Residual of (${legs[0]}) fitted on (${legs[1]})` : `(${legs[0]}) ${d.calculation === "ratio" ? "÷" : "−"} (${legs[1]})`;
+  if (d.calculation === "ratio" && s.measure !== "level") text = "Ratio of changes: " + text;
+  return s.standardization === "zscore" ? `Z-score of ${text}; ${periodText(s.history_years)} prior result reference` : text;
+}
+function analysisInterpretation(d) {
+  if (d.settings.standardization === "zscore") return "Positive Z-score: the completed result exceeds its prior reference mean. Inspect the unstandardized magnitude and inputs; historical distance alone does not establish attractiveness.";
+  return d.calculation === "regression" ? "Positive residual: first input exceeds its fitted relationship with the second. Association is descriptive." :
+    d.calculation === "difference" ? "Positive result: first transformed input exceeds the second; assess economic comparability." :
+    d.calculation === "ratio" ? "Relative magnitude of the numerator and signed denominator; sign alone does not establish attractiveness." :
+    "Magnitude of this input under the selected measure and scaling; compare with its prior history.";
+}
 function riskDescription(e) {
   const settings = e.definition.settings;
-  if (!settings.measure || settings.measure === "level") return [];
+  if (!hasTransformedInputs(e)) return [];
   const bindings = [...e.definition.inputs, ...(e.definition.references || [])];
   return e.definition.inputs.map((s, i) => {
     const r = settings.risk_overrides?.[i] || settings.risk_adjustment;
     const ref = bindings.find(b => b.id === r?.reference_id) || s;
-    return `${s.name}: ${riskMethodNames[r?.method || "none"]}${r?.method !== "none" ? " / " + ref.name : ""} · ${settings.horizon} ${settings.measure === "return" ? "percentage change" : "change"} · ${(e.input_units || [])[i] || s.unit}`;
+    return `${s.name}: ${settings.measure === "level" ? "level numerator" : settings.horizon + (settings.measure === "return" ? " percentage change" : " absolute change")} · ${riskMethodNames[r?.method || "none"]}${r && r.method !== "none" ? ` / ${ref.name}; estimate from ${settings.horizon} ${effectiveRiskMeasure(settings, r) === "return" ? "percentage" : "absolute"} changes` : ""} · ${(e.input_units || [])[i] || s.unit}`;
   });
 }
 function chartFootnote(e, display = null) {
@@ -62,7 +93,7 @@ function chartFootnote(e, display = null) {
     : sources.map((source, i) => `${inputs[i].name}: ${source}`);
   if (e.data.mode === "mock") lines[0] = "Demo data · " + lines[0];
   const settings = e.definition.settings;
-  if (settings.measure && settings.measure !== "level" && display?.view !== "underlying") {
+  if (hasTransformedInputs(e) && display?.view !== "underlying") {
     const frequency = {day: "Daily", week: "Weekly", month: "Monthly"}[settings.horizon];
     const bindings = [...inputs, ...(e.definition.references || [])];
     const adjustments = inputs.map((s, i) => {
@@ -74,7 +105,8 @@ function chartFootnote(e, display = null) {
     const adjustment = new Set(adjustments).size === 1
       ? adjustments[0]
       : adjustments.map((text, i) => `${inputs[i].name}: ${text}`).join("; ");
-    lines.push(`${frequency} ${settings.measure === "return" ? "percentage changes" : "changes"} · ${adjustment}`);
+    lines.push(`${settings.measure === "level" ? "Level numerator" : frequency + (settings.measure === "return" ? " percentage changes" : " changes")} · ${adjustment}`);
+    if (settings.calculation_contract === "input-pipeline-v2") lines.push(...riskDescription(e));
   }
   if (e.fit && display?.view !== "underlying")
     lines.push(
@@ -137,7 +169,7 @@ function evidenceDetails(e, originalImage = "", display = null) {
     .slice(-30)
     .map(
       (p) =>
-        `<tr><td>${dateText(p.date)}</td><td>${number(p.value)}</td>${z ? `<td>${number(p.unstandardized_value)}</td>` : ""}${p.inputs.map((v, i) => `<td>${number(v)}</td><td>${dateText(p.observed_on[i])}</td>`).join("")}</tr>`,
+        `<tr><td>${dateText(p.date)}</td><td>${number(p.value)}</td>${z ? `<td>${number(p.unstandardized_value)}</td>` : ""}${p.inputs.map((v, i) => `<td>${number(v)}</td><td>${dateText(p.observed_on[i])}</td>${hasTransformedInputs(e) ? `<td>${number(p.transformed_inputs[i], e.input_units[i])}</td><td>${number(p.risk_scales[i])}</td><td>${dateText(p.period_start[i])}</td>` : ""}`).join("")}</tr>`,
     )
     .join("");
   return `<div class="evidence-details"><p class="meta chart-footnote">${chartFootnote(e, display).map(esc).join("<br>")}</p><details><summary>Source and chart details</summary>${sourceDetails}<h3 class="disclosure-heading">Chart settings</h3>${detailList(
@@ -166,13 +198,16 @@ function evidenceDetails(e, originalImage = "", display = null) {
           ]
         : []),
       ["Reference history", `${periodText(settings.history_years)}`],
+      ["Formula", analysisFormula(e.definition)],
+      ["Output units", e.unit],
+      ["Calculation contract", settings.calculation_contract || "input-pipeline-v1"],
       ...(settings.standardization === "zscore" ? [["Standardization", "Z-score of completed analysis"], ["Z-score threshold", `±${settings.zscore_threshold}`]] : []),
       ["Frequency", settings.horizon],
       ["Measure", {level: "Level", change: "Change", return: "Percentage change"}[settings.measure || "level"]],
       ...riskDescription(e).map(text => ["Risk adjustment", text]),
       ...(e.adjustment_estimates || []).flatMap((r, i) => {
         const options = settings.risk_overrides?.[i] || settings.risk_adjustment;
-        return options?.method !== "none" ? [["Estimation settings", `${periodText(options.lookback_years)}; ${options.method === "volatility" ? options.weighting + (options.weighting === "exponential" ? "; half-life " + options.half_life + " sessions" : "") : ["var", "es"].includes(options.method) ? options.confidence + "% confidence; downside " + options.downside : "intercept OLS"}`], ["Estimated scale", `${r.scale ?? "Unavailable"}; ${r.sample_count} observations; ${dateText(r.start)}–${dateText(r.end)}`]] : [];
+        return options?.method !== "none" ? [["Estimation basis", `${r.estimation_measure || effectiveRiskMeasure(settings, options)}; cutoff ${dateText(r.cutoff)}`], ["Estimation settings", `${periodText(options.lookback_years)}; ${options.method === "volatility" ? options.weighting + (options.weighting === "exponential" ? "; half-life " + options.half_life + " sessions" : "") : ["var", "es"].includes(options.method) ? options.confidence + "% confidence; downside " + options.downside : "intercept OLS"}`], ["Estimated scale", `${r.scale ?? "Unavailable"}; ${r.sample_count} observations; ${dateText(r.start)}–${dateText(r.end)}`]] : [];
       }),
       ...(e.definition.calculation === "regression"
         ? [["Fitting window", `${periodText(settings.fit_years)}`]]
@@ -183,7 +218,7 @@ function evidenceDetails(e, originalImage = "", display = null) {
       ["Retrieved", stamp(e.data.completed_at)],
       ["Evaluated through", dateText(e.request.end)],
     ],
-  )}<p class="meta">${e.data.mode === "mock" ? "Synthetic demo data; no live provider connection. Flag thresholds are illustrative; risk-adjusted monitoring thresholds require calibration." : esc(e.data.series.map((s) => readableQuality(s.provenance)).join(" / "))}</p>${[...e.limitations, ...e.sensitivity].map((x) => `<p class="meta">${esc(readableQuality(x))}</p>`).join("")}<p class="meta">Source observation date means the date the value was observed. It can differ from the date shown on the chart.</p>${originalImage ? `<p class="meta"><a href="${esc(originalImage)}" download="kairopsis-original.png">Download original saved image</a></p>` : ""}<div class="table-region" role="region" aria-label="Underlying observations" tabindex="0"><table><thead><tr><th>Chart date</th><th>Calculated ${esc(e.unit)}</th>${z ? `<th>Before standardization (${esc(z.unit)})</th>` : ""}${e.definition.inputs.map((s) => `<th>${esc(s.name)} (${esc(s.unit)})</th><th>Source date</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div></details></div>`;
+  )}<p class="meta">${e.data.mode === "mock" ? "Synthetic demo data; no live provider connection. Flag thresholds are illustrative; risk-adjusted monitoring thresholds require calibration." : esc(e.data.series.map((s) => readableQuality(s.provenance)).join(" / "))}</p>${[...e.limitations, ...e.sensitivity].map((x) => `<p class="meta">${esc(readableQuality(x))}</p>`).join("")}<p class="meta">Source observation date means the date the value was observed. It can differ from the date shown on the chart.</p>${originalImage ? `<p class="meta"><a href="${esc(originalImage)}" download="kairopsis-original.png">Download original saved image</a></p>` : ""}<div class="table-region" role="region" aria-label="Underlying observations" tabindex="0"><table><thead><tr><th>Chart date</th><th>Calculated ${esc(e.unit)}</th>${z ? `<th>Before standardization (${esc(z.unit)})</th>` : ""}${e.definition.inputs.map((s, i) => `<th>${esc(s.name)} (${esc(s.unit)})</th><th>Source date</th>${hasTransformedInputs(e) ? `<th>Transformed (${esc(e.input_units[i])})</th><th>Risk scale</th><th>Measurement start</th>` : ""}`).join("")}</tr></thead><tbody>${rows}</tbody></table></div></details></div>`;
 }
 function displayedPoints(e, display) {
   return e.points.filter(p => p.date >= displayStart(e.observation_date || e.request.end, display.years));
@@ -207,14 +242,14 @@ async function copyData(element) {
       `${s.name} (${s.unit})`,
       "Source date",
     ]),
-    ...(e.definition.settings.measure && e.definition.settings.measure !== "level" ? e.definition.inputs.flatMap((s, i) => [`Measured / adjusted ${s.name} (${e.input_units[i]})`, "Risk scale", "Change start"]) : []),
+    ...(hasTransformedInputs(e) ? e.definition.inputs.flatMap((s, i) => [`Measured / adjusted ${s.name} (${e.input_units[i]})`, "Risk scale", "Change start"]) : []),
   ];
   const rows = displayedPoints(e, display).map((p) => [
     p.date,
     p.value,
     ...(e.standardization_estimate ? [p.unstandardized_value] : []),
     ...p.inputs.flatMap((value, i) => [value, p.observed_on[i]]),
-    ...(e.definition.settings.measure && e.definition.settings.measure !== "level" ? e.definition.inputs.flatMap((s, i) => [p.transformed_inputs[i], p.risk_scales[i], p.period_start[i]]) : []),
+    ...(hasTransformedInputs(e) ? e.definition.inputs.flatMap((s, i) => [p.transformed_inputs[i], p.risk_scales[i], p.period_start[i]]) : []),
   ]);
   const cell = (value) => {
     const text = String(value ?? "");

@@ -170,19 +170,20 @@ def journey(url: str, output: Path) -> dict:
         page.get_by_role("button", name="Add analysis", exact=True).click()
         draft_name = "Draft kept across inline series " + uuid4().hex[:8]
         page.get_by_label("Name", exact=True).fill(draft_name)
-        page.get_by_role("button", name="Add missing data series").click()
-        page.get_by_role("combobox", name="Source", exact=True).select_option("bloomberg")
+        page.get_by_role("button", name="Add data series", exact=True).click()
+        dialog = page.locator("#library-series-dialog")
+        dialog.get_by_role("combobox", name="Source", exact=True).select_option("bloomberg")
         for label, value in [("Name", "Extra catalogue series"), ("Symbol / ticker", "SPX Index"),
                              ("Field", "PX_LAST")]:
-            page.get_by_label(label, exact=True).fill(value)
-        page.get_by_role("button", name="Save data series", exact=True).click()
-        expect(page.get_by_label("Name", exact=True)).to_have_value(draft_name)
-        page.get_by_role("button", name="Save analysis", exact=True).click()
+            dialog.get_by_label(label, exact=True).fill(value)
+        dialog.get_by_role("button", name="Apply series", exact=True).click()
+        expect(page.locator("#library-form").get_by_label("Name", exact=True)).to_have_value(draft_name)
+        page.get_by_role("button", name="Save analysis and 1 series", exact=True).click()
         expect(page.get_by_text(draft_name, exact=True)).to_be_visible()
         # Editing fractional ratio thresholds must remain a usable CRUD action.
         ratio_row=page.locator("tr",has=page.get_by_text("EUR IG / GBP IG",exact=True))
         ratio_row.get_by_role("button",name="Edit",exact=True).click()
-        page.get_by_role("button",name="Save analysis",exact=True).click()
+        page.get_by_role("button",name="Save defaults",exact=True).click()
         expect(page.get_by_text("EUR IG / GBP IG",exact=True)).to_be_visible()
         # User/provider metadata must remain text in metrics and saved evidence.
         unit = '<img data-unit-injection src=x onerror="window.unitInjected=true">'
@@ -196,7 +197,7 @@ def journey(url: str, output: Path) -> dict:
         disclosure.locator("summary").click()
         expect(disclosure).to_contain_text("ExportCurveCheck")
         expect(disclosure.locator("dd").filter(has_text="EUR").first).to_be_visible()
-        assert page.evaluate("document.querySelector('#plot').layout.xaxis.fixedrange === true && document.querySelector('#plot').layout.legend.itemclick === false")
+        assert page.evaluate("document.querySelector('#plot').layout.xaxis.fixedrange === true && document.querySelector('#plot').layout.legend.itemclick === 'toggle'")
         # Narrow layouts keep actions and chart labels available, including save.
         page.set_viewport_size({"width": 390, "height": 844})
         page.goto(url + "/analyses/usd-ig")

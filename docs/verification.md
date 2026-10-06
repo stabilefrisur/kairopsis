@@ -18,8 +18,9 @@ uv run python scripts/acceptance/inspect_wheel.py dist/kairopsis-0.1.0-py3-none-
 uvx --from twine twine check --strict dist/*
 ```
 
-The inventory requires both installed guides, checks source completeness and
-vendor checksums, and rejects accidental private runtime material. Source archives
+The inventory requires both installed guides and the analysis skill, checks that
+the skill's local Markdown links resolve within its own folder, checks source
+completeness and vendor checksums, and rejects accidental private runtime material. Source archives
 include docs, tests, scripts, the lockfile and domain context. Keep scratch records
 and credentials outside published artifacts.
 
@@ -30,6 +31,13 @@ from outside the checkout using fresh writable directories. Verify all three
 navigation destinations, local assets, an Analysis, saved Idea evidence, notes,
 exports and restart persistence. Verify both guides through
 `importlib.resources.files('kairopsis').joinpath('docs')`.
+
+Check the analysis skill through
+`importlib.resources.files('kairopsis').joinpath('skills', 'kairopsis-analysis')`.
+Copy that entire folder into an isolated directory and validate it there: the
+entry point and all local references must work without the repository. Verify
+the same files survive an sdist-to-wheel rebuild. Bundling is distinct from
+registering the skill with the user's agent; the setup guide describes discovery.
 
 For an automated journey against an isolated running demo instance:
 
@@ -43,6 +51,16 @@ checks. `scripts/acceptance/run_windows.py` also provides an installed Windows
 harness; its output directory must not exist.
 
 ## Recorded scope
+
+The analysis-skill packaging follow-up verifies identical skill resources in a
+fresh wheel and source archive, installed-resource discovery from an isolated
+environment outside the checkout, and validation of a separately copied skill
+folder. The wheel inventory rejects a missing skill entry point, a missing linked
+reference, and a reference escaping the skill folder. Agent trials cover relative
+weekly shocks, a level-over-risk request, event pass-through and precomputed
+monthly returns; the guidance distinguishes unsupported calculation/cadence
+requirements from economic recommendations. These checks concern the skill and
+distribution contents, not a new release or target live-data acceptance.
 
 The current implementation passes 88 source tests. Typechecking, packaged source
 and browser-asset inventory, installed guide discovery and strict Twine checks
@@ -86,3 +104,33 @@ crossings, plus defaults/Snapshot/CSV persistence after restart. Full source
 suite: 88 passing tests; type and JavaScript syntax checks pass. Browser checks
 verified standalone weekly changes, the current prior-history reference and
 ±2 threshold lines. Screenshot: `.scratch/period-controls/standalone-zscore.jpg`.
+
+## Analysis controls and v2 contract
+
+The v2 follow-up adds the 120-combination evaluation/serialization matrix,
+hand-worked level and ratio Z-scores, all four level-risk methods with both
+estimation bases, prior-only cutoffs and reference-only eligibility, the six unit
+examples, negative/self beta, divisor cancellation and optimized/direct parity.
+HTTP checks cover preview/defaults/restart, independent per-input bases,
+retrieval warm-up, incompatible contract baselines and retained Latest. Old
+payloads with omitted fields survive restart and export with original files
+unchanged. The full source suite passes 263 tests; mypy and JavaScript syntax
+checks pass.
+
+`scripts/analysis_controls_acceptance.py` checks actual Chromium controls in both
+surfaces: level/volatility, ratio Z-score save/reopen, shared formula/units,
+independent regression bases, arity restoration, keyboard editing, threshold
+clearing, delayed-response suppression and invalid-source draft retention. The
+existing browser journey also passes notes, saved/Latest exports, inline staged
+series and desktop/mobile checks. Both journeys passed against an isolated
+installed Linux wheel launched from outside the checkout, with no script errors.
+Evidence is retained under `.scratch/analysis-controls/`.
+
+Fresh wheel/sdist builds, source/browser-asset inventory, strict Twine metadata
+and installed guide discovery pass. Five skill Markdown files match between
+wheel/sdist and validate independently after copying (13 portable links).
+The source-archive test suite also passes against the installed wheel outside
+the checkout. This verifies Linux synthetic data only; installed Windows,
+actual provider calendars/freshness, live long-history retrieval and economic
+monitoring calibration remain unverified. Existing monthly-cadence limitations
+remain in place. No release was published.

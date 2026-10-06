@@ -55,7 +55,7 @@ function libraryViewOptions() {
   if (state.libraryTab === "series") return '<option value="analysis">Data series</option>';
   const definition = state.libraryPreview.result?.definition || state.draft;
   return '<option value="analysis">Analysis</option><option value="underlying">Underlying series</option>' +
-    (definition.settings.measure && definition.settings.measure !== "level" ? '<option value="changes">Measured / adjusted series</option>' : "") +
+    (definition.settings.measure && definition.settings.measure !== "level" || riskOptions(definition.settings, definition.series_ids?.length || definition.inputs?.length || 1).some(r => r.method !== "none") ? '<option value="changes">Measured / adjusted series</option>' : "") +
     (definition.calculation === "regression" ? '<option value="scatter">Regression scatter</option>' : "");
 }
 function restoreLibraryFocus(container, focused) {
@@ -111,7 +111,7 @@ async function previewLibrary() {
   const period = preview.period;
   const series = state.libraryTab === "series";
   const body = series ? {series: previewBinding(state.draft), period} :
-    {analysis: state.draft, series_drafts: retainedDrafts().map(previewBinding), period};
+    {analysis: activeAnalysis(state.draft), series_drafts: retainedDrafts().map(previewBinding), period};
   preview.loading = true;
   libraryStatus("Fetching and calculating this draft…");
   try {
@@ -221,7 +221,7 @@ function applyStagedSeries(form) {
 }
 async function saveLibraryDraft(form) {
   readLibraryDraft();
-  const series = state.libraryTab === "series", draft = structuredClone(state.draft);
+  const series = state.libraryTab === "series", draft = series ? structuredClone(state.draft) : activeAnalysis(state.draft);
   const controls = [...form.querySelectorAll("input, select, textarea, button")];
   state.librarySaving = true;
   controls.forEach(c => c.disabled = true);

@@ -5,7 +5,7 @@ from math import fsum, isfinite
 from typing import cast
 from .frequencies import expected_session, horizon_target, previous_session
 from .periods import Period, period_start, period_label
-from .risk import transform_inputs
+from .risk import input_unit_expressions, transform_inputs
 from .standardization import standardize
 from .models import AdjustmentEstimate, DataRequest, DataResponse, Evaluation, Fit, MetricPoint, ResolvedDefinition
 
@@ -67,16 +67,22 @@ def evaluate(definition: ResolvedDefinition, data: DataResponse, request: DataRe
     starts: dict[date, tuple[date | None, ...]] = {}
     input_units = tuple(b.unit for b in definition.inputs)
     estimates: tuple[AdjustmentEstimate, ...] = ()
-    if definition.settings.measure != "level":
+    if definition.settings.needs_moves(len(definition.inputs)):
         transformed, scales, starts, input_units, estimates = transform_inputs(definition, all_rows, days)
     method = definition.calculation
-    if method == "difference" and input_units[0] != input_units[1]:
+    comparable = input_unit_expressions(definition) if definition.settings.calculation_contract == "input-pipeline-v2" else input_units
+    if method == "difference" and comparable[0] != comparable[1]:
         raise ValueError("Difference requires matching units; no implicit conversion")
     unit = input_units[0]
     if method == "ratio":
         unit = "×" if unit == input_units[1] else f"{unit}/{input_units[1]}"
+        if definition.settings.calculation_contract == "input-pipeline-v2":
+            units = input_unit_expressions(definition)
+            unit = units[0].combine(units[1], -1).label("×")
     points = []
     limits = []
+    if definition.settings.calculation_contract == "input-pipeline-v2" and method == "ratio" and any(transformed.get(d, tuple(r[d].value if d in r else None for r in rows))[1] == 0 for d in days):
+        limits.append("Zero denominator observations excluded; signed and small nonzero denominators remain inspectable")
     for day in days:
         inputs = tuple(r[day].value if day in r else None for r in rows)
         observed = tuple(r[day].observed_on if day in r else None for r in rows)
@@ -121,6 +127,8 @@ def evaluate(definition: ResolvedDefinition, data: DataResponse, request: DataRe
         points = [p.model_copy(update={"value": (cast(float, (p.transformed_inputs or p.inputs)[0]) - fit.intercept - fit.slope * cast(float, (p.transformed_inputs or p.inputs)[1]))
             if fit and all(v is not None for v in (p.transformed_inputs or p.inputs)) else None,
             "eligible": p.eligible and fit is not None}) for p in points]
+        if definition.settings.calculation_contract == "input-pipeline-v2":
+            points = [p if p.value is None or isfinite(p.value) else p.model_copy(update={"value": None, "eligible": False}) for p in points]
     standardization_estimate = None
     if definition.settings.standardization == "zscore":
         points, standardization_estimate = standardize(points, definition.settings, unit)

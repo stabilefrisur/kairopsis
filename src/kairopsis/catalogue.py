@@ -2,7 +2,7 @@
 from .fixtures import analysis_fixture, series_fixture
 from .models import AnalysisDefinition, AnalysisSettings, ResolvedDefinition, SeriesBinding
 from .repository import Repository
-from .risk import adjusted_unit
+from .risk import adjusted_unit, input_unit_expressions
 from .metapyle_catalogue import publish_catalogue
 from .repository import atomic_bytes
 
@@ -153,10 +153,12 @@ def resolve_definition(analysis: AnalysisDefinition, series: dict[str, SeriesBin
     reference_ids = risk_references(analysis)
     if any(i not in series for i in reference_ids):
         raise ValueError("Choose existing or staged risk reference series")
-    units = [adjusted_unit(series[i].unit, series[r.reference_id or i].unit if r.method != "none" else series[i].unit,
-        r.method, analysis.settings.measure) for i, r in zip(analysis.series_ids, analysis.settings.adjustments(len(analysis.series_ids)))]
-    if analysis.calculation == "difference" and len(set(units)) != 1:
-        raise ValueError("Difference requires matching units")
-    return ResolvedDefinition(id=analysis.id, revision=analysis.revision, name=analysis.name,
+    resolved = ResolvedDefinition(id=analysis.id, revision=analysis.revision, name=analysis.name,
         calculation=analysis.calculation, settings=analysis.settings, inputs=tuple(series[i] for i in analysis.series_ids),
         references=tuple(series[i] for i in sorted(reference_ids - set(analysis.series_ids))))
+    units = [u.label() for u in input_unit_expressions(resolved)] if analysis.settings.calculation_contract == "input-pipeline-v2" else [adjusted_unit(series[i].unit, series[r.reference_id or i].unit if r.method != "none" else series[i].unit,
+        r.method, analysis.settings.measure) for i, r in zip(analysis.series_ids, analysis.settings.adjustments(len(analysis.series_ids)))]
+    matching = len(set(input_unit_expressions(resolved))) == 1 if analysis.settings.calculation_contract == "input-pipeline-v2" else len(set(units)) == 1
+    if analysis.calculation == "difference" and not matching:
+        raise ValueError("Difference requires matching units")
+    return resolved

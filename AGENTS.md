@@ -1,5 +1,11 @@
 ## Agent skills
 
+### Analysis configuration
+
+Before defining, revising or interpreting an Analysis, read
+`src/kairopsis/skills/kairopsis-analysis/SKILL.md` for parameter and data-shaping
+guidance. This skill and its references ship with the distribution.
+
 ### Issue tracker
 
 Issues live as local Markdown under `.scratch/`. Before creating,

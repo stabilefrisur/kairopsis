@@ -3,8 +3,11 @@
 import argparse
 import hashlib
 import json
+import posixpath
+import re
 from email.parser import Parser
 from pathlib import Path, PurePosixPath
+from urllib.parse import unquote, urlsplit
 from zipfile import ZipFile
 
 
@@ -30,6 +33,7 @@ def inspect(wheel: Path, require_assets: bool, source: Path | None = None) -> di
             'licenses': [name for name in names if any(word in name.lower() for word in ('license', 'licence', 'notice'))],
             'fonts_icons': [name for name in names if name.endswith(('.woff', '.woff2', '.ttf', '.svg', '.ico'))],
             'documentation': [name for name in names if name.startswith('kairopsis/docs/') and name.endswith('.md')],
+            'skills': [name for name in names if name.startswith('kairopsis/skills/') and not name.endswith('/')],
         }
         vendor_checks = []
         for name in names:
@@ -49,6 +53,22 @@ def inspect(wheel: Path, require_assets: bool, source: Path | None = None) -> di
             for guide in ('human-guide.md', 'agent-setup.md'):
                 if f'kairopsis/docs/{guide}' not in names:
                     missing.append(f'installed guide: {guide}')
+            if 'kairopsis/skills/kairopsis-analysis/SKILL.md' not in names:
+                missing.append('installed skill: kairopsis-analysis')
+        # A copied skill must retain working references without the source checkout.
+        skill_checks = []
+        for name in assets['skills']:
+            if not name.endswith('.md'):
+                continue
+            root = '/'.join(PurePosixPath(name).parts[:3])
+            content = archive.read(name).decode('utf-8')
+            for link in re.findall(r'\[[^\]]+\]\(([^)]+)\)', content):
+                url = urlsplit(link)
+                if url.scheme or url.netloc or not url.path:
+                    continue
+                target = posixpath.normpath(posixpath.join(posixpath.dirname(name), unquote(url.path)))
+                skill_checks.append({'path': name, 'target': target,
+                    'passed': target.startswith(root + '/') and target in names})
         source_checks = []
         if source is not None:
             package_source = source / 'src' / 'kairopsis'
@@ -85,9 +105,10 @@ def inspect(wheel: Path, require_assets: bool, source: Path | None = None) -> di
             'assets': assets,
             'vendor_checks': vendor_checks,
             'source_checks': source_checks,
+            'skill_checks': skill_checks,
             'forbidden_paths': forbidden,
             'missing_required_assets': missing,
-            'passed': not forbidden and not missing and all(check['passed'] for check in [*vendor_checks, *source_checks]),
+            'passed': not forbidden and not missing and all(check['passed'] for check in [*vendor_checks, *source_checks, *skill_checks]),
             'limitations': 'Static pathname/content inventory; human review still checks asset versions, licensing and private information inside otherwise legitimate files.',
         }
 

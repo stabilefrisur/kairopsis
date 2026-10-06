@@ -14,7 +14,7 @@ Use Copilot Agent mode in the IDE running in the target Windows session. Paste:
 Read and execute this runbook:
 https://github.com/stabilefrisur/kairopsis/blob/main/src/kairopsis/docs/agent-setup.md
 
-Set up Kairopsis 0.1.0 as an extracted upstream source workspace on this Windows
+Set up Kairopsis 0.1.1 as an extracted upstream source workspace on this Windows
 machine. You own archive acquisition, extraction, local dependency adaptation,
 installation, configuration, verification and launcher creation. Use the existing
 package mirror and working private Metapyle setup. Preserve existing research.
@@ -23,8 +23,8 @@ private setup information or required tool permissions; report exact blockers
 instead of giving me technical steps to carry out.
 ```
 
-Read this current GitHub guide before starting; the published 0.1.0 archive
-contains an earlier guide. GitHub pages are documentation references. Archive
+Use the guide bundled with the selected release; GitHub main may describe a
+newer version. GitHub pages are documentation references. Archive
 and package acquisition use the existing mirror, not GitHub asset downloads.
 
 ## 1. Inspect the existing Windows setup
@@ -70,7 +70,7 @@ existing directory only when its record proves it belongs to this installation.
 Preserve modified source and environments. Run through your terminal tool:
 
 ```powershell
-$KairopsisVersion = '0.1.0'
+$KairopsisVersion = '0.1.1'
 New-Item -ItemType Directory -Force -Path $KairopsisDownloads | Out-Null
 uv venv $KairopsisBootstrap --python $KairopsisPython --no-python-downloads --seed --default-index $KairopsisMirror
 if ($LASTEXITCODE -ne 0) { throw 'Bootstrap environment failed' }
@@ -85,12 +85,17 @@ If only a wheel is available, or the release/backend has not reached the mirror,
 record the exact missing artifact/package and stop this step. Retain the source
 workspace route. No manual download or extraction is assigned to the human.
 
-Verify the source distribution published for this release:
+Obtain the selected archive's expected SHA-256 from trusted index/mirror metadata
+or an external release manifest. Set `$KairopsisExpectedArchiveHash` to that
+digest; stop if it is unavailable. Verify the downloaded source archive:
 
 ```powershell
-$KairopsisArchive = Join-Path $KairopsisDownloads 'kairopsis-0.1.0.tar.gz'
+$KairopsisArchive = Join-Path $KairopsisDownloads "kairopsis-$KairopsisVersion.tar.gz"
+if ($KairopsisExpectedArchiveHash -notmatch '^[0-9a-fA-F]{64}$') {
+    throw 'Trusted source checksum required'
+}
 $KairopsisArchiveHash = (Get-FileHash -LiteralPath $KairopsisArchive -Algorithm SHA256).Hash.ToLowerInvariant()
-if ($KairopsisArchiveHash -ne '3f7a049b15e6641d3bad49d05a8d9babe3e85ff57e9d93a9fc78655a50b2167c') {
+if ($KairopsisArchiveHash -ne $KairopsisExpectedArchiveHash.ToLowerInvariant()) {
     throw 'Upstream source checksum mismatch'
 }
 ```
@@ -107,7 +112,7 @@ discovered interpreter:
 New-Item -ItemType Directory -Force -Path $KairopsisSourceParent | Out-Null
 & $KairopsisPython -m tarfile --extract $KairopsisArchive $KairopsisSourceParent --filter data
 if ($LASTEXITCODE -ne 0) { throw 'Source extraction failed' }
-$KairopsisSource = Join-Path $KairopsisSourceParent 'kairopsis-0.1.0'
+$KairopsisSource = Join-Path $KairopsisSourceParent "kairopsis-$KairopsisVersion"
 Set-Location -LiteralPath $KairopsisSource
 ```
 

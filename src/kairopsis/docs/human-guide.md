@@ -19,6 +19,23 @@ Demo data is fabricated and labelled. It is useful for learning the workflow;
 its observations end on 30 September 2026 and its monitoring thresholds are
 illustrative. Live data depends on the sources your setup agent configured.
 
+## When data updates
+
+The first visit to **Analyses** each day starts a background refresh if none has
+been attempted that day. Choose **Refresh** to fetch and recalculate all saved
+Analyses again, as often as needed. Restarting the app is unnecessary.
+
+Opening an Analysis, choosing **Preview** for an Analysis or Library Data Series,
+and selecting **Latest data** on an Idea chart each request data again. These
+chart requests do not update the Analyses list's results; use **Refresh** there.
+Opening or saving a Library entry without Preview does not fetch observations.
+**Saved evidence** always shows the captured observations.
+
+Reloading an Analysis chart requests data again. Reloading the Analyses list
+shows its last refresh results unless the daily refresh is due. Data is not
+continuously streamed; a new request may return the same observations. Check
+observation dates and source limitations before treating values as current.
+
 ## Investigate an analysis
 
 For help defining an analysis, ask your agent to use the bundled

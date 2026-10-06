@@ -8,7 +8,15 @@ kairopsis --mode mock --host 127.0.0.1 --port 8765 --workspace C:\Users\Me\Kairo
 
 Use the environment's absolute `Scripts\kairopsis.exe` in Windows Task Scheduler. Working directory does not matter. Paths (`--workspace`, `--config-dir`, `--cache-dir`, `--log-dir`) must be absolute, writable and outside the installed package. `--timezone Europe/London` sets daily refresh boundaries. CLI overrides `KAIROPSIS_<KEY>` environment variables, optional `--config C:\absolute\kairopsis.toml` (`[kairopsis]` keys with underscores), then platform defaults.
 
-Mock fixtures are deterministic, explicitly fabricated native-market observations through **30 September 2026**. No credentials/provider connection. New Library bindings require a matching fixture; unavailable bindings produce explicit failures. Monitoring is independent of saving to an Idea. First daily opening starts refresh in the background; manual Refresh completes a dated attempt. Failed analyses retain their prior result and lose fresh finding eligibility.
+Mock fixtures are deterministic, explicitly fabricated native-market observations through **30 September 2026**. No credentials/provider connection. New Library bindings require a matching fixture; unavailable bindings produce explicit failures. Monitoring is independent of saving to an Idea.
+
+## Data retrieval and refresh
+
+The first request to the Analyses list (`GET /api/analyses`) on a configured local day starts a background refresh if no refresh attempt has been recorded for that day. Process startup alone does not trigger retrieval. The **Refresh** button (`POST /api/refresh`) runs another attempt every time, including on the same day. Both refresh paths fetch and evaluate every saved Analysis and publish the list's dated results. Failed analyses retain their prior result and lose fresh finding eligibility. There is no timed background polling of the provider.
+
+Opening an Analysis, previewing its settings, previewing a Library Data Series or Analysis, and selecting **Latest data** on an Idea chart each make a separate provider request. These evaluations do not replace the Analyses list's refresh results. Latest uses the chart's captured definition. Reading the Library catalogue, opening or saving an entry without Preview, and viewing Saved evidence do not fetch observations.
+
+A browser reload follows the page's normal behavior: an Analysis chart requests data again; the Analyses list uses its dated refresh results unless the daily trigger applies. Live requests bypass Metapyle's observation cache, but a new request does not guarantee newer observations or verified source freshness. Check the returned observation dates and limitations. Saved Snapshots remain unchanged.
 
 ## Evidence and recovery
 

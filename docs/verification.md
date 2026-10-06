@@ -14,7 +14,7 @@ uv sync --locked
 uv run pytest -q
 uv run mypy src/kairopsis
 uv build
-uv run python scripts/acceptance/inspect_wheel.py dist/kairopsis-0.1.0-py3-none-any.whl --require-assets --source-directory . --output /absolute/output/wheel-inventory.json
+uv run python scripts/acceptance/inspect_wheel.py dist/kairopsis-0.1.1-py3-none-any.whl --require-assets --source-directory . --output /absolute/output/wheel-inventory.json
 uvx --from twine twine check --strict dist/*
 ```
 

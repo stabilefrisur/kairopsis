@@ -62,7 +62,10 @@ A stated condition whose fulfillment warrants renewed attention to an Idea.
 A time-ordered set of observations for a particular asset measure, with an identified source, units and Comparison Basis.
 
 **Analysis**:
-A defined investigation of one or two Data Series, including its calculation and analytical settings. Its type is Standalone or Pair.
+A defined investigation of one or two Data Series, including its calculation, analytical settings and Economic Rationale where recorded. Its type is Standalone or Pair.
+
+**Economic Rationale**:
+The investment question an Analysis investigates, the reasoning for examining its Data Series, and the assumptions or alternative explanations that qualify its interpretation. It is a hypothesis to assess against evidence.
 
 **Risk Adjustment**:
 Scaling of input levels, changes or percentage changes using a risk measure or sensitivity estimated from explicitly selected absolute or percentage changes, to support comparison between exposures.

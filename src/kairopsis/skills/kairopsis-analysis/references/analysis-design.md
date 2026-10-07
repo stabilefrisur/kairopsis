@@ -47,6 +47,25 @@ For a pair, identify the ordered inputs explicitly: A minus B, A divided by B,
 or dependent A explained by B. A positive result has a different meaning for
 spread widening and investment returns. Write that meaning in the definition.
 
+## Record economic rationale
+
+Draft `economic_rationale` from the user's investment question: why examine this
+series or compare these exposures, what the result could mean, and which
+assumptions or alternative explanations qualify that reading. Preserve explicit
+user reasoning; mark assumptions and unresolved context honestly. A statistical
+extreme alone supplies no economic justification.
+
+For example: “Compare A's credit spread with B's in the same currency to examine
+whether A offers more compensation. A positive A-minus-B gap means more quoted
+spread; differences in credit quality, duration or liquidity could explain it.”
+This describes a question to investigate, not a finding that A is attractive.
+
+When revising a definition, review whether its rationale still fits. Preserve
+text on unrelated changes and revise it with an authorized change of research
+question. Empty rationale is supported; missing context need not block an
+otherwise specified task. Follow the [field and capture rules](application-contract.md#economic-rationale)
+for saves, older applications and interpretation of historical evidence.
+
 ## Select and shape the inputs
 
 ### Identity and Comparison Basis
@@ -355,7 +374,8 @@ samples and limitations. An accepted JSON payload alone establishes none of thes
 Return a compact record with the question, ordered inputs and Comparison Basis,
 shaping, formula, settings/rationale, interpretation of positive/negative values,
 preview evidence, limitations and saved/monitoring state. Retain it where the user
-asked: analysis description where supported, Idea note or requested research
-record. Check [supported description fields](application-contract.md#analysis-fields)
+asked: retain Economic Rationale in the supported Analysis field; keep the wider
+record in an Idea note or requested research record. Check
+[rationale support](application-contract.md#economic-rationale)
 and [persistence rules](application-contract.md#interpretation-and-persistence-checks)
 when retaining rationale, saving defaults or revisiting a Snapshot.

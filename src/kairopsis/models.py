@@ -3,9 +3,12 @@ from datetime import date as Date
 from math import isfinite
 from typing import Annotated, Literal
 from uuid import uuid4
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, StringConstraints, model_validator
 
 from .periods import Period
+
+
+EconomicRationale = Annotated[str, StringConstraints(strict=True, strip_whitespace=True, max_length=10000)]
 
 
 def identity() -> str:
@@ -156,6 +159,7 @@ class AnalysisDefinition(Record):
     id: str = Field(default_factory=identity, pattern=r"^[A-Za-z0-9_-]{1,128}$")
     revision: int = Field(default=1, ge=1)
     name: str = Field(min_length=1, max_length=200)
+    economic_rationale: EconomicRationale = ""
     calculation: Literal["level", "difference", "ratio", "regression"] = "level"
     series_ids: tuple[str, ...]
     monitored: bool = False
@@ -177,6 +181,7 @@ class ResolvedDefinition(Record):
     id: str
     revision: int
     name: str
+    economic_rationale: EconomicRationale = ""
     calculation: Literal["level", "difference", "ratio", "regression"]
     inputs: tuple[SeriesBinding, ...]
     settings: AnalysisSettings

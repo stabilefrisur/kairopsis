@@ -115,6 +115,17 @@ Open **Library**, then add or edit a Data Series or Analysis. The editor sits
 beside a chart. Choose **Preview** to fetch observations and inspect your
 unsaved settings. Preview does not add entries to the catalogue or save evidence.
 
+The optional **Economic rationale** field records what you are investigating,
+why it matters and what might explain the result otherwise. Your agent can
+propose this text when defining an Analysis. Edit it as the research question
+changes; saving an Analysis does not require a rationale.
+
+**Source and chart details** shows the rationale captured with the displayed
+evaluation. Saved evidence and its **Latest data** calculations retain that
+original reasoning after you revise Library defaults. Older evidence may show
+**No economic rationale recorded**. **Use exploratory settings** preserves the
+rationale currently in your Library draft.
+
 The display range defaults to 3 years; choose months, longer year windows or
 **Longest available history**. Reference history, fitting and risk-estimation
 periods control the calculation independently. Switch chart views to inspect

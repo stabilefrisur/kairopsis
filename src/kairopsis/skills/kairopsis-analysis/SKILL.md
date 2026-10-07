@@ -13,14 +13,16 @@ economic suitability, defined mathematics and installed capability.
 ## Interpret — explain existing evidence
 
 1. For a conceptual formula question, use the supplied input semantics. For an
-   actual result, obtain its captured definition, ordered inputs, units, dates and
-   estimation evidence. For a Snapshot, use its captured settings. Resolve
+   actual result, obtain its captured definition, Economic Rationale, ordered
+   inputs, units, dates and estimation evidence. For a Snapshot, use its captured settings. Resolve
    [contract/version semantics](references/application-contract.md#version-and-combination-rules)
    when interpreting saved settings, and
    [dates and estimation](references/application-contract.md#dates-and-estimation)
    when explaining a move, fitted history, Z-score, sparse cadence or unavailable result.
 2. Trace the [calculation order](references/combination-map.md#read-the-calculation-in-the-correct-order).
    Use the applicable checks below to explain the result's economic meaning.
+   Assess the [captured rationale](references/application-contract.md#economic-rationale)
+   against supporting and challenging evidence.
 
 Done: answer the question with formula, units, sign meaning and material
 limitations. Identify missing evidence when it prevents an interpretation;
@@ -38,8 +40,10 @@ configuration or a new live preview is needed only if the request calls for it.
    by purpose. Apply the conditional checks below to the choices under consideration.
 3. Before returning settings or JSON, including an offline draft, complete the
    [draft consistency check](references/application-contract.md#draft-consistency).
+   [Record the economic rationale](references/analysis-design.md#record-economic-rationale)
+   alongside the definition.
 
-Done: give a proposed definition with settings, shaping, reasons and unresolved
+Done: give a proposed definition with settings, shaping, rationale and unresolved
 data/capability needs. Mark untested proposals as such. For an analogous recipe,
 consult only the relevant [worked starting point](references/analysis-design.md#worked-starting-points).
 
@@ -60,7 +64,8 @@ consult only the relevant [worked starting point](references/analysis-design.md#
 3. For monitoring requests or revisions affecting monitored results, assess
    thresholds and calibration using
    [monitoring guidance](references/analysis-design.md#separate-monitoring-from-calculation)
-   before saving. Save when authorized and read back the definition.
+   before saving. Save when authorized and read back the definition, including
+   its economic rationale.
 
 Done: report verified settings, preview evidence or the exact blocker, save state,
 and monitoring/calibration state. A successful save alone is not a verified live

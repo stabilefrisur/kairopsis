@@ -509,6 +509,9 @@ summary {
   line-height: 1.65;
   max-width: 80ch;
 }
+.economic-rationale {
+  overflow-wrap: anywhere;
+}
 .note-actions {
   display: flex;
   align-items: center;

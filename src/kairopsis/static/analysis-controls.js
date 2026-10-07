@@ -16,6 +16,7 @@ function activeAnalysis(draft) {
 function analysisFromEvaluation(e) {
   const d = e.definition;
   return {id: d.id, revision: d.revision, name: d.name, calculation: d.calculation,
+    economic_rationale: d.economic_rationale || "",
     series_ids: d.inputs.map(s => s.id), monitored: state.catalogue.analyses.find(a => a.id === d.id)?.monitored || false,
     settings: structuredClone(d.settings)};
 }
@@ -32,6 +33,7 @@ function readAnalysisControls(form, d) {
   const value = name => form.elements.namedItem(name)?.value;
   const memo = (state.controlMemory ||= {})[d.id] ||= {};
   if (value("name") != null) d.name = value("name");
+  if (value("economic_rationale") != null) d.economic_rationale = value("economic_rationale");
   if (d.calculation !== "level") memo.pairCalculation = d.calculation;
   if (value("right")) memo.right = value("right");
   if (s.risk_overrides?.length > 1) memo.overrides = structuredClone(s.risk_overrides);

@@ -7,6 +7,25 @@ Verify the built artifacts as well as the source checkout. Source tests establis
 application behavior; installed-package checks establish that the distribution
 contains the code, browser assets and guides needed outside the checkout.
 
+## Economic Rationale — 7 October 2026
+
+The full source suite passes 279 tests, including 16 rationale HTTP cases; mypy
+and modified JavaScript syntax checks pass. Coverage includes omitted versus
+cleared text, both save/preview routes, definition revisions, retained Latest and
+export after Library edits/deletion, and byte-identical legacy evidence. Focused
+Chromium verification passes draft retention, literal multiline rendering,
+outdated preview text and exploratory transfer, with no script errors.
+
+The built wheel passes the 16 rationale cases from an isolated environment outside
+the checkout. Wheel/source builds, inventory and strict Twine checks pass. Four
+skill files match the installed wheel and source archive; an independently copied
+skill validates with 108 local links/anchors. An independent GPT-6.1 Sol High trial
+saved/read back rationale, assessed challenging historical evidence using its
+captured reasoning, and handled a supplied simulated older schema without claiming
+an unsupported save. These are synthetic-data and offline-schema checks; they do
+not establish live-provider or corporate Windows acceptance. Standards and Spec
+reviews report no findings. Evidence: `.scratch/analysis-economic-rationale/`.
+
 ## Source and packaging checks
 
 ```sh

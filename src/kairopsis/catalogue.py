@@ -53,7 +53,9 @@ class Catalogue:
         return resolve_definition(analysis, series)
 
     def resolve_draft(self, analysis: AnalysisDefinition, drafts: tuple[SeriesBinding, ...]) -> ResolvedDefinition:
-        series = {s["id"]: SeriesBinding.model_validate(s) for s in self.records()["series"]}
+        records = self.records()
+        analysis = preserve_rationale(analysis, next((a for a in records["analyses"] if a["id"] == analysis.id), None))
+        series = {s["id"]: SeriesBinding.model_validate(s) for s in records["series"]}
         if len({s.id for s in drafts}) != len(drafts):
             raise ValueError("Stage each data series only once")
         series.update({s.id: s for s in drafts})
@@ -75,6 +77,7 @@ class Catalogue:
                         raise CatalogueConflict("A record changed or was deleted since editing began. Reload the saved entry before saving; your draft has been retained.")
             saved_series = {s["id"]: s for s in records["series"]}
             old_analysis = next((a for a in records["analyses"] if a["id"] == analysis.id), None)
+            analysis = preserve_rationale(analysis, old_analysis)
             if old_analysis and old_analysis["revision"] != analysis.revision:
                 raise CatalogueConflict("Analysis changed since editing began. Reload its saved defaults before saving.")
             changed: dict[str, dict] = {}
@@ -108,6 +111,8 @@ class Catalogue:
         with self.repository.transaction():
             records = self.records()
             old = next((r for r in records[kind] if r["id"] == record.id), None)
+            if isinstance(record, AnalysisDefinition):
+                record = preserve_rationale(record, old)
             value = record.model_dump(mode="json")
             value["revision"] = old["revision"] + 1 if old else 1
             if kind == "analyses":
@@ -142,6 +147,14 @@ class Catalogue:
             self._commit(records)
 
 
+def preserve_rationale(analysis: AnalysisDefinition, saved: dict | None) -> AnalysisDefinition:
+    # Only an authored Library update/draft can inherit omitted research text.
+    # Captured evidence deserializes independently, using its empty default.
+    if saved is not None and "economic_rationale" not in analysis.model_fields_set:
+        return analysis.model_copy(update={"economic_rationale": saved.get("economic_rationale", "")})
+    return analysis
+
+
 def risk_references(analysis: AnalysisDefinition) -> set[str]:
     return {r.reference_id for r in analysis.settings.adjustments(len(analysis.series_ids))
             if r.method != "none" and r.reference_id is not None}
@@ -154,6 +167,7 @@ def resolve_definition(analysis: AnalysisDefinition, series: dict[str, SeriesBin
     if any(i not in series for i in reference_ids):
         raise ValueError("Choose existing or staged risk reference series")
     resolved = ResolvedDefinition(id=analysis.id, revision=analysis.revision, name=analysis.name,
+        economic_rationale=analysis.economic_rationale,
         calculation=analysis.calculation, settings=analysis.settings, inputs=tuple(series[i] for i in analysis.series_ids),
         references=tuple(series[i] for i in sorted(reference_ids - set(analysis.series_ids))))
     units = [u.label() for u in input_unit_expressions(resolved)] if analysis.settings.calculation_contract == "input-pipeline-v2" else [adjusted_unit(series[i].unit, series[r.reference_id or i].unit if r.method != "none" else series[i].unit,

@@ -26,6 +26,14 @@ The rebuild uses workspace schema 2. Older/unmarked nonempty workspaces are refu
 
 Files for a version are written before its atomic commit pointer. Interrupted saves leave the previous version readable; unpublished directories are ignored. Snapshot metadata is committed last. Disk/read errors stop capture/export with an actionable message. Removing a chart/note preserves prior versions and Snapshots internally. No History destination is required.
 
+Analysis definitions and resolved evaluation/Snapshot definitions carry optional
+`economic_rationale` text. Library edits advance the definition revision; saved
+evidence and Latest keep their captured text. Older records default to empty
+without file migration or backfilling from Library. On an update, omission
+preserves stored rationale and an explicit empty string clears it. Rationale
+does not affect numerical calculations, thresholds or data eligibility; a revised
+definition follows the existing incompatible-baseline rules.
+
 Saved charts render their frozen observations and settings with the current presentation; Saved/Latest share chart geometry. Original PNGs remain unchanged and can be downloaded under Source and chart details. A chart note sits directly below its plot, with Edit/Delete beside it and source disclosure last.
 
 Legend click shows/hides a series; double-click isolates it. Hidden labels stay dimmed and axes remain fixed while toggling. Image exports and Save to Idea capture `hidden_traces` and `axis_ranges` in DisplaySettings. Older records default to all traces visible and automatic initial scales. Latest keeps the captured selection and recalculates scales from all current traces; changing chart view resets selection. Underlying values and analytical metrics remain unchanged by visibility.

@@ -403,6 +403,7 @@ function newDraft(kind) {
         revision: 1,
         name: "",
         calculation: "level",
+        economic_rationale: "",
         series_ids: [state.catalogue.series[0]?.id],
         monitored: false,
         settings: {
@@ -480,7 +481,7 @@ function libraryEditor(d = state.draft, kind = state.libraryTab) {
     const local = provider === "localfile", macro = provider === "macrobond", custom = provider === "custom";
     return `<section class="paper editor"><h2>${state.catalogue.series.some(s => s.id === d.id) ? "Edit" : "Add"} data series</h2><form id="library-form"><div class="fields">${field("Name", "name", d.name)}<label>Source<select name="provider" aria-label="Source">${providers.map(([v, label]) => `<option value="${esc(v)}" ${provider === v ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label>${custom ? field("Registered source name", "custom_source", d.source === "custom" ? "" : d.source) : ""}${field(local ? "Column name" : macro ? "Series symbol" : "Symbol / ticker", "instrument", d.instrument)}${!local && !macro ? field("Field", "field", d.field, "text", !custom) : ""}${local || custom ? field("File path (absolute)", "path", d.path, "text", local) : ""}${field("Units", "unit", d.unit)}${field("Currency", "currency", d.currency === "Not applicable" ? "" : d.currency, "text", false)}</div><details class="series-options"><summary>Catalogue name and additional details</summary><div class="fields">${field("Catalogue name (my_name)", "catalog_name", d.catalog_name, "text", false)}${field("Description", "description", d.description, "text", false)}</div>${custom ? `<label>Query parameters (JSON)<textarea name="query_params" spellcheck="false">${esc(JSON.stringify(d.params || {}, null, 2))}</textarea></label>` : `<input type="hidden" name="query_params" value="${esc(JSON.stringify(d.params || {}))}">`}<p class="meta">Catalogue name defaults to the name with underscores.</p></details><p class="meta">${legacy ? "Existing binding. Choose a provider and enter its symbol to move it into the Metapyle catalogue." : "Save writes a Metapyle catalogue entry. Symbols and fields use the provider’s exact identifiers."}${document.body.dataset.mode === "mock" ? " Demo observations remain limited to the existing fixtures." : ""}</p>${actions('<button class="primary" type="submit">Save data series</button>' + button("Cancel", "library-cancel"))}</form></section>`;
   }
-  return `<section class="paper editor"><h2>${state.catalogue.analyses.some(a => a.id === d.id) ? "Edit analysis defaults" : "Add analysis"}</h2><p class="meta">Saved defaults apply to future evaluations. Earlier Idea evidence keeps its captured definition.</p>${state.exploratory && d.id === new URLSearchParams(location.search).get("edit") ? button("Use exploratory settings", "use-exploratory") : ""}<form id="library-form">${field("Name", "name", d.name)}${analysisControls(d)}${librarySeriesActions(d)}<div id="library-save-summary"></div>${actions(`<button class="primary" type="submit">${librarySaveLabel(d)}</button>` + button("Cancel", "library-cancel"))}</form></section>`;
+  return `<section class="paper editor"><h2>${state.catalogue.analyses.some(a => a.id === d.id) ? "Edit analysis defaults" : "Add analysis"}</h2><p class="meta">Saved defaults apply to future evaluations. Earlier Idea evidence keeps its captured definition.</p>${state.exploratory && d.id === new URLSearchParams(location.search).get("edit") ? button("Use exploratory settings", "use-exploratory") : ""}<form id="library-form">${field("Name", "name", d.name)}<label>Economic rationale<textarea name="economic_rationale" aria-label="Economic rationale" maxlength="10000" rows="5" aria-describedby="rationale-help">${esc(d.economic_rationale || "")}</textarea></label><p class="meta" id="rationale-help">Optional: what are you investigating, why does it matter, and what else could explain the result?</p>${analysisControls(d)}${librarySeriesActions(d)}<div id="library-save-summary"></div>${actions(`<button class="primary" type="submit">${librarySaveLabel(d)}</button>` + button("Cancel", "library-cancel"))}</form></section>`;
 }
 document.addEventListener("change", async (event) => {
   try {
@@ -530,7 +531,7 @@ document.addEventListener("click", async (event) => {
     }
     else if (a === "use-exploratory") {
       readLibraryDraft();
-      if (state.exploratory.settings) state.draft = {...state.draft, ...structuredClone(state.exploratory)};
+      if (state.exploratory.settings) state.draft = {...state.draft, ...structuredClone(state.exploratory), economic_rationale: state.draft.economic_rationale || ""};
       else state.draft.settings = structuredClone(state.exploratory);
       renderLibrary();
     } else if (a === "scope") {

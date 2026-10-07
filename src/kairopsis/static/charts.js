@@ -172,7 +172,7 @@ function evidenceDetails(e, originalImage = "", display = null) {
         `<tr><td>${dateText(p.date)}</td><td>${number(p.value)}</td>${z ? `<td>${number(p.unstandardized_value)}</td>` : ""}${p.inputs.map((v, i) => `<td>${number(v)}</td><td>${dateText(p.observed_on[i])}</td>${hasTransformedInputs(e) ? `<td>${number(p.transformed_inputs[i], e.input_units[i])}</td><td>${number(p.risk_scales[i])}</td><td>${dateText(p.period_start[i])}</td>` : ""}`).join("")}</tr>`,
     )
     .join("");
-  return `<div class="evidence-details"><p class="meta chart-footnote">${chartFootnote(e, display).map(esc).join("<br>")}</p><details><summary>Source and chart details</summary>${sourceDetails}<h3 class="disclosure-heading">Chart settings</h3>${detailList(
+  return `<div class="evidence-details"><p class="meta chart-footnote">${chartFootnote(e, display).map(esc).join("<br>")}</p><details><summary>Source and chart details</summary><h3 class="disclosure-heading">Economic rationale</h3><p class="prose economic-rationale">${esc(e.definition.economic_rationale || "No economic rationale recorded")}</p>${sourceDetails}<h3 class="disclosure-heading">Chart settings</h3>${detailList(
     [
       [
         "Calculation",

@@ -35,6 +35,14 @@ authorizes implementation and verification, not publication or unrelated cleanup
 
 ## User experience
 
+### Economic Rationale
+
+[ADR 0005](../adr/0005-analysis-economic-rationale.md) adds optional Economic
+Rationale to the Analysis definition and its captured evidence. Library edits
+the text; evidence details show the rationale captured with the displayed
+evaluation. Implemented 7 October 2026; the calculation sequence and contract
+versions below remain unchanged.
+
 ### One sequence in Library and Investigation
 
 Use shared control rendering/state rules for the analytical settings in both

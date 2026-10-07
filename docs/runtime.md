@@ -18,6 +18,42 @@ Opening an Analysis, previewing its settings, previewing a Library Data Series o
 
 A browser reload follows the page's normal behavior: an Analysis chart requests data again; the Analyses list uses its dated refresh results unless the daily trigger applies. Live requests bypass Metapyle's observation cache, but a new request does not guarantee newer observations or verified source freshness. Check the returned observation dates and limitations. Saved Snapshots remain unchanged.
 
+## Retained screening runs
+
+Every manual or daily refresh retains a Screening Run under
+`workspace/screenings/<run_id>/`. The dedicated
+[screening skill](../src/kairopsis/skills/kairopsis-screening/SKILL.md) can start
+and wait for a run, or review one already retained. Calculation and storage remain
+in Kairopsis; the external agent interprets the evidence and writes the brief.
+There is no embedded agent service or new scheduled polling.
+
+At the start, the run freezes resolved Analysis definitions, Economic Rationale,
+monitoring membership, comparison evaluations and relevant Idea references. All
+saved Analyses are evaluated, preserving dashboard behavior; the agent normally
+reviews the monitored subset. Each result carries its own observation and
+retrieval dates. Completion does not imply successful or fresh data: failed,
+retained, synthetic, partial and unverified results remain explicit.
+
+`manifest.json` contains a compact summary for every Analysis. Full evaluations,
+comparison evidence and failed-attempt records live alongside it. The manifest
+is published after its evidence, so an incomplete write cannot appear as a
+completed run. A failed publication preserves the preceding dashboard results.
+Unfinished runs become interrupted after restart. Run evidence is immutable;
+briefs are new, separately identified outputs under `briefs/`.
+
+`POST /api/screenings` accepts a caller-generated `request_id` and returns a
+run ID promptly. Repeating that ID returns the same run. The agent polls that
+exact ID and resumes it after a timeout; it must not substitute an older run.
+Listing and reading runs, detailed evidence or briefs do not refresh data.
+The [run contract](../src/kairopsis/skills/kairopsis-screening/references/run-contract.md)
+defines routes, fields, coverage and offline review. The existing refresh response
+retains its fields and adds `screening_run_id` and `screening_path`.
+
+Copy a completed run's whole folder for review elsewhere; it carries its own
+evidence without requiring the original catalogue or workspace. Retained runs
+consume disk space; automatic pruning is not provided. Keep one application
+process per workspace. Back up the complete workspace while the app is stopped.
+
 ## Evidence and recovery
 
 The rebuild uses workspace schema 2. Older/unmarked nonempty workspaces are refused without modification. Choose a new empty directory; no migration or deletion is performed. Retain older user directories independently.
@@ -63,7 +99,7 @@ Name is the display label. Catalogue name (`my_name`) defaults to the name with 
 
 Metapyle validates source-specific attributes and registered sources before publication. Structural validation does not prove that a symbol exists or that it represents the intended asset. Library save does not fetch observations. Source failures and missing expected columns remain explicit.
 
-Retrieval uses `Client(catalog=..., cache_enabled=False)` → `get([my_name], ..., use_cache=False)` → `close()`. A new client loads each request's catalogue. Active definitions use the managed YAML; frozen definitions use a temporary catalogue containing their captured entries when current entries differ or have been removed. No frequency alignment is requested from Metapyle; analytical Frequency remains in Kairopsis.
+Retrieval uses `Client(catalog=..., cache_enabled=False)` → `get([my_name], ..., use_cache=False)` → `close()`. A new client loads a temporary catalogue containing each request's captured bindings. Concurrent Library edits cannot change an in-flight request, and frozen definitions remain usable after active entries change or disappear. No frequency alignment is requested from Metapyle; analytical Frequency remains in Kairopsis.
 
 Public adapter responses remain freshness **unverified** and native observation dates unknown. They support inspectable charts and saved evidence but cannot establish eligible findings. Observation cache bypass remains deliberate; catalogue files are definitions, not an observation cache. Installed adapter capabilities, upstream freshness, calendars and dependency routing require verification in the target environment.
 

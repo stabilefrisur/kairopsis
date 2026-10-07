@@ -53,8 +53,9 @@ def inspect(wheel: Path, require_assets: bool, source: Path | None = None) -> di
             for guide in ('human-guide.md', 'agent-setup.md'):
                 if f'kairopsis/docs/{guide}' not in names:
                     missing.append(f'installed guide: {guide}')
-            if 'kairopsis/skills/kairopsis-analysis/SKILL.md' not in names:
-                missing.append('installed skill: kairopsis-analysis')
+            for skill in ('kairopsis-analysis', 'kairopsis-screening'):
+                if f'kairopsis/skills/{skill}/SKILL.md' not in names:
+                    missing.append(f'installed skill: {skill}')
         # A copied skill must retain working references without the source checkout.
         skill_checks = []
         for name in assets['skills']:

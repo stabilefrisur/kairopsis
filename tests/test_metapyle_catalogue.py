@@ -149,6 +149,31 @@ def test_missing_expected_column_never_substitutes_other_values(tmp_path, monkey
     assert not response.series and response.failures[0].code == "missing_field"
 
 
+def test_request_catalogue_is_frozen_before_client_initialization(tmp_path, monkeypatch):
+    import metapyle
+    from kairopsis.metapyle_catalogue import serialize_catalogue
+    from kairopsis.repository import atomic_bytes
+
+    config = settings(tmp_path)
+    original = binding(tmp_path)
+    (tmp_path / "data.csv").write_text("date,SPREAD,OTHER\n2026-10-01,100,200\n2026-10-02,101,202\n")
+    with TestClient(create_app(config, clock=lambda: NOW)) as http:
+        assert http.post("/api/library/series", json=original).status_code == 200
+    actual_client = metapyle.Client
+    managed = config.workspace / "metapyle.yaml"
+    edited = serialize_catalogue((SeriesBinding.model_validate({**original, "instrument": "OTHER"}),))
+    def racing_client(*, catalog, **options):
+        # Simulate a Library edit between choosing YAML and Client loading it.
+        atomic_bytes(managed, edited)
+        assert catalog != managed
+        return actual_client(catalog=catalog, **options)
+    monkeypatch.setattr(metapyle, "Client", racing_client)
+    response = MetapyleMarketData(config, lambda: NOW).fetch(DataRequest(
+        bindings=(SeriesBinding.model_validate(original),), start=date(2026, 10, 1), end=date(2026, 10, 2)))
+    assert not response.failures and response.series[0].observations[-1].value == 101
+    assert Catalog.from_yaml(managed).get("test_spread").symbol == "OTHER"
+
+
 def test_old_workspaces_and_snapshots_load_with_no_catalogue_fields(tmp_path):
     config = Settings(workspace=tmp_path / "mock")
     app = create_app(config, clock=lambda: NOW)

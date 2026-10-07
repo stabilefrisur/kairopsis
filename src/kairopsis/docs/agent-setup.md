@@ -183,19 +183,23 @@ Match it to the expected installed distribution and immutable private artifact
 or revision. An import path/version alone does not establish that identity.
 Record exact resolved dependencies and metadata changes privately. Verify
 templates, bundled JS/CSS/vendor assets and both guides under the installed
-`kairopsis` resources. Also verify the complete `skills/kairopsis-analysis` folder,
-including its references. No frontend compilation is needed.
+`kairopsis` resources. Also verify the complete `skills/kairopsis-analysis` and
+`skills/kairopsis-screening` folders, including references and scripts. No frontend
+compilation is needed.
 
-Locate the bundled analysis skill through the installed interpreter:
+Locate both bundled skills through the installed interpreter:
 
 ```powershell
 & $KairopsisAppPython -c "from importlib.resources import files; print(files('kairopsis').joinpath('skills', 'kairopsis-analysis', 'SKILL.md'))"
+& $KairopsisAppPython -c "from importlib.resources import files; print(files('kairopsis').joinpath('skills', 'kairopsis-screening', 'SKILL.md'))"
 ```
 
-Read that entry point when configuring analyses. In the extracted source workspace,
-`AGENTS.md` points to the same skill under `src/kairopsis/skills`. For an agent using
-a separate workspace, load the entry point directly or copy the **whole**
-`kairopsis-analysis` folder into that agent's supported skill directory (for
+Use the analysis skill to define calculations and record their economic rationale.
+Use the screening skill to run and retain a screening, or review an existing run,
+then interpret its evidence and save a brief. In the extracted source workspace,
+`AGENTS.md` points to both skills under `src/kairopsis/skills`. For an agent using
+a separate workspace, load the relevant entry point directly or copy each **whole**
+skill folder into that agent's supported skill directory (for
 example, `.agents/skills` for an agent supporting that convention). Preserve any
 existing customized copy; record the package version and refresh the copy when
 upgrading. Package inclusion alone does not register a skill with every agent.
@@ -262,6 +266,9 @@ In the isolated demo, then authorized live workspace where available:
   its explicit download fallback through available Chrome tools.
 - Stop/restart with the same configuration; verify retained evidence, note contents
   and configured series remain intact.
+- Start a screening through the screening skill. Verify its run ID, retained
+  evidence, coverage and saved brief; review that same run after restart without
+  another refresh. Treat demo or unverified results according to their labels.
 - Stop before backing up the whole workspace. Restore into a fresh directory and
   verify it opens without altering the original research.
 

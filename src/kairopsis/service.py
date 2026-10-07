@@ -7,11 +7,12 @@ from zoneinfo import ZoneInfo
 
 from .analytics import evaluate
 from .periods import Period, period_start, retrieval_start
-from .catalogue import Catalogue
+from .catalogue import Catalogue, resolve_definition
 from .evaluation_comparison import compare
 from .fixtures import MOCK_AS_OF
 from .models import AnalysisDefinition, AnalysisSettings, DataRequest, DataResponse, Evaluation, ResolvedDefinition, SeriesBinding, identity
 from .repository import Repository
+from .screenings import Screenings, coverage
 
 
 class MarketData(Protocol):
@@ -26,6 +27,7 @@ class Research:
         self.timezone = ZoneInfo(timezone)
         self.refresh_lock = Lock()
         self.running = False
+        self.screenings = Screenings(repository, timezone)
 
     def preview_series(self, binding: SeriesBinding, period: Period) -> dict:
         end = MOCK_AS_OF if self.repository.mode == "mock" else self.clock().astimezone(self.timezone).date()
@@ -41,6 +43,10 @@ class Research:
         return result
 
     def compute(self, definition: ResolvedDefinition, provider: MarketData, display_period: Period = 5) -> Evaluation:
+        request, data = self.retrieve(definition, provider, display_period)
+        return evaluate(definition, data, request, self.clock())
+
+    def retrieve(self, definition: ResolvedDefinition, provider: MarketData, display_period: Period = 5) -> tuple[DataRequest, DataResponse]:
         end = MOCK_AS_OF if self.repository.mode == "mock" else self.clock().astimezone(self.timezone).date()
         start = retrieval_start(end, (definition.settings.history_years, definition.settings.fit_years, 5, display_period),
             (r.lookback_years for r in definition.settings.adjustments(len(definition.inputs)) if r.method != "none"),
@@ -50,7 +56,7 @@ class Research:
         data = provider.fetch(request)
         if data.mode != self.repository.mode:
             raise ValueError("Provider mode does not match workspace")
-        return evaluate(definition, data, request, self.clock())
+        return request, data
 
     def preview_analysis(self, analysis: AnalysisDefinition, drafts: tuple[SeriesBinding, ...], period: Period) -> Evaluation:
         return self.compute(self.catalogue.resolve_draft(analysis, drafts), self.preview_provider, period)
@@ -68,7 +74,21 @@ class Research:
         options = AnalysisSettings.model_validate({**definition.settings.model_dump(), **settings})
         return self.evaluate(self.catalogue.resolve(key, options))
 
-    def refresh(self, manual: bool = True) -> dict:
+    def start_screening(self, request_id: str) -> dict:
+        status, created = self.screenings.create("agent", request_id, self.clock())
+        if created:
+            self.running = True
+            Thread(target=self._background_refresh, kwargs={"run_id": status["run_id"]}, daemon=True).start()
+        return status
+
+    def _background_refresh(self, **options) -> None:
+        try:
+            self.refresh(**options)
+        except Exception:
+            # Durable failed status is set by refresh; do not expose provider details.
+            pass
+
+    def refresh(self, manual: bool = True, run_id: str | None = None) -> dict:
         with self.refresh_lock:
             self.running = True
             try:
@@ -77,13 +97,38 @@ class Research:
                 day = now.astimezone(self.timezone).date().isoformat()
                 if not manual and state.get("day") == day:
                     return state
+                if run_id is None:
+                    run_id = self.screenings.create("manual" if manual else "daily", None, now)[0]["run_id"]
+                # Freeze all research context in one short transaction. No provider
+                # retrieval holds this lock; edits become inputs to a later run.
+                with self.repository.transaction():
+                    records = self.catalogue.records()
+                    series = {s["id"]: SeriesBinding.model_validate(s) for s in records["series"]}
+                    analyses = [AnalysisDefinition.model_validate(a) for a in records["analyses"]]
+                    definitions = {a.id: resolve_definition(a, series) for a in analyses}
+                    idea_refs: dict[str, list[dict]] = {}
+                    for idea in self.repository.list_ideas():
+                        matching: dict[str, list[str]] = {}
+                        for chart in idea.charts:
+                            key = self.repository.get_snapshot(idea.id, chart.snapshot_id).evaluation.definition.id
+                            matching.setdefault(key, []).append(chart.id)
+                        for key, chart_ids in matching.items():
+                            idea_refs.setdefault(key, []).append({"id": idea.id, "title": idea.title,
+                                "version": idea.version, "chart_ids": chart_ids})
                 results, failures = dict(state["results"]), {}
-                active = {a["id"] for a in self.catalogue.records()["analyses"]}
+                active = set(definitions)
                 results = {k: v for k, v in results.items() if k in active}
+                rows: list[dict] = []
+                evidence: dict[str, str] = {}
+                membership = {a.id: a.monitored for a in analyses}
                 for key in sorted(active):
+                    definition = definitions[key]
+                    previous = self.repository.get_evaluation(results[key]) if key in results else None
+                    request, data, current = None, None, None
+                    attempted = self.clock().isoformat()
                     try:
-                        current = self.evaluate(self.catalogue.resolve(key))
-                        previous = self.repository.get_evaluation(results[key]) if key in results else None
+                        request, data = self.retrieve(definition, self.provider)
+                        current = evaluate(definition, data, request, self.clock())
                         current = compare(current, previous).model_copy(update={"id": identity()})
                         self.repository.save_evaluation(current)
                         results[key] = current.id
@@ -92,11 +137,22 @@ class Research:
                     except Exception as error:
                         # External provider details may include secrets. Expose type only.
                         failures[key] = f"Retrieval failed ({type(error).__name__}); retained dated evidence"
+                    rows.append(self.screenings.capture_row(run_id, definition, membership[key], idea_refs.get(key, []),
+                        current, previous, failures.get(key), request, data, attempted, self.clock().isoformat(), evidence))
                 state = {"day": day, "attempted_at": now.isoformat(), "completed_at": self.clock().isoformat(),
-                         "results": results, "failures": failures}
-                with self.repository.transaction():
-                    self.repository.write_json("refresh", state)
+                         "results": results, "failures": failures, "screening_run_id": run_id,
+                         "screening_path": str(self.screenings.folder(run_id).resolve())}
+                metadata = self.screenings.get(run_id)
+                manifest = {**{k: v for k, v in metadata.items() if k not in ("path", "manifest_path")},
+                    "status": "completed", "attempted_at": now.isoformat(), "completed_at": state["completed_at"],
+                    "universe_count": len(rows), "monitored_count": sum(membership.values()),
+                    "coverage": coverage(rows), "rows": rows, "evidence": evidence}
+                self.screenings.publish(run_id, manifest, state)
                 return state
+            except Exception:
+                if run_id is not None:
+                    self.screenings.fail(run_id, self.clock())
+                raise
             finally:
                 self.running = False
 
@@ -105,7 +161,7 @@ class Research:
         day = self.clock().astimezone(self.timezone).date().isoformat()
         if state.get("day") != day and not self.running:
             self.running = True
-            Thread(target=self.refresh, kwargs={"manual": False}, daemon=True).start()
+            Thread(target=self._background_refresh, kwargs={"manual": False}, daemon=True).start()
 
     def rows(self, scope: str, query: str, kind: str) -> dict:
         state = self.repository.read_json("refresh", {"results": {}, "failures": {}})

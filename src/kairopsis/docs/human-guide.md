@@ -36,6 +36,27 @@ shows its last refresh results unless the daily refresh is due. Data is not
 continuously streamed; a new request may return the same observations. Check
 observation dates and source limitations before treating values as current.
 
+## Ask for a screening brief
+
+Ask your agent: **“Screen my monitored analyses and brief me.”** The bundled
+[screening skill](../skills/kairopsis-screening/SKILL.md) starts a refresh, waits
+for its saved results, reviews the monitored analyses and saves a readable brief.
+The brief groups related developments, tests the recorded economic rationale,
+and identifies evidence and follow-up questions. It reports coverage, observation
+dates and data limitations alongside any conclusions.
+
+Every manual or daily refresh retains a dated Screening Run, including quiet
+runs and failed analyses. You can ask the agent to review a particular saved run
+without fetching data again. Its evidence preserves the definitions and rationale
+used then; later Library edits do not rewrite it. New briefs remain separate
+from that evidence. Your setup agent can enable the skill in your agent workspace.
+
+The app still calculates all saved analyses; the brief focuses on those marked
+for monitoring at the run's start. Missing or unverified data is a coverage gap,
+so a quiet brief does not necessarily mean markets were quiet. Demo briefs use
+fabricated data. The skill runs through your existing agent; no embedded agent
+service is required.
+
 ## Investigate an analysis
 
 For help defining an analysis, ask your agent to use the bundled

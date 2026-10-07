@@ -10,6 +10,10 @@ applies; the full research library is optional. A design-and-save request uses
 Design, then Configure. Preserve explicit analytical choices and distinguish
 economic suitability, defined mathematics and installed capability.
 
+For screening a monitored universe and saving a brief from a retained run,
+discover the installed `kairopsis-screening` skill. It owns run orchestration
+and coverage review; this skill supplies deeper Analysis interpretation.
+
 ## Interpret — explain existing evidence
 
 1. For a conceptual formula question, use the supplied input semantics. For an

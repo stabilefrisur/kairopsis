@@ -12,7 +12,7 @@ import pandas as pd  # type: ignore[import-untyped]
 from .config import Settings
 from .live_config import MetapyleMapping, load_live_configuration
 from .models import DataFailure, DataRequest, DataResponse, Observation, SeriesBinding, SeriesResult
-from .metapyle_catalogue import entries_for, matches_catalogue, validate_catalogue
+from .metapyle_catalogue import entries_for, validate_catalogue
 
 
 class InvalidResponse(ValueError):
@@ -108,17 +108,13 @@ class MetapyleMarketData:
             direct = tuple(item for item in request.bindings if item.catalog_name is not None)
             catalog: Path | list = []
             if direct and not self.ad_hoc:
-                managed = self.settings.workspace / "metapyle.yaml"
-                if managed.exists() and matches_catalogue(managed, direct):
-                    catalog = managed
-                else:
-                    # Latest for an old Snapshot queries its captured binding,
-                    # even after the active catalogue is edited or deleted.
-                    from metapyle.catalog import Catalog
-                    assert temporary is not None
-                    catalog = Path(temporary.name) / "captured.yaml"
-                    Catalog(entries_for(direct)).to_yaml(catalog)
-                    validate_catalogue(catalog)
+                # A mutable Library projection could change after matching it
+                # and before Client loads it. Every request uses captured bindings.
+                from metapyle.catalog import Catalog
+                assert temporary is not None
+                catalog = Path(temporary.name) / "metapyle.yaml"
+                Catalog(entries_for(direct)).to_yaml(catalog)
+                validate_catalogue(catalog)
             client = (metapyle.Client(catalog=[], cache_enabled=False) if self.ad_hoc else
                 metapyle.Client(catalog=catalog, cache_path=str(self.settings.cache_dir / "metapyle-live.sqlite"), cache_enabled=False))
         except Exception as error:

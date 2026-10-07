@@ -9,6 +9,8 @@ evidence together in a browser-based dashboard.
 - **Investigate:** levels, differences, ratios and regression residuals, with
   historical context and optional risk adjustment.
 - **Retain evidence:** save charts, observations and notes alongside each Idea.
+- **Screen and brief:** retain dated screening results for an agent to review
+  against the recorded economic rationale and turn into a concise brief.
 - **Revisit and share:** compare saved evidence with the latest data and export
   charts or spreadsheet-ready values.
 
@@ -24,8 +26,11 @@ stays in a local workspace. Live data access uses Metapyle.
 - [Analysis configuration skill](https://github.com/stabilefrisur/kairopsis/blob/main/src/kairopsis/skills/kairopsis-analysis/SKILL.md)
   — agent guidance for economic questions, data shaping and analytical settings,
   with a complete combination map and worked examples.
+- [Screening skill](https://github.com/stabilefrisur/kairopsis/blob/main/src/kairopsis/skills/kairopsis-screening/SKILL.md)
+  — run a screening or review retained results, investigate significant themes,
+  and save a brief with traceable evidence.
 
-Both guides and the self-contained analysis skill are included in the installed
+Both guides and both self-contained skills are included in the installed
 Python package and the source archive.
 Requires Python 3.12 or later. Frontend assets are bundled; no Node.js setup is
 needed.

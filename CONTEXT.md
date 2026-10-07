@@ -67,6 +67,12 @@ A defined investigation of one or two Data Series, including its calculation, an
 **Economic Rationale**:
 The investment question an Analysis investigates, the reasoning for examining its Data Series, and the assumptions or alternative explanations that qualify its interpretation. It is a hypothesis to assess against evidence.
 
+**Screening Run**:
+A dated review of a defined set of Analyses, retaining which were monitored, their evaluated evidence and any limitations or failures. It preserves the context for reviewing that screening later.
+
+**Screening Brief**:
+A concise interpretation of a Screening Run, grouping significant developments, examining supporting and challenging evidence, and identifying follow-up investigations. Its conclusions are qualified by the run's coverage and data quality.
+
 **Risk Adjustment**:
 Scaling of input levels, changes or percentage changes using a risk measure or sensitivity estimated from explicitly selected absolute or percentage changes, to support comparison between exposures.
 

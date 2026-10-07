@@ -54,6 +54,14 @@ class MonitoringEdit(BaseModel):
     monitored: bool = Field(strict=True)
 
 
+class ScreeningRequest(BaseModel):
+    request_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")
+
+
+class ScreeningBriefRequest(BaseModel):
+    markdown: str = Field(min_length=1, max_length=50000)
+
+
 class SeriesQuery(SeriesBinding):
     @model_validator(mode="before")
     @classmethod
@@ -156,6 +164,30 @@ def create_app(settings: Settings | None = None, market_data: MarketData | None 
     @app.post("/api/refresh")
     def refresh():
         return research.refresh()
+
+    @app.post("/api/screenings", status_code=202)
+    def screen(body: ScreeningRequest):
+        return research.start_screening(body.request_id)
+
+    @app.get("/api/screenings")
+    def screenings(limit: int = 20):
+        return research.screenings.listing(limit)
+
+    @app.get("/api/screenings/{run_id}")
+    def screening(run_id: str):
+        return research.screenings.get(run_id)
+
+    @app.get("/api/screenings/{run_id}/evaluations/{evaluation_id}")
+    def screening_evaluation(run_id: str, evaluation_id: str):
+        return research.screenings.evaluation(run_id, evaluation_id)
+
+    @app.post("/api/screenings/{run_id}/briefs", status_code=201)
+    def save_screening_brief(run_id: str, body: ScreeningBriefRequest):
+        return research.screenings.save_brief(run_id, body.markdown, clock())
+
+    @app.get("/api/screenings/{run_id}/briefs/{brief_id}")
+    def screening_brief(run_id: str, brief_id: str):
+        return research.screenings.brief(run_id, brief_id)
 
     @app.get("/api/library")
     def library():

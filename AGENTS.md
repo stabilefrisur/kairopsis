@@ -6,6 +6,12 @@ Before defining, revising or interpreting an Analysis, read
 `src/kairopsis/skills/kairopsis-analysis/SKILL.md` for parameter and data-shaping
 guidance. This skill and its references ship with the distribution.
 
+### Screening and briefing
+
+Before running a screening or interpreting retained screening results, read
+`src/kairopsis/skills/kairopsis-screening/SKILL.md`. It coordinates running,
+retaining and reviewing evidence, then saving a human-readable brief.
+
 ### Issue tracker
 
 Issues live as local Markdown under `.scratch/`. Before creating,

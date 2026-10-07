@@ -26,6 +26,39 @@ an unsupported save. These are synthetic-data and offline-schema checks; they do
 not establish live-provider or corporate Windows acceptance. Standards and Spec
 reviews report no findings. Evidence: `.scratch/analysis-economic-rationale/`.
 
+## Retained screening — 7 October 2026
+
+The source suite and the source-archive tests against the installed wheel outside
+the checkout each pass 304 tests; mypy checks 20 files and compilation passes.
+Coverage includes idempotent starts, concurrent catalogue/Idea edits, actual
+comparison baselines, partial/failed/unverified/retained outcomes, empty and
+300-Analysis universes, restart recovery, failed publication, disk-full status
+fallback and path containment. Repeated runs retain at most two evaluations per
+Analysis; original bytes survive copying. A real local-CSV Metapyle test verifies
+that an intervening catalogue edit cannot change captured request bindings.
+
+Eight portable-helper regressions cover uncertain submissions, exact-run polling,
+read-only access, independent folder copies, containment and brief versions with
+readback. Chromium verifies automatic and manual dashboard retention against
+both source and installed Linux apps, with no script errors. Wheel/source builds,
+inventory and strict Twine checks pass. Both independently copied skills match
+the wheel/source archive: seven files and 110 local links/anchors. The inventory
+rejects a missing screening entry point or linked helper.
+
+An independent GPT-6.1 Sol High trial reviewed a real copied mock run and disclosed
+synthetic overlapping-theme/incomplete-coverage fixtures. It accounted for every
+monitored summary, inspected supporting and challenging evidence and baselines,
+and saved/read back separate briefs without changing evidence or refreshing data.
+The normal screen-now CLI trial was blocked by automatic execution review without
+a stated reason. The trial then mistakenly invoked the helper through another
+script; that execution is recorded as a deviation, not a clean CLI pass. Subsequent
+review remained offline. Automated helper and application tests passed separately.
+
+Standards and Spec reviews have no outstanding findings after containment fixes.
+Evidence: `.scratch/agent-screening/`, including the corrected retained-baseline
+trial in `trials/evidence-report-v2.md`. These checks do not establish corporate
+Windows operation, live-provider freshness or economic calibration.
+
 ## Source and packaging checks
 
 ```sh
@@ -37,9 +70,10 @@ uv run python scripts/acceptance/inspect_wheel.py dist/kairopsis-0.1.1-py3-none-
 uvx --from twine twine check --strict dist/*
 ```
 
-The inventory requires both installed guides and the analysis skill, checks that
-the skill's local Markdown links resolve within its own folder, checks source
-completeness and vendor checksums, and rejects accidental private runtime material. Source archives
+The inventory requires both installed guides and both analysis and screening
+skills, checks that each skill's local Markdown links resolve within its own
+folder, checks source completeness and vendor checksums, and rejects accidental
+private runtime material. Source archives
 include docs, tests, scripts, the lockfile and domain context. Keep scratch records
 and credentials outside published artifacts.
 
@@ -51,20 +85,30 @@ navigation destinations, local assets, an Analysis, saved Idea evidence, notes,
 exports and restart persistence. Verify both guides through
 `importlib.resources.files('kairopsis').joinpath('docs')`.
 
-Check the analysis skill through
-`importlib.resources.files('kairopsis').joinpath('skills', 'kairopsis-analysis')`.
-Copy that entire folder into an isolated directory and validate it there: the
-entry point and all local references must work without the repository. Verify
-the same files survive an sdist-to-wheel rebuild. Bundling is distinct from
-registering the skill with the user's agent; the setup guide describes discovery.
+Check both skills through `importlib.resources.files('kairopsis').joinpath('skills')`:
+`kairopsis-analysis` and `kairopsis-screening`. Copy each entire folder into an
+isolated directory and validate it there: entry points, local references and
+helper scripts must work without the repository. Verify the same files survive
+an sdist-to-wheel rebuild. Bundling is distinct from registering the skills with
+the user's agent; the setup guide describes discovery.
+
+Verify screening through real HTTP requests with isolated storage: idempotent
+starts, exact-run polling, no-refresh reads, manual/daily retention, frozen
+definitions, mixed data outcomes, interrupted runs and failed publication.
+Check portable current/comparison evidence and separately versioned briefs.
+Exercise hundreds of summaries without embedding complete histories. Agent trials
+must cover starting a run, reviewing existing competing themes, and quiet or
+incomplete coverage; mock success does not establish live-provider freshness.
 
 For an automated journey against an isolated running demo instance:
 
 ```sh
 uv run python scripts/browser_acceptance.py --url http://127.0.0.1:8765 --output /absolute/output/browser
+uv run python scripts/screening_acceptance.py --url http://127.0.0.1:8765 --output /absolute/output/screening-browser
 ```
 
-The script creates verification records. Supply a separate workspace rather than
+The scripts create verification records; the screening journey needs a fresh
+workspace to verify the initial daily run. Supply a separate workspace rather than
 an existing research workspace. Prepare Playwright Chromium before network-limited
 checks. `scripts/acceptance/run_windows.py` also provides an installed Windows
 harness; its output directory must not exist.

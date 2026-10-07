@@ -11,6 +11,7 @@ economic examples in other references do not establish installed capability.
 
 - [Data and operations](#data-and-operations): discover, preview, save and reconcile revisions.
 - [Analysis fields](#analysis-fields): map a definition to its payload.
+- [Draft consistency](#draft-consistency): reconcile IDs, shaping and units, including offline proposals.
 - [RiskAdjustment fields](#riskadjustment-fields): active scaling, estimators and units.
 - [Version and combination rules](#version-and-combination-rules): new definitions and captured legacy evidence.
 - [Dates and estimation](#dates-and-estimation): endpoints, missing results, sparse cadence and retrospective charts.
@@ -63,6 +64,36 @@ or `"all"`. Inspect the installed schema for accepted values. Display/preview
 An Analysis has no arbitrary free-form rationale field in this version. Keep
 the rationale in the requested research record or an Idea note; series have
 descriptions for their own semantics/shaping. Use a concise Analysis name.
+
+## Draft consistency
+
+Check the definition being returned, including drafts made without a live app:
+
+1. Resolve every emitted `series_ids` entry against supplied or discovered
+   metadata: identity, actual units, supplied measure and cadence. Retain known
+   IDs for unchanged inputs. Missing observations or app access do not make a
+   supplied identifier unknown.
+2. Map each required upstream transformation to the input that will supply it.
+   If that shaped series is unavailable, use an explicitly labelled unavailable
+   placeholder and state its source, transformation and resulting units/cadence;
+   alternatively, return a conceptual definition with that dependency instead
+   of JSON. For a percent-to-bp conversion, the payload needs the converted-series
+   ID; the unchanged bp input retains its supplied ID. An original ID denotes its
+   original observations, even when the prose works with converted values.
+3. Starting from the IDs actually written, trace a representative value through
+   measure, scaling, calculation and standardization. Derive the units at each
+   applied stage using the [unit rules](#riskadjustment-fields). The payload must
+   reproduce the stated formula, output units and worked result. With metadata
+   only, check units and shaping dependencies and state that numerical evaluation
+   remains unverified. Schema acceptance alone does not establish compatibility.
+4. For filtered or precomputed inputs, apply the
+   [event-sample rules](analysis-design.md#event-samples) to the emitted measure
+   and comparison history. Verify [monitoring capability](#monitoring-rules)
+   separately from a valid calculation.
+
+Done: every input is accounted for, and IDs, transformations, settings and example
+agree. Label the outcome as a conceptual proposal, a structurally checked draft
+with explicit dependencies, or a verified preview, according to the evidence.
 
 ## RiskAdjustment fields
 

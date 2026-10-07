@@ -246,6 +246,10 @@ reports distance from its mean in SD units. Both depend on the chosen sample.
 Z-scoring does not make the distribution Gaussian. A Z-score threshold and a
 percentile threshold need not identify the same observations.
 
+Classify a result as extreme against a stated, purpose-appropriate rule. When no
+such rule is established, report its score and reference history descriptively;
+an illustrative ±2 cutoff alone does not establish that a result is usual or unusual.
+
 Check the [fixed-versus-rolling scaling rules](combination-map.md#redundant-settings-rather-than-invalid-economics)
 before treating risk adjustment plus Z-score as redundant. Inspect the preview's
 [reference and fit timing](application-contract.md#dates-and-estimation) before

@@ -1,0 +1,218 @@
+{
+  "date": "2026-10-07",
+  "model": "gpt-5.6-luna",
+  "reasoning_effort": "high",
+  "baseline_experiment": "analysis-skill-eval-2026-10-07.json",
+  "fixture_verification": "All original manifest hashes checked: cases, raw source, rubric and frozen pre-refinement skill unchanged.",
+  "evaluation_design": "Six fresh agents with no history; identical original arm instructions except model. Parent judged original rubric. Response summaries/excerpts, not complete transcripts.",
+  "evaluations": {
+    "case1_with": {
+      "scores": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "summary": "Correct result arithmetic and weekly-change semantics; explicitly resolves absent contract to v1, retains captured evidence and rejects P&L/backtest interpretation.",
+      "resources": [
+        "case1.md",
+        "skill/SKILL.md",
+        "skill/references/application-contract.md",
+        "skill/references/combination-map.md",
+        "skill/references/analysis-design.md"
+      ],
+      "evidence": [
+        "With Measure = Change, the returned change reuses the current measured analysis result; it is not a second difference or acceleration.",
+        "The omitted calculation_contract implies legacy v1 behavior.",
+        "The historical chart is retrospective, using the reference estimate captured on 2026-09-30; it is not a point-in-time backtest."
+      ]
+    },
+    "case1_without": {
+      "scores": [
+        2,
+        0,
+        1,
+        2,
+        2
+      ],
+      "summary": "Correct 2.0 result arithmetic, but incorrectly says weekly change is a two-point increase in the standardized indicator. Treats missing contract/estimator fields as unresolved instead of applying v1 defaults. Correctly retains Snapshot evidence and rejects trade/backtest claims.",
+      "resources": [
+        "case1.md"
+      ],
+      "evidence": [
+        "Weekly change +2.0 means the saved standardized indicator increased by 2.0 z-score units over the specified one-week horizon.",
+        "The saved JSON lacks the calculation contract and estimation measure needed to assign that stronger interpretation."
+      ],
+      "response": "The saved Snapshot measures a standardized one-week move in the HY-minus-IG OAS spread.\n\nThe underlying endpoint moves were HY +20 bp and IG +5 bp. After dividing by their eligible risk scales (10 bp and 5 bp), the inputs were +2 and +1. Their difference was therefore +1 unstandardized unit.\n\nThe Snapshot then standardized that result using the captured reference mean and sample SD: (1 - 0.2) / 0.4 = 2.0. Thus, result +2.0 means the observed pair result was two captured reference standard deviations above the captured mean. It is a z-score, not a raw 2 bp move.\n\nWeekly change +2.0 means the saved standardized indicator increased by 2.0 z-score units over the specified one-week horizon. It does not, by itself, establish a second derivative or two-standard-deviation acceleration. The saved JSON lacks the calculation contract and estimation measure needed to assign that stronger interpretation.\n\nThis also does not show a backtested profitable HY/IG trade. The evidence contains no trading rule, position construction, returns, transaction costs, benchmark, or historical performance test. It is an analysis Snapshot of spread behavior.\n\nThe current Library definition—input-pipeline-v2, level measure, beta scaling, no standardization—does not redefine this saved result. The correct interpretation uses the settings and reference estimate captured on 2026-09-30; no current live evaluation was supplied."
+    },
+    "case2_with": {
+      "scores": [
+        2,
+        2,
+        2,
+        2,
+        1
+      ],
+      "summary": "Correct arithmetic, composite units, settings and economic/sampling caveats. However, JSON retains existing hy_oas_percent while numerical example assumes an upstream-converted bp series. No unavailable converted ID is identified; the actual supplied series yield incompatible transformed units. Criterion 5 partial credit for acknowledging upstream conversion and no live preview, but the emitted payload does not implement it.",
+      "resources": [
+        "case2.md",
+        "skill/SKILL.md",
+        "skill/references/analysis-design.md",
+        "skill/references/combination-map.md",
+        "skill/references/application-contract.md"
+      ],
+      "evidence": [
+        "Shape HY from percent to bp: 4.5%=450 bp.",
+        "Convert observations upstream; relabeling alone is insufficient.",
+        "series_ids: [hy_oas_percent, ig_oas_bp]"
+      ],
+      "semantic_failure": "The payload mixes dimensionless %/% with bp/% after volatility scaling. Difference requires matching units; no implicit conversion.",
+      "draft": {
+        "name": "HY vs IG quoted spread per proportional variability",
+        "series_ids": [
+          "hy_oas_percent",
+          "ig_oas_bp"
+        ],
+        "calculation": "difference",
+        "settings": {
+          "calculation_contract": "input-pipeline-v2",
+          "measure": "level",
+          "horizon": "week",
+          "risk_adjustment": {
+            "method": "volatility",
+            "estimation_measure": "return",
+            "lookback_years": 1,
+            "weighting": "equal"
+          },
+          "history_years": 3,
+          "standardization": "zscore"
+        }
+      }
+    },
+    "case2_without": {
+      "scores": [
+        2,
+        2,
+        2,
+        1,
+        1
+      ],
+      "summary": "Correct level/return-risk formula, bp/percentage-point units, 47.5 gap and +1.5 Z-score. Omits overlap/composition caveats and falsely treats the supplied existing IG identifier as unavailable. Calls the gap 'not unusual' using a conventional ±2 threshold rather than a requested/calibrated rule.",
+      "resources": [
+        "case2.md",
+        "raw/models.py",
+        "raw/risk.py",
+        "raw/analytics.py",
+        "raw/units.py",
+        "raw/periods.py"
+      ],
+      "evidence": [
+        "That is below a conventional ±2σ unusualness threshold, so the gap is elevated but not unusual on this baseline.",
+        "Unavailable: actual catalogue IDs, full daily histories, and raw three-year adjusted-gap observations."
+      ],
+      "draft": {
+        "id": "draft_hy_ig_weekly_variability",
+        "revision": 1,
+        "name": "HY versus IG spread adjusted for weekly variability",
+        "calculation": "difference",
+        "series_ids": [
+          "UNAVAILABLE_HY_OAS_SERIES_ID",
+          "UNAVAILABLE_IG_OAS_SERIES_ID"
+        ],
+        "monitored": false,
+        "settings": {
+          "calculation_contract": "input-pipeline-v2",
+          "history_years": 3,
+          "horizon": "week",
+          "measure": "level",
+          "standardization": "zscore",
+          "zscore_threshold": 2,
+          "risk_adjustment": {
+            "method": "volatility",
+            "estimation_measure": "return",
+            "lookback_years": 1,
+            "weighting": "equal",
+            "minimum_samples": 60
+          },
+          "minimum_history": 60
+        }
+      }
+    },
+    "case3_with": {
+      "scores": [
+        2,
+        2,
+        2,
+        2,
+        1
+      ],
+      "summary": "Correct worked ratios, unavailable cohort/denominator/lower-only controls and inclusive percentile semantics; monitoring off. Proposed registered prefiltered event observations without preserving measurement baselines or specifying Level for precomputed changes, so fallback remains incomplete.",
+      "resources": [
+        "case3.md",
+        "skill/SKILL.md",
+        "skill/references/combination-map.md",
+        "skill/references/analysis-design.md",
+        "skill/references/application-contract.md",
+        "raw/models.py",
+        "raw/analytics.py",
+        "raw/app.py"
+      ],
+      "evidence": [
+        "Current monitoring triggers both percentile >= 90 and percentile <= 10; it cannot express below the 10th percentile only.",
+        "To make this operational, register or otherwise support prefiltered, date-aligned event observations for weeks containing a policy decision with abs(weekly Δpolicy_rate_bp) >= 25, preview the ratio percentile on that cohort, and add one-sided lower-tail monitoring.",
+        "Nothing was saved or enabled."
+      ],
+      "draft": {
+        "name": "Weekly deposit-rate pass-through",
+        "calculation": "ratio",
+        "series_ids": [
+          "deposit_rate_bp",
+          "policy_rate_bp"
+        ],
+        "monitored": false,
+        "settings": {
+          "calculation_contract": "input-pipeline-v2",
+          "horizon": "week",
+          "measure": "change",
+          "standardization": "none",
+          "upper_percentile": 90
+        }
+      }
+    },
+    "case3_without": {
+      "scores": [
+        1,
+        1,
+        2,
+        2,
+        1
+      ],
+      "summary": "Valid monitoring-off weekly ratio; identifies small denominator and unsupported event/lower-only rules. Omits 0.25 worked ratio, eligible comparison-history/sample sufficiency, and transformation/baseline handling for its proposed prefiltered-series fallback.",
+      "resources": [
+        "case3.md",
+        "raw/models.py",
+        "raw/analytics.py",
+        "raw/risk.py",
+        "raw/app.py"
+      ],
+      "evidence": [
+        "A usable implementation needs either a registered prefiltered event-week series or schema/provider support for policy-decision eligibility and abs(policy_change) >= 25, plus a lower-only percentile condition. Then monitoring can be enabled."
+      ],
+      "draft": {
+        "name": "Deposit-rate pass-through",
+        "calculation": "ratio",
+        "series_ids": [
+          "deposit_rate_bp",
+          "policy_rate_bp"
+        ],
+        "monitored": false,
+        "settings": {
+          "horizon": "week",
+          "measure": "change",
+          "upper_percentile": 90
+        }
+      }
+    }
+  }
+}

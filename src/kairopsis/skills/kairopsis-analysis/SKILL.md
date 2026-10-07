@@ -36,6 +36,8 @@ configuration or a new live preview is needed only if the request calls for it.
    [calculation order and measure](references/analysis-design.md#choose-calculation-order-and-measure).
    Choose [histories and Frequency](references/analysis-design.md#choose-histories-and-frequency)
    by purpose. Apply the conditional checks below to the choices under consideration.
+3. Before returning settings or JSON, including an offline draft, complete the
+   [draft consistency check](references/application-contract.md#draft-consistency).
 
 Done: give a proposed definition with settings, shaping, reasons and unresolved
 data/capability needs. Mark untested proposals as such. For an analogous recipe,
@@ -49,6 +51,8 @@ consult only the relevant [worked starting point](references/analysis-design.md#
    fields when scaling is active. Verify supported fields against the running
    schema or installed models. Use the definition from Design or the user's
    explicit settings; resolve a capability gap without substituting another formula.
+   Complete [draft consistency](references/application-contract.md#draft-consistency)
+   before previewing or saving the payload.
 2. Follow [preview verification](references/analysis-design.md#preview-and-retain-the-definition)
    with actual inputs. Trace a representative result through its formula,
    including applicable risk, fit and reference samples. Report an unavailable

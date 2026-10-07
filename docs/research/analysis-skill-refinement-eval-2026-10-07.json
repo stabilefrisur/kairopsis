@@ -1,0 +1,103 @@
+{
+  "date": "2026-10-07",
+  "model": "gpt-5.6-luna",
+  "reasoning_effort": "high",
+  "baseline_experiment": "analysis-skill-luna56-eval-2026-10-07.json",
+  "scope": "Two fresh skill-only retests, same original case prompts and raw files; revised skill only. No hints about defects, expected answers or previous results. No control rerun.",
+  "evaluations": {
+    "case2": {
+      "scores": [
+        2,
+        2,
+        2,
+        1,
+        2
+      ],
+      "targeted_result": "PASS: payload names an explicitly unavailable converted HY input, retains existing ig_oas_bp, and agrees with the bp/percentage-point numerical example.",
+      "remaining_omission": "Did not state that the 252 daily endpoints contain overlapping weekly changes; partial economic/sampling criterion under original rubric.",
+      "resources": [
+        "case2.md",
+        "skill/SKILL.md",
+        "skill/references/analysis-design.md",
+        "skill/references/combination-map.md",
+        "skill/references/application-contract.md",
+        "raw/models.py",
+        "raw/units.py",
+        "raw/risk.py",
+        "raw/analytics.py"
+      ],
+      "evidence": [
+        "Conceptual draft; the HY converted series is unavailable, so the placeholder intentionally does not claim an existing ID.",
+        "The gap is 1.5 historical SD above its mean: elevated versus usual, but not demonstrably extreme without a chosen threshold."
+      ],
+      "draft": {
+        "name": "HY versus IG quoted spread per proportional variability",
+        "calculation": "difference",
+        "series_ids": [
+          "UNAVAILABLE: hy_oas_percent converted to bp",
+          "ig_oas_bp"
+        ],
+        "monitored": false,
+        "settings": {
+          "calculation_contract": "input-pipeline-v2",
+          "history_years": 3,
+          "horizon": "week",
+          "measure": "level",
+          "standardization": "zscore",
+          "risk_adjustment": {
+            "method": "volatility",
+            "estimation_measure": "return",
+            "lookback_years": 1,
+            "weighting": "equal",
+            "reference_id": null,
+            "minimum_samples": 60,
+            "estimator": "historical-risk-v1"
+          }
+        }
+      }
+    },
+    "case3": {
+      "scores": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "targeted_result": "PASS: filter after calculating both moves, apply same eligibility to current and history, use Level for upstream prefiltered/precomputed event inputs, and retain monitoring off for unsupported strict lower-only rule.",
+      "resources": [
+        "case3.md",
+        "skill/SKILL.md",
+        "skill/references/analysis-design.md",
+        "skill/references/application-contract.md",
+        "skill/references/combination-map.md",
+        "raw/models.py",
+        "raw/analytics.py",
+        "raw/app.py",
+        "raw/units.py",
+        "raw/periods.py"
+      ],
+      "evidence": [
+        "Event selection and material-denominator filtering performed after calculating both weekly moves, with the same eligible-event rule applied to the current observation and percentile history.",
+        "Alternatively, an upstream prefiltered eligible-event series could be registered and supplied as a level series, but the existing monitoring rule would still require extension."
+      ],
+      "draft": {
+        "name": "Deposit-rate policy pass-through",
+        "calculation": "ratio",
+        "series_ids": [
+          "deposit_rate_bp",
+          "policy_rate_bp"
+        ],
+        "monitored": false,
+        "settings": {
+          "calculation_contract": "input-pipeline-v2",
+          "measure": "change",
+          "horizon": "week",
+          "standardization": "none",
+          "history_years": 3,
+          "upper_percentile": 90
+        }
+      }
+    }
+  }
+}

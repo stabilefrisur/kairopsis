@@ -1,0 +1,218 @@
+{
+  "date": "2026-10-07",
+  "model": "gpt-6-luna",
+  "reasoning_effort": "high",
+  "baseline_experiment": "analysis-skill-eval-2026-10-07.json",
+  "fixture_verification": "All original manifest hashes checked: cases, raw source, rubric and frozen pre-refinement skill unchanged.",
+  "evaluation_design": "Six fresh agents with no history; identical original arm instructions except model. Parent judged original rubric. Response summaries/excerpts, not full transcripts.",
+  "evaluations": {
+    "case1_with": {
+      "scores": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "summary": "Correct arithmetic and interpretation; explicitly identifies absent contract as legacy v1 and retrospective chart estimates. No configuration work.",
+      "resources": [
+        "skill/SKILL.md",
+        "skill/references/application-contract.md",
+        "skill/references/combination-map.md",
+        "skill/references/analysis-design.md"
+      ]
+    },
+    "case1_without": {
+      "scores": [
+        2,
+        2,
+        1,
+        2,
+        2
+      ],
+      "summary": "Correct arithmetic, repeated change-field interpretation, no-backtest/profit conclusion and use of captured evidence. Does not identify omitted calculation_contract as v1.",
+      "resources": [
+        "raw/analytics.py",
+        "raw/risk.py",
+        "raw/models.py"
+      ]
+    },
+    "case2_with": {
+      "scores": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "summary": "Correct formula, explicit bp/percentage-point units, +1.5 Z-score, v2 settings and upstream conversion dependency; notes overlapping weekly observations and limits on economic interpretation.",
+      "resources": [
+        "skill/SKILL.md",
+        "skill/references/analysis-design.md",
+        "skill/references/combination-map.md",
+        "skill/references/application-contract.md",
+        "raw/models.py",
+        "raw/units.py"
+      ],
+      "evidence": [
+        "The adjusted gap is 47.5 bp per percentage point of weekly spread volatility.",
+        "Weekly changes sampled at daily endpoints overlap.",
+        "Without that series, the app cannot calculate a valid Difference in matching units."
+      ],
+      "draft": {
+        "name": "HY vs IG spread per proportional volatility",
+        "calculation": "difference",
+        "series_ids": [
+          "hy_oas_bp_UNAVAILABLE",
+          "ig_oas_bp"
+        ],
+        "monitored": false,
+        "settings": {
+          "calculation_contract": "input-pipeline-v2",
+          "measure": "level",
+          "horizon": "week",
+          "risk_adjustment": {
+            "method": "volatility",
+            "estimation_measure": "return",
+            "lookback_years": 1,
+            "weighting": "equal"
+          },
+          "standardization": "zscore",
+          "history_years": 3
+        }
+      }
+    },
+    "case2_without": {
+      "scores": [
+        2,
+        1,
+        2,
+        1,
+        2
+      ],
+      "summary": "Correct 47.5 and +1.5 arithmetic, v2 level/return-volatility settings and unavailable input. Reports vague 'statistic units' instead of explicit bp per percentage point, and omits overlapping-weekly-sample caveat. Adds conventional ±2 threshold.",
+      "resources": [
+        "case2.md",
+        "raw/models.py",
+        "raw/analytics.py",
+        "raw/risk.py",
+        "raw/units.py",
+        "raw/service.py",
+        "raw/app.py"
+      ],
+      "evidence": [
+        "So the adjusted gap is 47.5 statistic units.",
+        "The gap is above its historical mean, but below a conventional ±2 SD unusualness threshold.",
+        "This is a template, not a runnable definition."
+      ],
+      "draft": {
+        "name": "HY vs IG volatility-normalized quoted spread",
+        "calculation": "difference",
+        "series_ids": [
+          "<unavailable HY OAS converted to bp series ID>",
+          "ig_oas_bp"
+        ],
+        "settings": {
+          "calculation_contract": "input-pipeline-v2",
+          "history_years": 3,
+          "horizon": "week",
+          "measure": "level",
+          "standardization": "zscore",
+          "zscore_threshold": 2,
+          "risk_overrides": [
+            {
+              "method": "volatility",
+              "estimation_measure": "return",
+              "lookback_years": 1,
+              "weighting": "equal",
+              "minimum_samples": 60
+            },
+            {
+              "method": "volatility",
+              "estimation_measure": "return",
+              "lookback_years": 1,
+              "weighting": "equal",
+              "minimum_samples": 60
+            }
+          ]
+        }
+      }
+    },
+    "case3_with": {
+      "scores": [
+        2,
+        2,
+        2,
+        2,
+        1
+      ],
+      "summary": "Valid monitoring-off ratio draft and correctly identifies unavailable event/denominator/one-sided monitoring. Upstream fallback proposes precomputed weekly changes without saying Measure Level is required; leaving the supplied Change draft would transform them twice. Strict percentile equality also not discussed (not separately penalized).",
+      "resources": [
+        "case3.md",
+        "skill/SKILL.md",
+        "skill/references/analysis-design.md",
+        "skill/references/application-contract.md",
+        "skill/references/combination-map.md",
+        "raw/models.py",
+        "raw/analytics.py"
+      ],
+      "evidence": [
+        "The app needs either an event-filtered, aligned input sample containing only qualifying weekly changes, or engine support for that event filter and denominator threshold; plus a one-sided lower-percentile monitor.",
+        "Monitoring is therefore off in this draft."
+      ],
+      "draft": {
+        "name": "Weekly deposit-rate pass-through",
+        "calculation": "ratio",
+        "series_ids": [
+          "deposit_rate_bp",
+          "policy_rate_bp"
+        ],
+        "monitored": false,
+        "settings": {
+          "calculation_contract": "input-pipeline-v2",
+          "horizon": "week",
+          "measure": "change",
+          "standardization": "none",
+          "upper_percentile": 90
+        }
+      }
+    },
+    "case3_without": {
+      "scores": [
+        1,
+        1,
+        2,
+        2,
+        2
+      ],
+      "summary": "Valid monitoring-off weekly ratio draft; identifies unavailable event/25-bp/one-sided filtering and makes no save claim. Omits worked 0.25/10000 arithmetic and an explicit eligible reference-history/sample-sufficiency check. Omitted calculation_contract defaults to v1; this calculation is valid in v1 and no point was deducted for it.",
+      "resources": [
+        "case3.md",
+        "raw/models.py",
+        "raw/analytics.py",
+        "raw/risk.py",
+        "raw/app.py",
+        "raw/service.py"
+      ],
+      "evidence": [
+        "The app also has no event filter for decision weeks with an absolute policy move of at least 25 bp.",
+        "A usable alert needs weekly observations restricted to qualifying policy-decision weeks, using aligned deposit and policy changes, plus a one-sided lower-10th-percentile condition.",
+        "Nothing was saved or enabled."
+      ],
+      "draft": {
+        "name": "Weekly deposit-rate pass-through",
+        "calculation": "ratio",
+        "series_ids": [
+          "deposit_rate_bp",
+          "policy_rate_bp"
+        ],
+        "monitored": false,
+        "settings": {
+          "horizon": "week",
+          "measure": "change",
+          "upper_percentile": 90
+        }
+      }
+    }
+  }
+}

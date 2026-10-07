@@ -1,84 +1,74 @@
 ---
 name: kairopsis-analysis
-description: Define or revise a Kairopsis Analysis from an economic question, choosing data shaping, calculation, risk adjustment, historical comparison and monitoring settings. Use for analysis setup or interpretation, rather than application installation.
+description: Interpret Kairopsis Analysis results, design definitions from economic questions, or configure and verify analysis settings.
 ---
 
-# Configure a Kairopsis Analysis
+# Kairopsis Analysis
 
-Produce an Analysis whose formula, inputs and parameter choices answer the
-user's economic question. Explain the result in economic terms and check the
-actual application supports that definition.
+Choose the path matching the request. Read linked sections when their condition
+applies; the full research library is optional. A design-and-save request uses
+Design, then Configure. Preserve explicit analytical choices and distinguish
+economic suitability, defined mathematics and installed capability.
 
-## Shape the question
+## Interpret — explain existing evidence
 
-Identify what the user wants to investigate: pricing level, relative pricing,
-movement, performance, stress, pass-through or departure from a historical
-relationship. Establish the exposures, direction of comparison and interval.
-Use available context; ask only where different answers change the definition.
+1. For a conceptual formula question, use the supplied input semantics. For an
+   actual result, obtain its captured definition, ordered inputs, units, dates and
+   estimation evidence. For a Snapshot, use its captured settings. Resolve
+   [contract/version semantics](references/application-contract.md#version-and-combination-rules)
+   when interpreting saved settings, and
+   [dates and estimation](references/application-contract.md#dates-and-estimation)
+   when explaining a move, fitted history, Z-score, sparse cadence or unavailable result.
+2. Trace the [calculation order](references/combination-map.md#read-the-calculation-in-the-correct-order).
+   Use the applicable checks below to explain the result's economic meaning.
 
-Read [analysis design](references/analysis-design.md) before choosing parameters.
-It covers input semantics and shaping, calculation order, references, estimation
-windows, standardization, thresholds and worked starting points.
+Done: answer the question with formula, units, sign meaning and material
+limitations. Identify missing evidence when it prevents an interpretation;
+configuration or a new live preview is needed only if the request calls for it.
 
-Write the proposed formula and output units before mapping it to controls.
-Distinguish changes in a relationship from relationships between changes.
-For percentage changes, establish whether the underlying series is a price,
-total-return index, spread or another measure.
+## Design — choose or revise a definition
 
-## Choose and justify the definition
+1. Identify the [economic question](references/analysis-design.md#start-with-the-question)
+   and ordered inputs. Resolve their
+   [semantics and shaping](references/analysis-design.md#select-and-shape-the-inputs),
+   including Comparison Basis, conversions and cadence.
+2. Write the formula and units using
+   [calculation order and measure](references/analysis-design.md#choose-calculation-order-and-measure).
+   Choose [histories and Frequency](references/analysis-design.md#choose-histories-and-frequency)
+   by purpose. Apply the conditional checks below to the choices under consideration.
 
-Use [the combination map](references/combination-map.md) when comparing methods,
-using risk adjustment, interpreting ratios of moves, or considering adjusted
-levels. It maps all 120 basic combinations, examples, conditional uses,
-redundancies and per-input overrides. Its Core/Conditional/Event labels guide
-recommendations; they are not a whitelist of permitted choices.
+Done: give a proposed definition with settings, shaping, reasons and unresolved
+data/capability needs. Mark untested proposals as such. For an analogous recipe,
+consult only the relevant [worked starting point](references/analysis-design.md#worked-starting-points).
 
-Preserve the user's explicit analytical choices where the formula is defined.
-Explain unusual choices and their consequences. Separate an economic concern
-from an undefined calculation or a capability the installed version lacks.
+## Configure — preview or save settings
 
-Select the series and Comparison Basis, input measure, Frequency, optional input
-scaling, relationship calculation and optional result standardization. Give each
-history window a purpose. Carry out needed shaping through an established data
-source/transformation, with its convention retained in the series description.
+1. Use the [application contract](references/application-contract.md): read
+   Data and operations, Analysis fields, Version and combination rules, Dates
+   and estimation, and Interpretation and persistence checks; add RiskAdjustment
+   fields when scaling is active. Verify supported fields against the running
+   schema or installed models. Use the definition from Design or the user's
+   explicit settings; resolve a capability gap without substituting another formula.
+2. Follow [preview verification](references/analysis-design.md#preview-and-retain-the-definition)
+   with actual inputs. Trace a representative result through its formula,
+   including applicable risk, fit and reference samples. Report an unavailable
+   result with its data/calculation limitation.
+3. For monitoring requests or revisions affecting monitored results, assess
+   thresholds and calibration using
+   [monitoring guidance](references/analysis-design.md#separate-monitoring-from-calculation)
+   before saving. Save when authorized and read back the definition.
 
-Use [sources and deductions](references/sources.md) when checking the rationale
-behind an interpretation or explaining why similar formulas answer different
-questions. Numerical examples in these references are illustrative, not market
-observations or recommended thresholds.
+Done: report verified settings, preview evidence or the exact blocker, save state,
+and monitoring/calibration state. A successful save alone is not a verified live
+evaluation. Keep reproducible detail in the user's requested record.
 
-## Configure and verify
+## Conditional checks — all paths
 
-Before constructing a payload or saving settings, read
-[the application contract](references/application-contract.md) and inspect the
-running application's schema or the installed models. Request
-`settings.calculation_contract: "input-pipeline-v2"` for new definitions; missing
-discriminators retain legacy v1 semantics. The reference documents calculation
-constraints separately from economic recommendations. A rejected
-combination needs an explicit capability gap; silently switching Level to Change
-or substituting another formula would answer a different question.
-
-Use the existing Library UI or application interface. Preview the intended
-definition with the actual inputs; inspect transformed values, output units,
-dates, fit/risk/reference samples and limitations. Check a representative result
-against its formula. Missing observations remain missing unless an explicitly
-defined shaping convention says otherwise.
-
-Apply saved changes when the user's request authorizes them. An exploratory
-question can finish with a preview and complete proposed definition. Keep
-monitoring and its calibration distinct from defining the calculation; select
-thresholds in the resulting units rather than inheriting illustrative defaults.
-Existing Snapshots retain their captured definitions and observations.
-
-## Completion
-
-Return the configured or proposed definition with:
-
-- Economic question, formula, input identity/semantics, shaping and output units.
-- Parameter choices and brief reasons; include material alternative choices.
-- Preview evidence and limitations, or the exact missing data/capability.
-- Whether defaults were saved and monitoring enabled, with any calibration still
-  needed. Distinguish a saved definition from a verified live evaluation.
-
-Keep the user-facing explanation concise; retain the detail needed to reproduce
-the analysis in series descriptions, an Idea note or the user's requested record.
+| When needed | Read |
+| --- | --- |
+| Interpret, choose or configure a particular combination | The matching row under [Standalone](references/combination-map.md#standalone), [Difference](references/combination-map.md#difference), [Ratio](references/combination-map.md#ratio) or [Regression residual](references/combination-map.md#regression-residual), plus applicable [conditions](references/combination-map.md#conditions-that-make-those-examples-economically-defensible). Core/Conditional/Event guide recommendations, not permission. |
+| Interpret or choose risk method, reference, estimation basis or downside | [Risk scaling and references](references/analysis-design.md#choose-risk-scaling-and-references); for Level with active scaling, use [adjusted-level meanings](references/combination-map.md#the-32-level-plus-adjustment-settings) instead of the base worked rows. |
+| Compare per-input settings or suspected cancelling adjustments | [Overrides and references](references/combination-map.md#per-input-overrides-and-references) or [redundant settings](references/combination-map.md#redundant-settings-rather-than-invalid-economics). |
+| Interpret or choose a Z-score | [Result standardization](references/analysis-design.md#choose-result-standardization), including ratio-of-moves sampling conditions. |
+| Interpret or monitor ratios of changes/percentage changes | [Ratio examples](references/combination-map.md#ratio) and [event-sample requirements](references/analysis-design.md#event-samples), including percentile monitoring. Check [available monitoring rules](references/application-contract.md#monitoring-rules). |
+| Assess validity or a claimed performance, causal or trading meaning | The relevant [invalid or misleading instance](references/combination-map.md#combinations-and-interpretations-that-do-not-make-sense). |

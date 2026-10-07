@@ -1,0 +1,286 @@
+{
+  "date": "2026-10-07",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "high",
+  "source_commit": "872c3f38b51fac0b1ed1254f82f9fe0f8cf2b574",
+  "prompts": {
+    "case1": "# Interpret saved analysis evidence\n\nPlease explain this saved Snapshot to a colleague in plain language. What do the +2.0 result and +2.0 weekly change mean? Does this show a two-standard-deviation acceleration or a backtested profitable HY/IG trade? The Library definition has since changed; use the right evidence. No edits requested.\n\nSynthetic evidence, sufficient for this interpretation:\n- Snapshot captured 2026-09-30. Ordered series: USD HY OAS minus USD IG OAS, both bp, matching reference curve; different credit quality/composition.\n- Captured settings: calculation difference; measure change; horizon week; standardization zscore; shared risk_adjustment method volatility, reference_id null, equal weighting. calculation_contract and estimation_measure absent from the saved JSON.\n- Endpoint moves: HY +20 bp; IG +5 bp. Eligible prior risk scales: HY 10 bp; IG 5 bp. Risk-adjusted inputs: +2 and +1; unstandardized pair result +1.\n- Captured reference mean +0.2, sample SD 0.4; result value +2.0, unit Z-score, change +2.0. Samples/eligibility passed. Historical chart was produced using the reference estimate captured on 2026-09-30.\n- Current Library definition: input-pipeline-v2, measure level, beta scaling, standardization none. No current live evaluation provided.\n\nUse the supplied evidence and, if needed, raw application files. Do not fetch market data or change anything. Return the explanation, not a new analysis proposal.\n",
+    "case2": "# Design a compensation-versus-variability analysis\n\nDesign an Analysis answering: Is HY quoted spread higher than IG after allowing for each market's typical weekly proportional spread fluctuations, and is that gap unusual? Keep quoted spread as the numerator. I want a draft only; no running app or provider transformation service is available.\n\nSynthetic supplied inputs:\n- Existing series hy_oas_percent: USD HY OAS, values in percent; latest 4.5.\n- Existing series ig_oas_bp: USD IG OAS, values in bp; latest 100.\n- Both use the same Treasury reference-curve convention. Duration, credit quality and composition differ.\n- A prior one-year equally weighted history of weekly percentage spread changes gives sample SDs HY 6.6666666667 percentage points and IG 5 percentage points. These are proportional changes in OAS. Each estimate has 252 eligible daily endpoints; all prior baselines are positive.\n- Using spreads expressed in bp, the three-year prior history of the resulting HY-minus-IG adjusted statistic has mean 40 and SD 5 in that statistic's units.\n\nProvide formula, numerical worked result, parameter choices and any required data shaping. Include a minimal draft AnalysisDefinition JSON if representable, explicitly identifying unavailable inputs rather than inventing existing data. Explain what this result would and would not mean economically. Use only these hypothetical facts and raw application files; no live changes or web research.\n",
+    "case3": "# Prepare pass-through monitoring\n\nPrepare a Kairopsis API definition for deposit-rate pass-through. I want weekly deposit-rate changes divided by weekly policy-rate changes, using only weeks containing a policy decision and at least a 25 bp absolute policy-rate change. Alert only when pass-through is below the 10th percentile of those eligible weeks. Both existing series deposit_rate_bp and policy_rate_bp are in bp. Keep this as a ratio, not a regression.\n\nSynthetic evidence:\n- A policy-decision week: deposit rate +25 bp, policy rate +100 bp.\n- Another week: deposit rate +10 bp, policy rate +0.001 bp; an unrestricted weekday preview shows ratio 10000 and percentile 99.8.\n- Series are supplied at daily endpoints with sufficient history. The unrestricted preview uses every eligible weekday. No prefiltered event series is currently registered.\n- Target schema/implementation is represented by the supplied raw files. No live app is connected, so do not claim to save or enable anything.\n\nReturn the minimal draft JSON the current application can truthfully represent and explain exactly what remains needed for the requested monitoring. Distinguish an accepted calculation from a usable alert. No web research or file edits.\n"
+  },
+  "rubric": {
+    "scoring": "Each criterion 0 absent/wrong, 1 partial, 2 complete; 10 points per case",
+    "criteria": {
+      "case1": [
+        "Correct transformed difference and Z-score arithmetic",
+        "Returned change is current measured result, not acceleration",
+        "Captured absent contract resolves v1; ignore changed Library for Snapshot",
+        "No backtest/profit/normal-tail certainty from retrospective chart",
+        "Direct interpretation; no unnecessary configuration or mutation"
+      ],
+      "case2": [
+        "Level numerator with independent percentage-change volatility denominator",
+        "Convert percent-level HY to bp; 67.5 minus 20 =47.5 bp per percentage point; Z=1.5",
+        "Representable explicit v2 settings, return risk basis, separate histories",
+        "No total-return/carry/portfolio-risk claim; composition and overlapping-sample caveats",
+        "Offline draft honesty; shaping dependency explicit; no fabricated existing series"
+      ],
+      "case3": [
+        "Pass-through .25; 10000 denominator artefact",
+        "Comparison sample/material denominator required for percentile screening",
+        "Identify missing event filter, denominator floor and one-sided percentile rule",
+        "Valid supported ratio/change/week draft; no fabricated knobs or formula substitution",
+        "Monitored false draft, no save claim, concrete gap/fallback respects intent"
+      ]
+    }
+  },
+  "manifest": {
+    "case3.md": "c8ac6cb90c71f557ff7c440828124244c063389615fbc1723cf007033f88511a",
+    "case1.md": "ef673070cda1b4d2f6cf5f359d5382d39a7945c97d28caa2e54bf9ee5abacd5b",
+    "rubric.json": "b14458833beb9adaaa52d2bdbb80dee5bd4d9767cba7405f9394c9754ea12fc5",
+    "case2.md": "ea7b31bc8fa26f4b24cc622c2a19d38ee94694bcae52be4daa4b11f234de0e0c",
+    "raw/service.py": "d6b6257f09c3f3cc470ea3a40807dcd1217a98aa3ae52d0c8191ea8d29b36c66",
+    "raw/models.py": "21e5e6d0948ea197f4a839ec733d6dd86b0f74284156edb46717efa6d46dd036",
+    "raw/app.py": "800b2892564893a0b9160758f675efc391d946a00951aafe2bbfe78f1a330471",
+    "raw/analytics.py": "02f259a40cae455d2973cb7aeb8213a6db3091c2142ad8aba7e9660bcc1b2e56",
+    "raw/units.py": "32466cd0807a89c6770b9a20ce6a46b399bd0143fa6267d8cebc8d8952253125",
+    "raw/periods.py": "3c789298de4fb32ceaa16d50fffed9e6e7630fedf7a14782f4cc9f14a4f8243d",
+    "raw/risk.py": "f5b475223ce5130c5cb08a16e0854737d67ee6709208e381f12ec65bbb2c9d5a",
+    "skill/SKILL.md": "315111b731b6be6fc966a33a0ddbe95db2c666e7a5f174df8e9e6063ed36c649",
+    "skill/references/combination-map.md": "6aad8f59f319499a511607085ef45b1132c803e0825f6d9531e6036eace47f60",
+    "skill/references/application-contract.md": "5a3795e7626991931def4bf185b97d8a5fff17413138cac5199e86478e053c31",
+    "skill/references/analysis-design.md": "d0696f04c6268d3d013ae36b76d017fdbd2e711cb8c9d399fa8fc99a4edc79f1"
+  },
+  "evaluations": {
+    "case1_with": {
+      "scores": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "summary": "Correct arithmetic, v1 Snapshot semantics, repeated change-field meaning, retrospective-chart caveat and direct answer; no live action.",
+      "resources": [
+        "case1.md",
+        "skill/SKILL.md",
+        "skill/references/application-contract.md",
+        "skill/references/combination-map.md",
+        "skill/references/analysis-design.md"
+      ],
+      "evidence": [
+        "Missing calculation_contract means input-pipeline-v1; missing estimation_measure follows the captured measure, absolute change.",
+        "(+1 − 0.2) / 0.4 = +2.0 Z-score",
+        "The +2.0 weekly change repeats the current standardized result.",
+        "Earlier plotted scores therefore are not a point-in-time strategy backtest."
+      ]
+    },
+    "case1_without": {
+      "scores": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "summary": "Correct arithmetic and v1 defaults recovered from source; same interpretation and no-backtest conclusion as skill arm.",
+      "resources": [
+        "case1.md",
+        "raw/models.py",
+        "raw/risk.py",
+        "raw/analytics.py",
+        "raw/service.py"
+      ],
+      "evidence": [
+        "Missing calculation_contract defaults to input-pipeline-v1; missing estimation_measure means the risk estimate follows the captured change measure.",
+        "For a change-based Analysis, the application sets the displayed change equal to the current result.",
+        "The historical chart uses the reference estimate captured on September 30 retrospectively."
+      ]
+    },
+    "case2_with": {
+      "scores": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "summary": "Correct 47.5 bp/% gap and +1.5 Z-score, explicit level numerator/return risk basis, input conversion dependency and no live claims. Explains Follow would choose absolute-change risk; does not introduce an alert threshold.",
+      "resources": [
+        "case2.md",
+        "skill/SKILL.md",
+        "skill/references/analysis-design.md",
+        "skill/references/application-contract.md",
+        "skill/references/combination-map.md",
+        "raw/models.py",
+        "raw/units.py"
+      ],
+      "evidence": [
+        "Follow would estimate absolute changes for Level, answering a different question.",
+        "hy_oas_bp_PLANNED is unavailable, a proposed converted input, not an existing series.",
+        "No save performed."
+      ],
+      "draft": {
+        "name": "HY minus IG quoted spread per weekly proportional variability",
+        "calculation": "difference",
+        "series_ids": [
+          "hy_oas_bp_PLANNED",
+          "ig_oas_bp"
+        ],
+        "monitored": false,
+        "settings": {
+          "calculation_contract": "input-pipeline-v2",
+          "measure": "level",
+          "horizon": "week",
+          "history_years": 3,
+          "standardization": "zscore",
+          "risk_adjustment": {
+            "method": "volatility",
+            "estimation_measure": "return",
+            "reference_id": null,
+            "lookback_years": 1,
+            "weighting": "equal",
+            "minimum_samples": 60
+          }
+        }
+      }
+    },
+    "case2_without": {
+      "scores": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "summary": "Correct level/proportional-risk formula, conversion, 47.5 bp/% gap and 1.5 Z-score; explicit v2 return estimation basis, unavailable derived-series placeholder and cadence/history caveats. Adds a proposed ±2 threshold although only a draft comparison was requested.",
+      "resources": [
+        "case2.md",
+        "raw/models.py",
+        "raw/risk.py",
+        "raw/analytics.py",
+        "raw/units.py",
+        "raw/periods.py",
+        "raw/service.py",
+        "raw/app.py"
+      ],
+      "evidence": [
+        "Convert HY to bp: 4.5%=450 bp.",
+        "hy_oas_bp_DRAFT is unavailable, a proposed transformed input, not an existing series.",
+        "Supplied 252 endpoints meet minimum 60; overlapping weekly intervals are not 252 independent weekly observations."
+      ],
+      "draft": {
+        "name": "HY minus IG spread per weekly proportional variability",
+        "calculation": "difference",
+        "series_ids": [
+          "hy_oas_bp_DRAFT",
+          "ig_oas_bp"
+        ],
+        "monitored": false,
+        "settings": {
+          "calculation_contract": "input-pipeline-v2",
+          "measure": "level",
+          "horizon": "week",
+          "history_years": 3,
+          "standardization": "zscore",
+          "zscore_threshold": 2,
+          "minimum_history": 60,
+          "calibration": "configured-native-v1",
+          "risk_adjustment": {
+            "method": "volatility",
+            "estimation_measure": "return",
+            "lookback_years": 1,
+            "weighting": "equal",
+            "minimum_samples": 60
+          }
+        }
+      }
+    },
+    "case3_with": {
+      "scores": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "summary": "Valid unmonitored weekly ratio draft; identifies sample, denominator and one-sided-rule gaps. Explains thresholds cannot gate the policy input; distinguishes precomputed moves (Level) from filtered raw levels and sparse-cadence support.",
+      "resources": [
+        "case3.md",
+        "skill/SKILL.md",
+        "skill/references/application-contract.md",
+        "skill/references/analysis-design.md",
+        "skill/references/combination-map.md",
+        "raw/models.py",
+        "raw/analytics.py",
+        "raw/app.py",
+        "raw/service.py"
+      ],
+      "evidence": [
+        "Apply the same eligibility filter to current observations and reference history.",
+        "upper_percentile: 90 flags both percentile <= 10 and percentile >= 90.",
+        "Simply filtering raw rate levels risks losing weekly baselines.",
+        "No live preview, save or enablement performed."
+      ],
+      "draft": {
+        "name": "Weekly deposit-rate pass-through",
+        "calculation": "ratio",
+        "series_ids": [
+          "deposit_rate_bp",
+          "policy_rate_bp"
+        ],
+        "monitored": false,
+        "settings": {
+          "calculation_contract": "input-pipeline-v2",
+          "measure": "change",
+          "horizon": "week",
+          "risk_adjustment": {
+            "method": "none"
+          },
+          "standardization": "none"
+        }
+      }
+    },
+    "case3_without": {
+      "scores": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "summary": "Valid unmonitored ratio draft; correctly identifies missing event, denominator and one-sided strict threshold controls. Includes upper_percentile 90 while explicitly warning it also flags the upper tail/equality; no false enablement.",
+      "resources": [
+        "case3.md",
+        "raw/models.py",
+        "raw/analytics.py",
+        "raw/risk.py",
+        "raw/units.py",
+        "raw/periods.py",
+        "raw/app.py",
+        "raw/service.py"
+      ],
+      "evidence": [
+        "Your strict below requirement needs < 10, with the upper tail disabled.",
+        "Apply that restriction to current observations and historical reference observations before percentile calculation.",
+        "If registering precomputed weekly changes upstream, use measure: level on those changes; filtering raw daily levels first can destroy required baselines.",
+        "Nothing saved or enabled."
+      ],
+      "draft": {
+        "name": "Weekly deposit-rate pass-through",
+        "calculation": "ratio",
+        "series_ids": [
+          "deposit_rate_bp",
+          "policy_rate_bp"
+        ],
+        "monitored": false,
+        "settings": {
+          "calculation_contract": "input-pipeline-v2",
+          "horizon": "week",
+          "measure": "change",
+          "upper_percentile": 90
+        }
+      }
+    }
+  }
+}

@@ -9,20 +9,20 @@ judgments.
 Read the relevant branch rather than treating every parameter as a decision the
 human must make. The [combination map](combination-map.md) supplies the exhaustive
 examples; the [application contract](application-contract.md) supplies the mapping
-to the current engine. [Sources](sources.md) distinguish external evidence from
-deductions about the formulas.
+to the current engine. Combination classifications are analytical judgments;
+worked values are illustrative, not observed market readings.
 
 ## Contents
 
-- Start with the question
-- Select and shape the inputs
-- Choose calculation order and measure
-- Choose risk scaling and references
-- Choose histories and Frequency
-- Choose result standardization
-- Separate monitoring from calculation
-- Worked starting points
-- Preview and retain the definition
+- [Start with the question](#start-with-the-question)
+- [Select and shape the inputs](#select-and-shape-the-inputs): [identity](#identity-and-comparison-basis), [units/returns](#units-index-bases-and-return-semantics), [dates](#dates-and-sampling), [event samples](#event-samples), [transformations](#transformations-that-change-the-question).
+- [Choose calculation order and measure](#choose-calculation-order-and-measure)
+- [Choose risk scaling and references](#choose-risk-scaling-and-references)
+- [Choose histories and Frequency](#choose-histories-and-frequency)
+- [Choose result standardization](#choose-result-standardization)
+- [Separate monitoring from calculation](#separate-monitoring-from-calculation)
+- [Worked starting points](#worked-starting-points): [quoted compensation](#compare-quoted-credit-compensation), [credit shock](#compare-the-size-of-a-credit-shock), [sector return](#explain-a-sector-return), [pass-through](#examine-policy-pass-through), [tail stress](#compare-stress-relative-to-historical-tails), [compensation/risk](#examine-compensation-per-unit-of-movement-risk).
+- [Preview and retain the definition](#preview-and-retain-the-definition)
 
 ## Start with the question
 
@@ -80,11 +80,12 @@ Percentage change in a total-return index is index return; in a price index it
 is price return; in a spread it is proportional repricing. A spread changing
 100 → 120 bp is +20 bp and +20%, not a +20% bond return. Proportional spread moves
 can be economically useful; approximate spread-driven return also needs spread
-duration. [DTS derivation](https://www.robeco.com/files/docm/docu-201708-duration-times-spread.pdf)
+duration.
 
 For yields/spreads that approach or cross zero, absolute changes often retain a
 clearer interpretation. Ordinary growth rates around zero can be explosive or
-undefined. The current engine requires a positive percentage-change baseline.
+undefined; check the engine's
+[baseline eligibility](application-contract.md#dates-and-estimation).
 
 ### Dates and sampling
 
@@ -94,22 +95,29 @@ non-trading day creates a different data process; it must not masquerade as an
 observed zero move. The current engine's date rules are described in the
 [application contract](application-contract.md#dates-and-estimation).
 
-Weekly and monthly Frequency currently mean overlapping moves observed at daily
-endpoints, not a sample of independent week-end/month-end observations. If the
-question needs non-overlapping periods, a cumulative policy cycle, event windows
-or intraday responses, define that shaping separately and verify the application
-can consume it. Do not apply percentage change again to a series that already
-contains period returns: use it as a supplied level series or implement the
-explicitly intended further transformation.
+For non-overlapping periods, cumulative policy cycles, event windows or intraday
+responses, define shaping separately and verify the application can consume it.
+For precomputed period returns, Level preserves the supplied return; another
+percentage change would answer a different question. Neither choice establishes
+cadence support: check [sampling, fit freshness and monitoring eligibility](application-contract.md#dates-and-estimation),
+especially for monthly-only observations. Report a cadence gap, obtain suitable
+observed data or specify the needed engine change; forward-filling returns would
+manufacture observations.
 
-Passing precomputed returns as levels preserves their arithmetic meaning, but
-does not establish cadence support. The current regression requires its latest
-prior fitting observation to be within seven days of the previous session;
-monthly-only observations normally fail this rule. Freshness and weekday rules
-can also prevent flags between releases. Report the cadence capability gap rather
-than forward-filling returns to manufacture daily observations. Obtain an
-appropriate genuinely observed series or specify the required cadence-aware
-estimation change.
+### Event samples
+
+For a decision-week or other event comparison, define the interval endpoints and
+event calendar. Calculate both moves from the retained observation history,
+then select intervals using the event condition and material-denominator rule.
+Filtering raw levels first can remove required measurement baselines. Apply the
+same eligibility definition to the current observation and prior comparison
+history before computing ranks or Z-scores. Sufficient daily observations do not
+establish sufficient eligible events.
+
+If supplying precomputed eligible moves upstream, use Measure Level to preserve
+them; another Change would transform them again. Verify
+[sparse-cadence support](application-contract.md#dates-and-estimation) and
+[monitoring capability](application-contract.md#monitoring-rules) separately.
 
 ### Transformations that change the question
 
@@ -125,9 +133,8 @@ normality, improve an attractive backtest or make a result cross a threshold.
 
 ## Choose calculation order and measure
 
-The current engine transforms each input before calculating the relationship:
-
-`inputs → measure → input risk scaling → relationship → result Z-score`
+Use the [input-first pipeline](combination-map.md#read-the-calculation-in-the-correct-order)
+to distinguish the intended statistic from a similarly named control.
 
 Write out ambiguous cases:
 
@@ -146,10 +153,9 @@ structural changes and stability before interpreting the residual as mispricing.
 For a co-movement question, changes or returns often match the question more
 directly. A high R-squared by itself is not a reason to prefer either model.
 
-The measure is shared across inputs in the current model. A question requiring,
-for example, credit-spread changes against equity returns needs explicit shaping
-into suitable supplied series or additional engine support; setting Change on
-both raw inputs does not implement it.
+A question relating credit-spread changes to equity returns needs independent
+input transformations. Check [shared-measure constraints](application-contract.md#version-and-combination-rules)
+before choosing controls; explicit supplied-series shaping may be required.
 
 ## Choose risk scaling and references
 
@@ -166,7 +172,7 @@ should introduce a named comparison, not an automatic claim of greater accuracy.
 Volatility scaling divides the move by SD without subtracting its mean. Beta
 scaling divides by a signed slope without subtracting the benchmark's move or
 intercept. VaR/ES scale by the selected series' adverse moves, not an inferred
-portfolio loss. See the [worked combinations](combination-map.md) before describing
+portfolio loss. See the applicable [worked combination](combination-map.md#examples-for-every-defined-base-combination) before describing
 any of these as risk-adjusted performance.
 
 Choose downside from the exposure and question: increasing spreads may represent
@@ -177,9 +183,8 @@ as a single directional stress score needs explicit sign shaping.
 
 Use matched conventions for pair comparisons unless the differing convention is
 deliberate. Each input's own volatility and an external common volatility answer
-different questions. The same nonzero divisor on both sides of a ratio cancels,
-including when the divisor changes over time. Same-reference betas generally
-differ, so they do not generally cancel.
+different questions. Check [cancelling scales and self-beta](combination-map.md#redundant-settings-rather-than-invalid-economics)
+when an adjustment may leave the intended result unchanged.
 
 Beta near zero or changing sign may be statistically computable but unsuitable
 as a stable divisor. Examine estimates rather than relying on the engine's
@@ -187,10 +192,9 @@ numerical-zero threshold. A negative stable beta can be meaningful for an invers
 exposure; state how that changes the output's sign.
 
 Adjusted levels need two explicit decisions: which level remains the numerator,
-and which changes/returns estimate its risk denominator. The v2 contract
-supports that separation through Estimate risk from. Follow input measure resolves
-Level to absolute changes; explicit Absolute/Percentage choices stay fixed when
-the numerator changes. Preview the composite units and resolved basis.
+and which changes/returns estimate its risk denominator. Use
+[estimation-measure fields and unit rules](application-contract.md#riskadjustment-fields)
+to implement that separation. Preview the composite units and resolved basis.
 
 ## Choose histories and Frequency
 
@@ -227,11 +231,8 @@ them provisional. Replace that convenience with a reasoned choice before calling
 the definition calibrated. Do not present a universal three-year/weekly/95% recipe
 as appropriate for all markets.
 
-When Measure is Level, the app separately reports the change in the completed
-result over Frequency. With Change or Percentage change, its current `change`
-field reuses the measured analysis result rather than differencing that result
-again. Inspect the returned fields before interpreting a displayed move or setting
-a movement threshold.
+Before interpreting a displayed move or setting a movement threshold, resolve
+the returned [change-field meaning](application-contract.md#dates-and-estimation).
 
 ## Choose result standardization
 
@@ -245,14 +246,13 @@ reports distance from its mean in SD units. Both depend on the chosen sample.
 Z-scoring does not make the distribution Gaussian. A Z-score threshold and a
 percentile threshold need not identify the same observations.
 
-Z-score after rolling risk adjustment is not automatically redundant. The rolling
-divisor changes each historical observation; final standardization describes the
-distribution of that adjusted statistic. A fixed positive divisor before a
-standalone Z-score does cancel. Fixed scaling before a refitted regression also
-adds no new standardized residual information, given the same sample.
+Check the [fixed-versus-rolling scaling rules](combination-map.md#redundant-settings-rather-than-invalid-economics)
+before treating risk adjustment plus Z-score as redundant. Inspect the preview's
+[reference and fit timing](application-contract.md#dates-and-estimation) before
+using historical chart values as evidence of past signals.
 
-For ratios of moves, a comparison history should contain comparable episodes and
-material denominators. If the engine cannot define that sample, describe the
+For ratios of moves, use the [event-sample requirements](#event-samples) for both
+Z-scores and percentile monitoring. If the engine cannot define that sample, describe the
 current episode without claiming an all-date Z-score is a reliable extreme-value
 signal. A level-ratio Z-score can instead have a clear descriptive meaning when
 the denominator remains economically meaningful; check version support.
@@ -263,10 +263,10 @@ First verify what the result measures. Then decide whether to monitor it, which
 conditions matter, and in what output units. A Flag draws attention for
 investigation; it is not an investment instruction.
 
-The current model uses a symmetric percentile or absolute Z-score extreme rule,
-plus optional movement/materiality settings. It does not provide arbitrary
-one-sided policy rules through those controls. Preserve the distinction if the
-user cares only about widening or underperformance.
+Check [monitoring rules and exact threshold boundaries](application-contract.md#monitoring-rules)
+against the intended trigger, particularly when the user cares only about widening
+or underperformance. Symmetric extremes and one-sided policy rules answer
+different monitoring questions.
 
 Changing measure, adjustment or standardization changes the units or distribution.
 Reassess thresholds accordingly. A default ±2 Z-score or 95th-percentile rule is
@@ -319,7 +319,6 @@ Define the policy episode and endpoints, use comparable rate units, and calculat
 realised response ratio, distinct from the engine's OLS beta adjustment. If the
 episode exceeds the supported measurement windows or needs event selection,
 record that shaping/capability requirement instead of substituting a daily ratio.
-[New York Fed example](https://libertystreeteconomics.newyorkfed.org/2022/11/how-do-deposit-rates-respond-to-monetary-policy/)
 
 ### Compare stress relative to historical tails
 
@@ -353,9 +352,6 @@ Return a compact record with the question, ordered inputs and Comparison Basis,
 shaping, formula, settings/rationale, interpretation of positive/negative values,
 preview evidence, limitations and saved/monitoring state. Retain it where the user
 asked: analysis description where supported, Idea note or requested research
-record. The current Analysis schema has no free-form rationale field, so do not
-invent one in a payload.
-
-Saved defaults affect future evaluations. A Snapshot retains its observations,
-resolved definition and analytical choices. Preserve that distinction when
-revising an existing investigation.
+record. Check [supported description fields](application-contract.md#analysis-fields)
+and [persistence rules](application-contract.md#interpretation-and-persistence-checks)
+when retaining rationale, saving defaults or revisiting a Snapshot.

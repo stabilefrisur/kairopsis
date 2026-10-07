@@ -2,9 +2,20 @@
 
 This is the contract inspected on 6 October 2026. Source checkouts and installed
 distributions bearing the same development version may have different features.
-Inspect the running `/openapi.json`, installed models and preview behaviour before
-saving a definition. Economic examples in the other references do not establish
-that the installed engine supports every combination.
+For existing evidence, resolve the captured contract and settings first. For new
+or revised definitions, inspect the running `/openapi.json`, installed models and
+preview behaviour. This reference owns version, field, date and persistence rules;
+economic examples in other references do not establish installed capability.
+
+## Contents
+
+- [Data and operations](#data-and-operations): discover, preview, save and reconcile revisions.
+- [Analysis fields](#analysis-fields): map a definition to its payload.
+- [RiskAdjustment fields](#riskadjustment-fields): active scaling, estimators and units.
+- [Version and combination rules](#version-and-combination-rules): new definitions and captured legacy evidence.
+- [Dates and estimation](#dates-and-estimation): endpoints, missing results, sparse cadence and retrospective charts.
+- [Monitoring rules](#monitoring-rules): exact threshold boundaries and input-filter limitations.
+- [Interpretation and persistence checks](#interpretation-and-persistence-checks): evidence, save/readback and monitoring.
 
 ## Data and operations
 
@@ -87,7 +98,8 @@ Ratios simplify quotient units; residuals retain the dependent input's units.
 
 All 120 basic calculation/measure/method/output-scale combinations are supported
 under `input-pipeline-v2`, subject to defined mathematics, compatible units and
-adequate observations. Newly created UI definitions use v2. Selecting level
+adequate observations. Explicitly set `settings.calculation_contract` to
+`"input-pipeline-v2"` for new API definitions. Newly created UI definitions use v2. Selecting level
 scaling, explicit estimation basis, standalone-level Z-score or ratio Z-score in
 a legacy draft promotes that draft to v2. A name-only edit preserves v1.
 
@@ -121,6 +133,10 @@ backward by up to three calendar days. Moves are sampled at daily endpoints and
 therefore overlap. Native-date eligibility and exact-date pair alignment matter;
 provider calendars/freshness still need verification.
 
+Percentage changes require a positive baseline. Missing observations remain
+missing unless an explicit upstream shaping convention supplies them; relabeling
+units or Comparison Basis does not transform observations.
+
 Risk samples end at the actual change numerator baseline; Level uses the nominal
 Frequency target (previous weekday, seven days earlier or previous clamped month).
 Risk moves are measured independently from the numerator and exclude the current
@@ -151,6 +167,24 @@ the completed result over Frequency; Change/Percentage change reuse the current
 measured analysis result. It is not always a second difference or acceleration.
 This also affects the interpretation of movement thresholds.
 
+## Monitoring rules
+
+For eligible results, `standardization: "none"` flags percentile
+`<= 100 - upper_percentile` **or** `>= upper_percentile`, including both boundaries.
+Thus `upper_percentile: 90` includes both tails and equality at 10 and 90;
+it cannot express a strict lower-only `< 10` condition.
+
+With Z-score standardization, `abs(result) >= zscore_threshold` replaces the
+extreme-percentile rule; displayed percentile remains descriptive. Optional
+`move_threshold` tests `abs(change) >= move_threshold` using the returned
+[change-field meaning](#dates-and-estimation). Move/materiality settings use
+completed-result units; neither filters an input's denominator in native units.
+
+The schema has no event-calendar filter, material-denominator floor or one-sided
+percentile rule. If these define the requested alert, retain a proposed
+calculation with monitoring off and identify the missing capability. An unrestricted
+percentile is not a substitute for the requested eligible-event distribution.
+
 ## Interpretation and persistence checks
 
 1. Inspect input identity, units, currency and Comparison Basis against the source.
@@ -162,7 +196,5 @@ This also affects the interpretation of movement thresholds.
 5. Preserve captured evidence: Library defaults affect future evaluations;
    Snapshots retain their resolved definitions and observations.
 
-When standardization is enabled, the direct absolute Z-score threshold replaces
-the extreme-percentile rule; displayed percentile remains descriptive. Move and
-materiality rules use the completed result's units. Changes to measure, scaling
-or standardization require reconsidering these thresholds.
+Changes to measure, scaling or standardization require reconsidering the
+[monitoring rules](#monitoring-rules) in the resulting units and distribution.

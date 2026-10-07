@@ -134,3 +134,18 @@ the checkout. This verifies Linux synthetic data only; installed Windows,
 actual provider calendars/freshness, live long-history retrieval and economic
 monitoring calibration remain unverified. Existing monthly-cadence limitations
 remain in place. No release was published.
+
+## Analysis skill evaluation — 7 October 2026
+
+Three matched cases used six fresh GPT-6.1 Sol agents at High effort, with and
+without the frozen skill. Both arms met all five criteria in every case; no
+accuracy advantage established. The [evaluation report](research/analysis-skill-evaluation-2026-10-07.md)
+records prompts, scoring, observed differences and limits. All runs completed
+before targeted guidance changes; scores describe the pre-edit skill.
+
+Four generated drafts validate against the application model; illustrative
+arithmetic and exact percentile boundaries pass direct checks. Final validation
+passes frontmatter, 104 local links/anchors and unchanged 60 worked rows covering
+120 settings. Four skill Markdown files match a fresh wheel/source distribution,
+with no web links or bundled source-notes file. Research citations remain in repo
+docs. No live application/provider test or monitoring change was performed.

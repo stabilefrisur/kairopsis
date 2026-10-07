@@ -8,9 +8,23 @@ All numerical examples are **illustrative scenarios involving real markets**, no
 
 Per-input method overrides and arbitrary references add configurations beyond 120; their compatibility rules appear below.
 
+## Contents
+
+- [Calculation order](#read-the-calculation-in-the-correct-order)
+- [Overview of all settings](#overview-of-all-settings)
+- [What standardization adds](#what-standardization-adds)
+- [Worked examples](#examples-for-every-defined-base-combination): [Standalone](#standalone), [Difference](#difference), [Ratio](#ratio), [Regression residual](#regression-residual).
+- [Conditions for the examples](#conditions-that-make-those-examples-economically-defensible)
+- [Adjusted levels](#the-32-level-plus-adjustment-settings)
+- [Invalid or misleading interpretations](#combinations-and-interpretations-that-do-not-make-sense)
+- [Redundant settings](#redundant-settings-rather-than-invalid-economics)
+- [Per-input overrides and references](#per-input-overrides-and-references)
+- [Guidance without restricting combinations](#guidance-without-restricting-combinations)
+- [Coverage](#coverage-and-current-implementation)
+
 ## Read the calculation in the correct order
 
-The current [calculation contract](application-contract.md) is:
+For [supported contracts](application-contract.md#version-and-combination-rules), the formula order is:
 
 **Measure each input → divide each input by its risk scale → calculate Standalone, Difference, Ratio or Regression residual → optionally Z-score the completed result.**
 
@@ -18,11 +32,11 @@ For an input A:
 
 - Level: `A(t)`.
 - Absolute change: `A(t) − A(t−h)`.
-- Percentage change: `100 × [A(t)/A(t−h) − 1]`. The app requires a positive baseline.
+- Percentage change: `100 × [A(t)/A(t−h) − 1]`; see [baseline eligibility](application-contract.md#dates-and-estimation).
 - Adjusted input: `uA = measured A / scale A`.
 - Standalone: `uA`; difference: `uA − uB`; ratio: `uA/uB`; residual: `uA − (intercept + slope × uB)`.
 
-Thus a ratio of changes is `ΔA/ΔB`, not `Δ(A/B)`. A difference of percentage changes is a return difference when inputs are total-return indices; it is not the percentage change in their level difference. In the current engine, the additional `change` field measures a change in the completed result when Measure is Level; with Change/Percentage change it reuses the measured analysis result. It does not then describe acceleration/deceleration.
+Thus a ratio of changes is `ΔA/ΔB`, not `Δ(A/B)`. A difference of percentage changes is a return difference when inputs are total-return indices; it is not the percentage change in their level difference. For a displayed move, resolve the separate [returned change-field meaning](application-contract.md#dates-and-estimation) before calling it acceleration/deceleration.
 
 ## Overview of all settings
 
@@ -49,16 +63,16 @@ These classifications guide recommendations, not availability; they do not certi
 
 ## What standardization adds
 
-**None:** retain the result's units and magnitude. **Z-score:** `(result − historical mean) / historical sample SD`, applied after the complete calculation. A score of +2 means two reference SDs above that result's mean, including for results already expressed in risk units. It does not imply a particular tail probability or mean reversion. [NIST definition](https://www.itl.nist.gov/div898/software/dataplot/refman2/auxillar/zscore.htm)
+**None:** retain the result's units and magnitude. **Z-score:** `(result − historical mean) / historical sample SD`, applied after the complete calculation. A score of +2 means two reference SDs above that result's mean, including for results already expressed in risk units. It does not imply a particular tail probability or mean reversion.
 
 For example, a HY–IG spread gap of 350 bp with historical mean 300 and SD 25 has Z-score +2. A volatility-scaled gap of +1 with historical mean 0.2 and SD 0.4 also has Z-score +2. These answer different economic questions despite sharing the same Z-score.
 
-- Standalone levels and level ratios: economically defensible as descriptive historical comparisons; supported by v2; scrutinize trends and reference suitability.
+- Standalone levels and level ratios: economically defensible as descriptive historical comparisons; scrutinize trends and reference suitability.
 - Changes, percentage changes, differences and residuals: meaningful if the underlying calculation and reference history are meaningful.
-- Ratios of changes/percentage changes: historical scoring needs an explicitly defined comparison sample and a material denominator rule. Without them, extremes can be denominator accidents. **V2 permits ratio Z-scores; the UI still provides neither event-cohort selection nor a material denominator floor.**
-- Nonstationary/trending levels: a descriptive score is possible, but a stable “cheap/rich” or mean-reversion interpretation needs additional justification. Spurious level relationships are a known time-series problem. [Royal Swedish Academy scientific background](https://www.nobelprize.org/uploads/2018/06/advanced-economicsciences2003-1.pdf)
+- Ratios of changes/percentage changes: historical scoring needs an explicitly defined comparison sample and a material denominator rule. Without them, extremes can be denominator accidents. Check [cohort and denominator-control availability](application-contract.md#version-and-combination-rules) before configuring such a screen.
+- Nonstationary/trending levels: a descriptive score is possible, but a stable “cheap/rich” or mean-reversion interpretation needs additional justification. Spurious level relationships are a known time-series problem.
 - Risk-adjusted then Z-scored is not automatically double counting: rolling risk scales change the input series; the final score measures unusualness of the resulting statistic.
-- Current charts use a single current reference mean/SD retrospectively; regression history uses the current fit. These are not historical point-in-time signals or a backtest.
+- Establish [fit/reference timing](application-contract.md#dates-and-estimation) before treating chart history as point-in-time signals or a backtest.
 
 ## Examples for every defined base combination
 
@@ -134,15 +148,15 @@ Unless otherwise stated: volatility/VaR/ES use each input's own history; beta us
 
 | Area | Necessary interpretation or restriction |
 | --- | --- |
-| Absolute versus percentage spread changes | Both can matter. A spread rising from 100 to 120 bp changes by 20 bp and 20%; a rise from 400 to 420 bp is also 20 bp but only 5%. The former measures absolute repricing; the latter measures proportional repricing. Duration-times-spread research links proportional spread moves to spread-driven returns through duration: approximately `−D × Δs = −(D × s) × (Δs/s)`, in consistent units. Neither spread-change measure alone is total bond return. [Original DTS paper](https://www.robeco.com/files/docm/docu-201708-duration-times-spread.pdf) |
-| Data Series semantics | Percentage change in a total-return index measures index return; percentage change in a price index excludes distributed income; percentage change in OAS measures spread growth. Raw point changes of separately based indices do not measure comparable performance. [S&P index methodology](https://www.spglobal.com/spdji/en/research-insights/index-literacy/methodology-matters/) |
+| Absolute versus percentage spread changes | Both can matter. A spread rising from 100 to 120 bp changes by 20 bp and 20%; a rise from 400 to 420 bp is also 20 bp but only 5%. The former measures absolute repricing; the latter measures proportional repricing. Duration-times-spread research links proportional spread moves to spread-driven returns through duration: approximately `−D × Δs = −(D × s) × (Δs/s)`, in consistent units. Neither spread-change measure alone is total bond return. |
+| Data Series semantics | Percentage change in a total-return index measures index return; percentage change in a price index excludes distributed income; percentage change in OAS measures spread growth. Raw point changes of separately based indices do not measure comparable performance. |
 | Comparison Basis | Matching “bp” is insufficient. Differences in currency, reference curve, maturity, rating mix and optionality must either be aligned or explicitly be the object of investigation. A cross-currency spread comparison can be informative without claiming it is a hedged trading opportunity. |
-| Volatility | Current move divided by prior SD, with no drift subtraction. A current return/SD is not the historical Sharpe ratio, which uses mean differential return. [Sharpe's definition](https://web.stanford.edu/~wfsharpe/art/sr/sr.htm) |
-| Beta | Estimated from aligned measured changes/returns. Needs an economically relevant reference and stable, materially nonzero sensitivity. Beta division expresses reference-equivalent movement; it does not subtract a benchmark move or regression intercept. Negative beta can be meaningful for an inverse exposure but reverses sign interpretation. Self-beta is one when estimable. [OLS beta example](https://www.msci.com/downloads/web/msci-com/research-and-insights/paper/the-msci-private-real-estate-factor-model/The-MSCI-Private-Real-Estate-Factor-Model.pdf) |
-| VaR versus ES | VaR scale is a chosen adverse-move quantile; ES scale is the average tail beyond that quantile, with the app's stated finite-sample convention. Spread widening is usually the adverse direction for long credit exposure; negative total returns use the opposite direction. These scales describe the input, not portfolio P&L. [BIS definitions](https://www.bis.org/committees/bcbs/basel-framework/standard/mar?allChapters=true&q=PPP0QQQ&sort=PPP1QQQ&year=PPP2QQQ) |
+| Volatility | Current move divided by prior SD, with no drift subtraction. A current return/SD is not the historical Sharpe ratio, which uses mean differential return. |
+| Beta | Estimated from aligned measured changes/returns. Needs an economically relevant reference and stable, materially nonzero sensitivity. Beta division expresses reference-equivalent movement; it does not subtract a benchmark move or regression intercept. Negative beta can be meaningful for an inverse exposure but reverses sign interpretation. Self-beta is one when estimable. |
+| VaR versus ES | VaR scale is a chosen adverse-move quantile; ES scale is the average tail beyond that quantile, with the app's stated finite-sample convention. Spread widening is usually the adverse direction for long credit exposure; negative total returns use the opposite direction. These scales describe the input, not portfolio P&L. |
 | Tail comparison | Use a stated downside direction, confidence and interval. A difference of two separately scaled legs is not the VaR/ES of their difference: joint behaviour and positions are missing. Historical ES at 95% with 60 observations averages only about three tail observations; positive output alone is not adequate statistical evidence. |
-| Ratios of moves | Require a meaningful nonzero denominator, direction interpretation and aligned interval. Same-sign negatives yield a positive ratio; a tightening/tightening ratio does not mean widening. Deposit pass-through is an established example of a ratio of changes. [New York Fed](https://libertystreeteconomics.newyorkfed.org/2022/11/how-do-deposit-rates-respond-to-monetary-policy/) |
-| Regression | A residual is observed minus fitted prediction. It describes an association, not necessarily causation, mispricing or persistent alpha. Unlike units can be legitimate because the slope carries the unit conversion. [NIST residual definition](https://www.itl.nist.gov/div898/handbook/pri/section6/pri619.htm) |
+| Ratios of moves | Require a meaningful nonzero denominator, direction interpretation and aligned interval. Same-sign negatives yield a positive ratio; a tightening/tightening ratio does not mean widening. Deposit pass-through is an established example of a ratio of changes. |
+| Regression | A residual is observed minus fitted prediction. It describes an association, not necessarily causation, mispricing or persistent alpha. Unlike units can be legitimate because the slope carries the unit conversion. |
 | Regression after scaling | Rolling scales produce a different relationship, so there can be a specialist question. Fixed positive scales merely re-express an OLS fit: its residual changes by the dependent variable's scale and its Z-score is unchanged. VaR/ES-scaled OLS is not quantile regression or a tail-dependence model. |
 | Windows | Match measurement intervals across legs and risk estimation. The app samples overlapping weekly/monthly moves at daily endpoints; observation count is not a count of independent intervals. Fit history, risk-estimation history and Z-score history have different jobs. |
 
@@ -181,7 +195,6 @@ These are **conditional compensation-versus-movement-risk proxies**, not annuali
 
 All 16 examples require a separately defined input-risk estimator before either standardization choice is meaningful. Stable positive spread levels, usable estimates and meaningful denominators remain necessary. The regression variants in particular add complexity without an obvious default workflow; include them only for a demonstrated question. These are conditional interpretations; they do not establish economic adequacy or calibrated monitoring.
 
-
 ## Combinations and interpretations that do not make sense
 
 These rules override every cell in the overview.
@@ -191,7 +204,7 @@ These rules override every cell in the overview.
 | Subtract incompatible economic quantities | HY spread in bp minus an equity index level in points | No interpretable common quantity. Explicit conversion or a justified regression/ratio is a different analysis. |
 | Compare arbitrary index bases as value or performance | HY index 240 minus IG index 180; or ratio 240/180 called “HY is 33% richer” | Index bases/divisors are arbitrary. A common-start wealth comparison or interval returns provides a defined interpretation. |
 | Treat spread percentage changes as bond returns | OAS rises 100 → 120 bp and is reported as +20% investment performance | It is spread growth. Spread-driven price effect needs duration and has the opposite sign for a long fixed-rate credit position, other things equal. |
-| Percentage change in a zero/negative baseline with ordinary growth interpretation | Yield moves −10 bp → +10 bp | Standard positive-base growth interpretation breaks. The app rejects nonpositive baselines; use absolute changes where appropriate. |
+| Percentage change in a zero/negative baseline with ordinary growth interpretation | Yield moves −10 bp → +10 bp | Standard positive-base growth interpretation breaks. Check [baseline eligibility](application-contract.md#dates-and-estimation); use absolute changes where appropriate. |
 | Divide by zero, or present a tiny denominator as a strong signal | HY widens 10 bp and IG changes 0.001 bp: ratio 10,000 | Huge output reflects a tiny denominator. A materiality rule and purpose-specific treatment are necessary; a Z-score does not repair it. |
 | Treat a move ratio as stable beta or causality | Banks return 6%, market 3%, therefore banks “have beta 2” | One interval's ratio is not an estimated relationship and does not identify a causal effect. |
 | Treat beta division as hedging/residualization | A returns 3%, beta is 1.5; call 3/1.5 = 2% “market-neutral alpha” | Actual market move and intercept were never subtracted. |
@@ -252,7 +265,8 @@ analyses need a defined estimation measure independent of the level numerator.
 Show the actual formula, reference and resulting units. Keep monitoring thresholds
 separate from the mathematical definition. Preserve the user's selected measure
 when an adjustment is chosen; report unsupported capabilities rather than silently
-answering a different question. Existing Snapshots retain their captured definitions.
+answering a different question. Apply [persistence rules](application-contract.md#interpretation-and-persistence-checks)
+when revising saved analyses or interpreting Snapshots.
 
 ## Coverage and current implementation
 
@@ -263,5 +277,3 @@ At the setting-enum level, assuming compatible inputs and available estimation d
 - Total = **120**.
 - **V2 permits all 120** enum combinations. V1 retains the prior 76-combination contract. Data sufficiency, undefined mathematics and incompatible subtraction remain constraints.
 The [application contract](application-contract.md) records the inspected engine behaviour. Check the installed schema and preview because capabilities can change independently of these economic interpretations.
-
-Additional primary-source rationale: [research source note](sources.md).

@@ -80,7 +80,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Upstream source download failed' }
 ```
 
 Seeding pip and obtaining source metadata may require build packages, including
-`uv_build`, from that mirror. Confirm it supplies this version's source `.tar.gz`.
+`hatchling`, from that mirror. Confirm it supplies this version's source `.tar.gz`.
 If only a wheel is available, or the release/backend has not reached the mirror,
 record the exact missing artifact/package and stop this step. Retain the source
 workspace route. No manual download or extraction is assigned to the human.

@@ -27,8 +27,8 @@ Documentation = "https://github.com/stabilefrisur/kairopsis/blob/main/src/kairop
 Issues = "https://github.com/stabilefrisur/kairopsis/issues"
 
 [build-system]
-requires = ["uv_build>=0.12.19,<0.13.0"]
-build-backend = "uv_build"
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
@@ -38,5 +38,26 @@ dev = [
     "pytest==8.4.2",
 ]
 
-[tool.uv.build-backend]
-source-include = ["docs/**", "tests/**", "scripts/**", "uv.lock", "CONTEXT.md", "AGENTS.md", ".python-version"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/kairopsis"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src/kairopsis",
+    "/docs",
+    "/tests",
+    "/scripts",
+    "/README.md",
+    "/pyproject.toml",
+    "/uv.lock",
+    "/CONTEXT.md",
+    "/AGENTS.md",
+    "/.python-version",
+]
+# Eval tooling and reports are excluded from published distributions.
+exclude = [
+    "/evals",
+    "/scripts/*_evals.py",
+    "/docs/research/*-eval*",
+    "/docs/research/analysis-skill-refinement-*",
+]

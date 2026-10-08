@@ -7,6 +7,48 @@ Verify the built artifacts as well as the source checkout. Source tests establis
 application behavior; installed-package checks establish that the distribution
 contains the code, browser assets and guides needed outside the checkout.
 
+## Latest verification — 8 October 2026
+
+The Hatchling migration passes all 304 source tests and mypy checks for 20 source
+files. One upstream Starlette/httpx deprecation warning remains. Locked uv sync,
+wheel/source builds, resource inventory and strict Twine checks pass. Both skills,
+guides, browser assets and vendor licenses match the checkout. Source archives
+retain project metadata, tests, acceptance scripts, lockfile and domain docs;
+eval suites, harnesses and run records are excluded.
+
+A clean wheel installation outside the checkout serves all navigation pages and
+linked local assets in mock mode. CLI/resource discovery and an editable install
+from the extracted source archive pass. Rebuilding that archive produces a
+byte-identical wheel. Evidence: `.scratch/hatchling-migration-2026-10-08/`.
+Final documentation and package checks: `.scratch/chat-completion-2026-10-08/`.
+These checks establish Linux package behavior; Windows/mirror/live-provider
+acceptance and statistical calibration remain unverified.
+
+### Skill evaluations — 7 October 2026
+
+Five fresh GPT-5.6 Sol High subjects tested the frozen screening skill: four
+clean passes, one partial, 49/50 completeness. The start/retry case was blocked
+before subject dispatch and remains unscored. The partial confused a weekly move
+with between-evaluation materiality. See the repository-only
+[screening report](https://github.com/stabilefrisur/kairopsis/blob/main/docs/research/screening-skill-sol56-evaluation-2026-10-07.md).
+
+After the shared setup and interpretation guidance changed, three fresh GPT-5.6
+Sol High subjects scored two clean passes and one partial, 29/30 completeness,
+with no critical failures. The partial omitted the overlap explanation for
+weekly changes. See the repository-only
+[systematic monitoring report](https://github.com/stabilefrisur/kairopsis/blob/main/docs/research/systematic-monitoring-skill-evaluation-2026-10-07.md).
+Different cases and one execution per case do not establish comparative
+improvement, production reliability or statistical calibration.
+
+Reusable cases, rubrics and harness instructions live in the repository's
+[screening suite](https://github.com/stabilefrisur/kairopsis/tree/main/evals/kairopsis-screening)
+and [systematic monitoring suite](https://github.com/stabilefrisur/kairopsis/tree/main/evals/kairopsis-systematic-monitoring).
+Keep generated fixtures, complete subject outputs and machine-readable run
+records in ignored local storage; commit concise reports and reusable tests.
+Repository links are intentional: these eval resources are absent from published
+distributions. Historical sections below record the checks performed at each
+stage; their test counts describe those stages.
+
 ## Economic Rationale — 7 October 2026
 
 The full source suite passes 279 tests, including 16 rationale HTTP cases; mypy
@@ -70,12 +112,14 @@ uv run python scripts/acceptance/inspect_wheel.py dist/kairopsis-0.1.1-py3-none-
 uvx --from twine twine check --strict dist/*
 ```
 
-The inventory requires both installed guides and both analysis and screening
-skills, checks that each skill's local Markdown links resolve within its own
+Hatchling builds the wheel and source archive; uv remains the build frontend and
+dependency manager. The inventory requires both installed guides and both skills,
+checks that each skill's local Markdown links resolve within its own
 folder, checks source completeness and vendor checksums, and rejects accidental
-private runtime material. Source archives
-include docs, tests, scripts, the lockfile and domain context. Keep scratch records
-and credentials outside published artifacts.
+private runtime material. Source archives include docs, tests, acceptance scripts,
+the lockfile and domain context. Eval suites, harnesses and evaluation reports
+are excluded from both distributions. Full run records stay in ignored local
+storage. Keep scratch records and credentials outside published artifacts.
 
 ## Installed application
 
@@ -113,7 +157,7 @@ an existing research workspace. Prepare Playwright Chromium before network-limit
 checks. `scripts/acceptance/run_windows.py` also provides an installed Windows
 harness; its output directory must not exist.
 
-## Recorded scope
+## Historical verification before the v2 controls
 
 The analysis-skill packaging follow-up verifies identical skill resources in a
 fresh wheel and source archive, installed-resource discovery from an isolated
@@ -125,7 +169,7 @@ monthly returns; the guidance distinguishes unsupported calculation/cadence
 requirements from economic recommendations. These checks concern the skill and
 distribution contents, not a new release or target live-data acceptance.
 
-The current implementation passes 88 source tests. Typechecking, packaged source
+At this stage, the implementation passed 88 source tests. Typechecking, packaged source
 and browser-asset inventory, installed guide discovery and strict Twine checks
 have passed. Tests also run from an extracted source archive without a checkout.
 
@@ -168,7 +212,7 @@ suite: 88 passing tests; type and JavaScript syntax checks pass. Browser checks
 verified standalone weekly changes, the current prior-history reference and
 ±2 threshold lines. Screenshot: `.scratch/period-controls/standalone-zscore.jpg`.
 
-## Analysis controls and v2 contract
+## Historical verification: Analysis controls and v2 contract
 
 The v2 follow-up adds the 120-combination evaluation/serialization matrix,
 hand-worked level and ratio Z-scores, all four level-risk methods with both
@@ -202,7 +246,7 @@ remain in place. No release was published.
 
 Three matched cases used six fresh GPT-6.1 Sol agents at High effort, with and
 without the frozen skill. Both arms met all five criteria in every case; no
-accuracy advantage established. The [evaluation report](research/analysis-skill-evaluation-2026-10-07.md)
+accuracy advantage established. The repository-only [evaluation report](https://github.com/stabilefrisur/kairopsis/blob/main/docs/research/analysis-skill-evaluation-2026-10-07.md)
 records prompts, scoring, observed differences and limits. All runs completed
 before targeted guidance changes; scores describe the pre-edit skill.
 

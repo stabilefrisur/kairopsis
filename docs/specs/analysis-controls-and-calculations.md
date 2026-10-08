@@ -395,6 +395,37 @@ interaction for conditional controls. Do not mirror private implementation steps
     sdist builds and the existing distribution inventory pass. Verify skill
     portability remains intact. Report exact unverified target/live-data behaviour.
 
+## Systematic monitoring guidance
+
+Implemented 7 October 2026 as shipped skill guidance. The authoritative
+[Analysis setup profiles](../../src/kairopsis/skills/kairopsis-analysis/references/analysis-design.md#systematic-setup-profiles)
+apply unspecified choices for authorized bulk setup: percentile tails <=1/>=99,
+three-year reference and 500 eligible prior result observations, with null bespoke move and
+material-change rules. Explicit Z-score monitoring uses a shared absolute Z>=3
+preset unless the user specifies a cutoff. Manual/custom settings and explicit
+analytical choices take precedence; existing definitions are not migrated.
+
+These are provisional daily-sampled starting profiles. Statistical calibration
+requires universe-wide point-in-time replay and assessment of volume, persistence
+and useful grouped themes. Synthetic cases and behavioral evals check mechanics
+and interpretation only. The supported `configured-native-v1` label does not
+certify calibration. Reference history is separate from Frequency, fit and risk
+windows; counts exclude current and include only eligible prior result observations.
+Daily-endpoint weekly/monthly observations overlap.
+
+The application still couples the extreme alert mode to result standardization;
+Z-score replaces percentile extremes. `move_threshold` tests the returned
+Frequency/Measure-dependent `change`; `material_change` participates in novelty
+against a compatible eligible prior Evaluation and current conditions. Fixed-fit
+and fixed-Z-reference comparison reasons remain authoritative. A quiet result
+without a compatible baseline cannot establish between-run materiality.
+
+This guidance adds no settings schema, enforcement registry, policy ID, global
+default or stored-definition change. A 5th/95th watch band, hysteresis/re-arming
+and historical universe replay are follow-ups, not current skill capabilities.
+Screening owns retained review and briefing; its local contract carries the
+interpretation rules needed when copied independently of Analysis guidance.
+
 ## Out of scope
 
 - Arbitrary event/cycle selectors, event-cohort filtering or configurable ratio

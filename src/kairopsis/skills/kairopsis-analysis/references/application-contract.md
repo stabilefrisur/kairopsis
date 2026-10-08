@@ -40,6 +40,12 @@ on conflict, reread the affected definitions and reconcile the intended changes.
 Previewing may retrieve market data but does not authorize saving defaults,
 enabling monitoring or changing unrelated records.
 
+Preserve captured mode, provenance and provider outcomes: `synthetic` is fabricated
+demonstration data, while `unverified` is a distinct retrieval outcome. Cache,
+partial and failed outcomes retain their own meanings. Missing evidence may leave
+a claim unverifiable without changing the recorded category. In retained results,
+separate the latest attempt's outcome from the older displayed Evaluation.
+
 ## Analysis fields
 
 | Economic concept | Current field and values | Notes |
@@ -52,12 +58,14 @@ enabling monitoring or changing unrelated records.
 | Calculation contract | `settings.calculation_contract: "input-pipeline-v1"` or `"input-pipeline-v2"` | Omitted means v1; new callers should explicitly request v2 |
 | Result standardization | `settings.standardization: "none"` or `"zscore"` | Applied after calculation; all v2 combinations supported |
 | Historical comparison | `settings.history_years` | Reference for percentile and result Z-score |
+| Reference sample floor | `settings.minimum_history` | Eligible prior result observations; computational floor, not independent-sample adequacy |
 | Regression fit | `settings.fit_years` | Relevant to regression only |
 | Shared input scaling | `settings.risk_adjustment` | A RiskAdjustment record applied to each input |
 | Per-input scaling | `settings.risk_overrides` | Empty uses shared settings; otherwise one record per input, replacing shared settings |
 | Monitoring | `monitored` | Separate from successfully defining or previewing the analysis |
 | Extreme-value thresholds | `settings.upper_percentile`, `settings.zscore_threshold` | Symmetric lower/upper percentile tails or absolute Z-score rule |
 | Move/materiality thresholds | `settings.move_threshold`, `settings.material_change` | Optional, positive, in completed analysis units |
+| Configuration label | `settings.calibration` | `demo-native-v1` or `configured-native-v1`; neither certifies statistical calibration |
 
 Period fields currently accept 3 or 6 months (`0.25`, `0.5`), whole years 1–30,
 or `"all"`. Inspect the installed schema for accepted values. Display/preview
@@ -213,6 +221,13 @@ and sample SD are applied throughout the chart. Neither chart is a historical
 point-in-time strategy backtest. Read fit, adjustment and standardization
 estimates and limitations returned by the preview.
 
+Percentile also excludes current and uses eligible prior result observations inside
+`history_years`, after alignment and transformations. Count this reference sample,
+not plotted points: five plotted observations can supply four prior observations,
+and missing/ineligible/out-of-window points reduce it further. If retained evidence
+cannot establish the sample, report the count as unknown. Historical rank is not
+a probability of reversal or a promised alert rate.
+
 The current regression additionally requires its newest prior sample within
 seven days of the previous session, and fixed-window fitting requires a sample
 near the window start. Monthly-only return observations can therefore be
@@ -239,10 +254,25 @@ extreme-percentile rule; displayed percentile remains descriptive. Optional
 [change-field meaning](#dates-and-estimation). Move/materiality settings use
 completed-result units; neither filters an input's denominator in native units.
 
+`material_change` participates in novelty comparison against a compatible prior
+Evaluation and current conditions; it is not another Frequency-move rule. Inspect
+captured reasons and fixed-reference comparison evidence when fits or Z-score
+references change. Subtracting displayed values need not reproduce that comparison.
+Without a compatible eligible baseline, report current conditions only, not
+between-run materiality. For example, a level gap can rise 8 bp over a week but
+only 1 bp since yesterday's compatible Evaluation: a manual 5 bp move rule is
+met while a 5 bp material-change threshold is not.
+
+Interpret manual/custom settings as captured. For unspecified systematic setup,
+use [shared setup profiles](analysis-design.md#systematic-setup-profiles); these
+are skill guidance, not application defaults or runtime enforcement.
+
 The schema has no event-calendar filter, material-denominator floor or one-sided
-percentile rule. If these define the requested alert, retain a proposed
-calculation with monitoring off and identify the missing capability. An unrestricted
-percentile is not a substitute for the requested eligible-event distribution.
+percentile rule. If these define the requested alert, retain a proposal and
+identify the missing capability. Unspecified default setup stays exploratory;
+preserve explicit monitoring/custom settings without claiming the requested event
+alert is supported. An unrestricted percentile is not a substitute for the
+requested eligible-event distribution.
 
 ## Interpretation and persistence checks
 

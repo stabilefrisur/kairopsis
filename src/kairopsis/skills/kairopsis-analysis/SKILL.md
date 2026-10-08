@@ -42,6 +42,9 @@ configuration or a new live preview is needed only if the request calls for it.
    [calculation order and measure](references/analysis-design.md#choose-calculation-order-and-measure).
    Choose [histories and Frequency](references/analysis-design.md#choose-histories-and-frequency)
    by purpose. Apply the conditional checks below to the choices under consideration.
+   For systematic/bulk monitoring, select the
+   [shared setup profile](references/analysis-design.md#systematic-setup-profiles),
+   preserving explicit choices and custom exceptions.
 3. Before returning settings or JSON, including an offline draft, complete the
    [draft consistency check](references/application-contract.md#draft-consistency).
    [Record the economic rationale](references/analysis-design.md#record-economic-rationale)
@@ -83,5 +86,6 @@ evaluation. Keep reproducible detail in the user's requested record.
 | Interpret or choose risk method, reference, estimation basis or downside | [Risk scaling and references](references/analysis-design.md#choose-risk-scaling-and-references); for Level with active scaling, use [adjusted-level meanings](references/combination-map.md#the-32-level-plus-adjustment-settings) instead of the base worked rows. |
 | Compare per-input settings or suspected cancelling adjustments | [Overrides and references](references/combination-map.md#per-input-overrides-and-references) or [redundant settings](references/combination-map.md#redundant-settings-rather-than-invalid-economics). |
 | Interpret or choose a Z-score | [Result standardization](references/analysis-design.md#choose-result-standardization), including ratio-of-moves sampling conditions. |
+| Interpret thresholds, percentile samples or monitoring comparisons | [Monitoring rules](references/application-contract.md#monitoring-rules) and [dates and estimation](references/application-contract.md#dates-and-estimation). |
 | Interpret or monitor ratios of changes/percentage changes | [Ratio examples](references/combination-map.md#ratio) and [event-sample requirements](references/analysis-design.md#event-samples), including percentile monitoring. Check [available monitoring rules](references/application-contract.md#monitoring-rules). |
 | Assess validity or a claimed performance, causal or trading meaning | The relevant [invalid or misleading instance](references/combination-map.md#combinations-and-interpretations-that-do-not-make-sense). |

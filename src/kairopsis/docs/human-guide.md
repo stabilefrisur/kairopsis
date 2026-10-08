@@ -106,6 +106,20 @@ calibration. Exploratory edits save only through **Edit defaults in Library →
 Use exploratory settings → Save defaults**. Preview failures retain a labelled
 previous chart and your edited values; Preview again before saving evidence.
 
+When you ask the agent to set up monitoring across many Analyses, its starting
+policy uses the lowest/highest 1% of historical results, a three-year reference
+and at least 500 eligible earlier observations. If you choose Z-scores, the shared
+starting threshold is an absolute score of 3. Your specified settings take
+precedence, including custom move or material-change thresholds for individual
+cases. The agent leaves those optional thresholds unset when applying the shared
+policy without exceptions.
+
+These are agent setup choices; existing Analyses and application defaults keep
+their settings. The shared policy still needs historical testing across the
+monitored universe. Too little eligible history remains a limitation; weekly or
+monthly changes measured every day overlap. Ask the agent to explain exceptions
+and data gaps when setting up monitoring.
+
 New definitions use the v2 calculation contract. Existing saved definitions and
 Snapshots retain v1; choosing a v2-only feature revises the draft explicitly.
 Earlier evidence and its Latest calculations keep their captured definition.

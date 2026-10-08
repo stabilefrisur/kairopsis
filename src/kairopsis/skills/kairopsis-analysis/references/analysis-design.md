@@ -245,10 +245,10 @@ not new information. Overlapping monthly observations also share most of their
 underlying days. The minimum sample setting is a computational floor, not proof
 of economic or statistical adequacy.
 
-A reasonable first preview may use the installed defaults while clearly labeling
-them provisional. Replace that convenience with a reasoned choice before calling
-the definition calibrated. Do not present a universal three-year/weekly/95% recipe
-as appropriate for all markets.
+An exploratory first preview may use installed defaults, labelled provisional.
+For systematic monitoring use the
+[shared setup profiles](#systematic-setup-profiles); reference-window presets
+do not choose the economic Frequency, fit or risk-estimation windows.
 
 Before interpreting a displayed move or setting a movement threshold, resolve
 the returned [change-field meaning](application-contract.md#dates-and-estimation).
@@ -292,10 +292,68 @@ or underperformance. Symmetric extremes and one-sided policy rules answer
 different monitoring questions.
 
 Changing measure, adjustment or standardization changes the units or distribution.
-Reassess thresholds accordingly. A default ±2 Z-score or 95th-percentile rule is
-illustrative until the user's purpose, reference data and observed behaviour
-justify it. Leave monitoring off when the request is only exploratory; honor an
-explicit monitoring request while reporting unresolved calibration or data issues.
+Reassess thresholds accordingly. Preserve manual percentile, Z-score, move and
+material-change choices; existing custom definitions need no migration. Leave
+monitoring off for exploration alone. Honour explicit monitoring requests while
+reporting unresolved data or calibration issues. For threshold meanings use the
+application contract; for unspecified bulk settings use the profiles below.
+
+### Systematic setup profiles
+
+For systematic/bulk monitoring without a supplied shared policy, use this
+provisional daily-sampled starting policy. Apply defaults only to unspecified
+choices within the authorized setup scope.
+
+| Setting | Default percentile profile | Explicit Z-score alternative |
+| --- | --- | --- |
+| `standardization` | `none` | `zscore` |
+| Active cutoff | `upper_percentile: 99` (inclusive <=1 or >=99) | `zscore_threshold: 3` (inclusive absolute Z >=3) |
+| `history_years` | `3` | `3` |
+| `minimum_history` | `500` | `500` |
+| `move_threshold`, `material_change` | `null`, `null` | `null`, `null` |
+| `calibration`, if set | `configured-native-v1` | `configured-native-v1` |
+
+Choose percentile monitoring when mode is unspecified; respect explicitly
+selected Z-score calculations and a user's shared Z cutoff. The engine couples
+the active extreme rule to result standardization: Z-score replaces the
+percentile rule, while percentile remains descriptive. Inactive threshold fields
+can retain valid serialized values. Z=3 is neither equivalent to the percentile
+tails nor evidence of an equal false-alert rate.
+
+Preserve calculations, ordered inputs, shaping, Frequency, fit/risk settings,
+histories and thresholds explicitly chosen by the user. Describe deviations as
+exceptions rather than claiming an exact profile match. Bulk setup does not
+authorize unrelated saved-definition changes. Keep Economic Rationale about the
+investment question; use supported fields, not a fictitious policy ID.
+
+Reference history differs from Frequency and fit/risk-estimation windows. Count
+eligible prior result observations after alignment and transformation, inside the
+reference window and excluding current. Five hundred daily endpoints need not
+be independent: weekly/monthly changes overlap.
+
+Too little eligible history, stale/unverified inputs, invalid economics or
+unsupported event sampling leave limitations; lowering the shared floor,
+counting carried observations or changing the question does not resolve them.
+For unspecified setup, retain an exploratory or ineligible draft and explain
+the gap. Preserve explicitly requested monitoring/custom settings while reporting
+ineligibility accurately. Lower native cadences need a separately justified
+shared profile, not per-Analysis threshold improvisation. Synthetic previews
+verify mechanics only.
+
+For unusual daily/weekly/monthly movements, define the requested change Analysis
+and rank that completed result under the shared policy. Keep native measurements
+available for exploration and economic interpretation. Add Analyses only within
+the requested scope; a bespoke native-unit move threshold is not the systematic
+default.
+
+These profiles are reproducible starting guidance, not statistically calibrated
+policies. `configured-native-v1` is a configuration label. Calibration requires
+across-universe, point-in-time replay using only each date's available data,
+fit and reference history, then assessing alert volume, persistence and useful
+grouped themes. Calibrate shared profiles, including cadence-specific ones,
+rather than each Analysis. Behavioral evals do not establish this calibration.
+A 5th/95th watch band, hysteresis/re-arming and a runtime policy registry are
+product follow-ups; current novelty/entry semantics remain in force.
 
 ## Worked starting points
 

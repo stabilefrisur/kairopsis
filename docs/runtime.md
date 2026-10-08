@@ -111,14 +111,46 @@ Public Metapyle 0.1.6 has no add/update/remove API or CLI. Kairopsis uses `Catal
 
 | Item | Applied rule |
 | --- | --- |
-| Standing | Current-excluded eligible history; `100 × (below + 0.5 × equal) / N`; default reference 3 calendar years; at least 60 prior points. Shorter available history is qualified by sample count. |
+| Standing | Current-excluded eligible history; `100 × (below + 0.5 × equal) / N`; application defaults use a 3-calendar-year reference and `minimum_history: 60`. Each Analysis can set its own minimum. Counts include only eligible prior results inside the reference window. |
 | Alignment | Exact supplied row dates, no fill/interpolation. Findings require finite inputs and known native dates equal to the row; weekdays only. Union rows remain inspectable with missing arithmetic. Provider holiday calendars are not verified. |
 | Day move | Exact previous weekday session; never skip a missing baseline. |
 | Week/month move | Seven calendar days / previous calendar month (day clamped); backward-only baseline within three calendar days. Missing baseline yields unavailable, never zero. |
 | Pair | Ordered first minus second, first divided by second (zero denominator unavailable), or first dependent on second explanatory. Difference requires same units; different bases remain explicitly labelled. |
 | OLS | Intercept fit over selected full trailing calendar window excluding current. At least 20 eligible pairs; seven-day endpoint tolerance; constant x unavailable. Residual history uses current fit retrospectively. Fit and display/reference windows are independent. |
 | Sensitivity | Compare 1y/5y fits where full history permits; indicate a residual direction reversal. Unavailable checks are explicit; no invented stability score. |
-| Finding | Configured symmetric level tails and optional native-unit move thresholds. `demo-native-v1` explicitly illustrative. Compatible new native observations establish threshold entry or material movement; same evidence stays quiet. Corrections/definition/method changes suppress market novelty. Regression material movement holds the earlier fit fixed. |
+| Finding | Original output uses configured symmetric percentile tails; Z-score output uses an absolute Z threshold instead. Optional move/material-change thresholds use completed-result units. Compatible new native observations establish threshold entry or material movement; same evidence stays quiet. Corrections/definition/method changes suppress market novelty. Comparisons hold earlier fit/Z-score references fixed where applicable. |
 | Ordering | New, materially changed, first-observed condition; then case-folded name and stable ID. One row per analysis, no composite score/quota. |
 
 Risk adjustment is available in the Investigation side panel and as saved Analysis defaults in Library. Supported methods: volatility, beta, historical VaR and Expected Shortfall (CVaR), with common or per-input references/settings. [Calculation conventions](risk-adjustment.md) specify Frequency, prior-only estimation, half-life, downside, units and unavailable cases. Snapshots preserve raw/reference data and adjustment choices; Latest uses the captured definition. Estimator suitability and risk-adjusted monitoring thresholds require target-environment validation.
+
+## Systematic monitoring setup
+
+The [analysis skill's shared profiles](../src/kairopsis/skills/kairopsis-analysis/references/analysis-design.md#systematic-setup-profiles)
+apply to unspecified choices in authorized bulk setup. The percentile profile
+uses inclusive <=1/>=99 tails, three years and 500 eligible prior results. Explicit
+Z-score monitoring uses an absolute threshold of 3 unless the user specifies
+another cutoff. Both profiles leave optional move/material-change thresholds
+unset. Manual exceptions and explicit analytical choices take precedence.
+
+These are skill instructions, not runtime defaults or enforced policy. Application
+defaults remain 5th/95th percentile tails, an absolute Z threshold of 2 and a
+60-point history minimum. Existing definitions retain their captured settings.
+Neither `demo-native-v1` nor `configured-native-v1` certifies statistical
+calibration. Counts exclude current; daily endpoints of weekly/monthly changes
+overlap and do not establish independent samples.
+
+`move_threshold` tests the returned Frequency/Measure-dependent `change`.
+`material_change` participates in novelty against a compatible eligible prior
+Evaluation and current conditions. A level gap moving 8 bp over a week but only
+1 bp since yesterday's Evaluation can meet a manual 5 bp move rule without
+meeting 5 bp between-evaluation materiality. Use captured comparison reasons;
+subtracting displayed values may not reproduce fixed-reference comparisons.
+Without a compatible baseline, between-run materiality is unestablished.
+
+Statistical calibration requires point-in-time replay across the monitored
+universe to assess alert volume, persistence and useful grouped themes. Shared
+profiles should be tested by cadence. A separate watch band and persistent
+re-arming state remain follow-ups: the runtime currently compares compatible
+evaluations, without a separate rule requiring a return to a watch band before
+another alert. Skill evals test agent behavior and interpretation, not statistical
+calibration.

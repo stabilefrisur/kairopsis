@@ -110,7 +110,11 @@ failed attempt.
   observations, cache/partial outcomes and previous retained values cannot be
   promoted to current eligible Flags. Fresh retrieval does not create a common
   market as-of date. Mock/synthetic findings demonstrate calculations, not live
-  market developments. Read actual per-input provenance and limitations.
+  market developments. `synthetic` means fabricated demonstration data;
+  `unverified` is a distinct retrieval outcome. Preserve cache/partial/failed
+  categories too. Missing evidence can make a claim unverifiable without changing
+  its recorded provider outcome. Keep the latest attempt's outcome separate from
+  a displayed older Evaluation's provenance. Read actual per-input limitations.
 - **Novelty:** `new` and `changed` carry the app's reasons for eligible native
   observation developments. `condition` records a condition without a compatible
   baseline. `unchanged` is persistent, `quiet` has no current condition,
@@ -123,6 +127,21 @@ failed attempt.
   change, it is the current measured result, not necessarily acceleration.
   Compare the retained baseline only under the captured compatible definition;
   baseline comparison and Frequency change are different comparisons.
+- **Thresholds:** interpret captured manual or systematic settings; reviewing a
+  run does not reconfigure them. `move_threshold` tests absolute `change` in
+  completed-result units. `material_change` participates in novelty against a
+  compatible eligible prior Evaluation and current conditions, not a second
+  Frequency rule. An 8 bp weekly gap move and 1 bp since yesterday can meet a
+  manual 5 bp move rule without meeting 5 bp between-evaluation material change.
+  Use captured reasons and fixed fit/Z-score references; displayed subtraction
+  may not reproduce the engine. Without a compatible baseline, including a
+  quiet no-baseline row, between-run materiality is unestablished.
+- **Percentile sample:** exclude current; count eligible prior result observations
+  inside captured reference history, after alignment/transformation. Five plotted
+  observations can mean four prior observations; missing/ineligible/out-of-window
+  points reduce that count. If evidence cannot establish it, leave the count
+  unknown. A percentile is historical rank, not reversal probability or alert rate.
+  Weekly/monthly moves sampled at daily endpoints overlap.
 - **Materiality:** percentiles and Z-scores describe historical rarity under
   captured reference samples. Interpret economic size in the output units and
   Comparison Basis. Pair input order controls sign. Scaling/reference changes,

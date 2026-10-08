@@ -67,7 +67,7 @@ def journey(url: str, output: Path) -> dict:
         page.locator(".saved-chart").get_by_role("button", name="Add note", exact=True).click()
         page.locator(".saved-chart textarea").fill("First chart note")
         page.locator(".saved-chart").get_by_role("button", name="Save changes").click()
-        expect(page.locator(".saved-chart .prose")).to_have_text("First chart note")
+        expect(page.locator(".saved-chart .chart-note .prose")).to_have_text("First chart note")
         annotation = page.locator(".saved-chart .chart-note")
         annotation.get_by_role("button", name="Edit", exact=True).click()
         annotation.get_by_label("Note text").fill("Edited chart note")
@@ -87,7 +87,7 @@ def journey(url: str, output: Path) -> dict:
         page.get_by_role("button", name="Save chart", exact=True).click()
         page.wait_for_url(idea_url)
         expect(page.locator(".saved-chart")).to_have_count(2)
-        expect(page.locator(".saved-chart .prose")).to_have_text(["First chart note", "Second chart note"])
+        expect(page.locator(".saved-chart .chart-note .prose")).to_have_text(["First chart note", "Second chart note"])
         for text in ("First dated note", "Second dated note"):
             page.locator("summary", has_text="Add Idea note").click()
             form = page.locator('[data-form="add-idea-note"]')
@@ -158,7 +158,7 @@ def journey(url: str, output: Path) -> dict:
         expect(page.get_by_text("Clipboard unavailable. Chart downloaded instead.")).to_be_visible()
         card.get_by_role("button", name="Remove chart", exact=True).click()
         expect(page.locator(".saved-chart")).to_have_count(1)
-        expect(page.locator(".saved-chart .prose")).to_have_text("Second chart note")
+        expect(page.locator(".saved-chart .chart-note .prose")).to_have_text("Second chart note")
         page.screenshot(path=str(output / "idea-desktop.png"), full_page=True)
         # Library dependency protection and inline creation preserve the draft.
         page.get_by_role("link", name="Library", exact=True).click()

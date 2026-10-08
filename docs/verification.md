@@ -7,7 +7,28 @@ Verify the built artifacts as well as the source checkout. Source tests establis
 application behavior; installed-package checks establish that the distribution
 contains the code, browser assets and guides needed outside the checkout.
 
-## Latest verification — 8 October 2026
+## 0.1.2 release verification — 8 October 2026
+
+All 304 source tests and mypy checks for 20 files pass. The release wheel and
+source archive pass inventory, local-link, vendor-checksum and strict Twine
+checks. Both skills and guides are present; eval tooling and reports remain
+outside the distributions. No project branding or private material required
+removal; numerical variables, vendor internals and the `gs-quant` dependency
+identity remain legitimate matches.
+
+A clean Linux wheel install passes the Chromium research journey: chart and Idea
+notes, saved/Latest exports, clipboard fallback, Library editing and desktop/mobile
+layouts, with no script errors or external browser requests. Notes, shortlist
+state and original image hashes survive restart. Three acceptance selectors now
+target chart notes specifically, because rationale adds a separate prose element.
+CLI/resource discovery, editable source-archive installation and a byte-identical
+sdist-to-wheel rebuild pass. Evidence: `.scratch/release-0.1.2/`.
+
+One upstream Starlette/httpx deprecation warning remains. These are Linux/mock
+checks; corporate Windows, mirror coverage, live-provider behavior and economic
+calibration require target evidence.
+
+## Hatchling migration verification — 8 October 2026
 
 The Hatchling migration passes all 304 source tests and mypy checks for 20 source
 files. One upstream Starlette/httpx deprecation warning remains. Locked uv sync,
@@ -108,7 +129,7 @@ uv sync --locked
 uv run pytest -q
 uv run mypy src/kairopsis
 uv build
-uv run python scripts/acceptance/inspect_wheel.py dist/kairopsis-0.1.1-py3-none-any.whl --require-assets --source-directory . --output /absolute/output/wheel-inventory.json
+uv run python scripts/acceptance/inspect_wheel.py dist/kairopsis-0.1.2-py3-none-any.whl --require-assets --source-directory . --output /absolute/output/wheel-inventory.json
 uvx --from twine twine check --strict dist/*
 ```
 

@@ -14,7 +14,7 @@ Use Copilot Agent mode in the IDE running in the target Windows session. Paste:
 Read and execute this runbook:
 https://github.com/stabilefrisur/kairopsis/blob/main/src/kairopsis/docs/agent-setup.md
 
-Set up Kairopsis 0.1.1 as an extracted upstream source workspace on this Windows
+Set up Kairopsis 0.1.2 as an extracted upstream source workspace on this Windows
 machine. You own archive acquisition, extraction, local dependency adaptation,
 installation, configuration, verification and launcher creation. Use the existing
 package mirror and working private Metapyle setup. Preserve existing research.
@@ -70,7 +70,7 @@ existing directory only when its record proves it belongs to this installation.
 Preserve modified source and environments. Run through your terminal tool:
 
 ```powershell
-$KairopsisVersion = '0.1.1'
+$KairopsisVersion = '0.1.2'
 New-Item -ItemType Directory -Force -Path $KairopsisDownloads | Out-Null
 uv venv $KairopsisBootstrap --python $KairopsisPython --no-python-downloads --seed --default-index $KairopsisMirror
 if ($LASTEXITCODE -ne 0) { throw 'Bootstrap environment failed' }

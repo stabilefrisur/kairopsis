@@ -46,6 +46,20 @@ def run(url: str, screenshots: Path) -> None:
         assert len(distribution_groups) == 3
         assert all(group["weight_policy"] == "equal_row" for group in distribution_groups)
         print("PASS: new three-symbol Distribution retains three equal-row groups")
+        distribution_id = page.evaluate("window.exploreWorkspace.workspace.views.find(v=>v.family==='distribution').id")
+
+        def distribution_geometry() -> dict:
+            geometry = page.locator(f'#explore-plot-{distribution_id}').evaluate("""plot => ({
+              width:plot._fullLayout._size.w,height:plot._fullLayout._size.h,
+              legends:plot._fullData.filter(trace=>trace.showlegend).length,
+              orientation:plot._fullLayout.legend.orientation,
+              grouped:plot._fullData.every(trace=>trace.legendgroup),
+            })""")
+            assert geometry["width"] > 200 and geometry["height"] > 100, geometry
+            assert geometry["legends"] == 3 and geometry["orientation"] == "h" and geometry["grouped"], geometry
+            return geometry
+
+        distribution_geometry()
         # Inspect actual bundled Plotly titles, not only the input layout.
         scatter_titles = page.evaluate("""() => {
           const state=window.exploreWorkspace, view=state.workspace.views.find(v=>v.family==='scatter');
@@ -55,9 +69,20 @@ def run(url: str, screenshots: Path) -> None:
         assert all("bp" in title and "Click to enter" not in title for title in scatter_titles), scatter_titles
         print("PASS: six production chart families")
         page.screenshot(path=str(screenshots / "desktop.png"), full_page=True)
-        page.set_viewport_size({"width": 1200, "height": 900})
+        page.set_viewport_size({"width": 1180, "height": 900})
+        page.wait_for_function(f"document.querySelector('#explore-plot-{distribution_id}')._fullLayout.width > 500")
+        distribution_geometry()
         assert not page.evaluate("document.documentElement.scrollWidth > innerWidth")
         page.screenshot(path=str(screenshots / "laptop.png"), full_page=True)
+        page.locator(f'[data-view="{distribution_id}"] [data-explore="focus-view"]').click()
+        page.wait_for_function(f"document.querySelector('#explore-plot-{distribution_id}')._fullLayout.height > 500")
+        assert distribution_geometry()["width"] > 500
+        page.screenshot(path=str(screenshots / "distribution-focus.png"), full_page=True)
+        page.locator('[data-explore="layout"]').click()
+        correlation_id = page.evaluate("window.exploreWorkspace.workspace.views.find(v=>v.family==='correlation').id")
+        page.locator(f'[data-explore="select"][data-id="{correlation_id}"]').first.click()
+        page.wait_for_function(f"document.querySelector('#explore-plot-{correlation_id}')._fullLayout")
+        print("PASS: readable Distribution at 1440/1180 and Focus; three grouped legend entries")
 
         # Actual chart click retains the matrix cell's exact paired sample.
         matrix = page.locator('.explore-view.selected .plot')
@@ -139,6 +164,14 @@ def run(url: str, screenshots: Path) -> None:
           return [layout.yaxis.title.text,layout.yaxis2.title.text];
         }""")
         assert "%" in frozen_titles[0] and "bp" in frozen_titles[1], frozen_titles
+        distribution_geometry()
+        image_url = page.locator(f'[data-view="{distribution_id}"] a[download]').get_attribute("href")
+        image_response = page.request.get(url.rstrip("/") + image_url)
+        assert image_response.ok
+        image_bytes = image_response.body()
+        assert image_bytes[:8] == b"\x89PNG\r\n\x1a\n"
+        assert (int.from_bytes(image_bytes[16:20], "big"), int.from_bytes(image_bytes[20:24], "big")) == (1400, 850)
+        (screenshots / "distribution-captured.png").write_bytes(image_bytes)
 
         # Frozen reopen never queries Library or live observations.
         requests: list[str] = []

@@ -176,6 +176,24 @@ function exploreChartData(view, result) {
     else if (layout[key].title.text) layout[key].title.text = labelText(layout[key].title.text);
   }
   traces.forEach(trace => { if (trace.name) trace.name = labelText(trace.name); });
+  if (["history", "distribution"].includes(view.family)) layout.legend = {...layout.legend,
+    orientation: "h", x: 0, xanchor: "left", y: -.25, yanchor: "top", font: {size: 11}, groupclick: "togglegroup"};
+  if (view.family === "distribution") {
+    // Retained group metadata also identifies auxiliary traces in older captures.
+    const groups = (statistics.groups || []).map(group => {
+      const unit = result.axis_units?.[group.axis], axis = `${group.axis}${unit ? ` (${unit})` : ""}`;
+      return labelText(group.group === "All" ? axis : `${axis} · ${group.group}`);
+    });
+    const colors = layout.colorway || ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"];
+    for (const trace of traces) {
+      const group = groups.filter(name => trace.name === name || trace.name?.startsWith(`${name} `)).sort((left, right) => right.length - left.length)[0];
+      if (!group) continue;
+      const color = colors[groups.indexOf(group) % colors.length];
+      trace.legendgroup = group; trace.showlegend = trace.name === group;
+      trace.marker = {...trace.marker, color};
+      if (trace.mode?.includes("lines")) trace.line = {...trace.line, color};
+    }
+  }
   if (view.family === "history") for (const key of Object.keys(layout)) if (/^xaxis\d*$/.test(key)) layout[key].title = null;
   if (["history", "heatmap"].includes(view.family) && view.options.heatmap_layout !== "fields") layout.xaxis = {...layout.xaxis, title: null};
   if ((view.display_start || view.display_end) && (view.family === "history" || view.family === "heatmap" && view.options.heatmap_layout !== "fields")) layout.xaxis = {...layout.xaxis, range: [view.display_start || undefined, view.display_end || undefined]};

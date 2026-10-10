@@ -34,6 +34,43 @@ excluded dates and transformation inputs. Desktop/laptop are the intended review
 surfaces; narrow screens stack without horizontal overflow, but phone ergonomics
 remain unvalidated. Synthetic fixture only; no production integration.
 
+## User review corrections — 2026-10-10
+
+The layout verdict does not validate the prototype's data/editor integration.
+The hand-written transform menu and invented classifications are demonstration
+shortcuts, not the intended product contract. Correct the next iteration as follows:
+
+- **Reuse Analysis construction.** Use the shared
+  [Analysis controls](../src/kairopsis/static/analysis-controls.js) and existing
+  calculation engine for local drafts and saved Analyses. Preserve Measure,
+  daily/weekly/monthly Frequency, risk scaling (volatility, beta, VaR, ES), shared
+  or per-input risk settings, pair calculations and result standardization.
+  Keep display range separate from reference, risk-estimation and fitting windows.
+  The demo's full-window Z-score is not the existing Analysis Z-score contract.
+  The skill also discusses upstream shaping that is not an implemented selector;
+  do not promise those transformations merely because the skill describes them.
+- **Start from Library.** Select existing Data Series or Analysis outputs; reuse
+  Library's series-creation flow for a new source/symbol/field query. Metapyle
+  remains the retrieval boundary. Multiple fields for one symbol are separate
+  SeriesBindings/catalogue entries. Associate them explicitly with the same
+  exposure and semantic measures when forming cross-sections or panels; there
+  is no need for a second, disconnected series catalogue.
+- **Do not assume classifications.** Neither Metapyle CatalogEntry nor Kairopsis
+  SeriesBinding defines rating or peer group. Current labels are invented fixture
+  metadata. Offer these colour/group choices only when explicitly supplied and
+  mapped, with provenance. Default to series/exposure identity; arbitrary provider
+  parameters are not a classification schema.
+- **Explain scatter observations.** "Two series · one dot per date" means X(t)
+  against Y(t), with dates in hover details. Example: US IG spread against Agency
+  MBS spread on each matched date. The two numeric axes identify their respective
+  series. A cross-section instead has one point per exposure on a chosen date.
+- **Date axes have no title.** Keep date ticks and hover dates. This applies to
+  history, heatmap, enlarged charts and newly captured images.
+
+This revision removes the date-axis title, clarifies temporal-scatter labels and
+marks demo classification choices. Full Library/Analysis integration remains to
+be prototyped; it has not been added or verified by this wording revision.
+
 ## Run
 
 Run from the repository root:

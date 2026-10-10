@@ -79,7 +79,7 @@ class Repository:
         marker = root / "workspace.json"
         if marker.exists():
             metadata = json.loads(marker.read_text())
-            if metadata != {"schema_version": 2, "mode": mode}:
+            if metadata not in ({"schema_version": 2, "mode": mode}, {"schema_version": 3, "mode": mode}):
                 raise ValueError("Unsupported workspace or different mode; preserved existing content. Choose a separate empty workspace.")
         else:
             if any(root.iterdir()):
@@ -149,16 +149,30 @@ class Repository:
         version = folder / "versions" / safe_id(idea.version)
         if version.exists():
             raise ValueError("Idea version already exists; committed content is immutable")
+        if idea.explorations and json.loads((self.root / "workspace.json").read_text())["schema_version"] != 3:
+            raise ValueError("Exploration evidence requires workspace format3")
         # All files land before the sole publication pointer. A failed pointer
         # update leaves the previous committed version readable after restart.
         for chart in idea.charts:
             self.get_snapshot(idea.id, chart.snapshot_id)
-        atomic_json(version / "idea.json", idea.model_dump(mode="json"))
+        for entry in idea.explorations:
+            from .exploration_repository import ExplorationRepository
+            ExplorationRepository(self).get_capture(idea.id, entry.snapshot_id)
+        # A legacy-only save in format2 must remain readable by schema2 binaries
+        # whose Idea model rejects unknown fields. Never introduce an empty new
+        # evidence field into that workflow.
+        atomic_json(version / "idea.json", idea.model_dump(mode="json", exclude={"explorations"} if not idea.explorations else None))
         markdown = f"# {idea.title}\n\n{idea.thought}\n\n"
         for chart in idea.charts:
             snapshot = self.get_snapshot(idea.id, chart.snapshot_id)
             markdown += f"## {snapshot.evaluation.definition.name}\n\n![Chart](../../snapshots/{chart.snapshot_id}/image.png)\n\n{chart.note}\n\n"
         markdown += "## Idea notes\n\n" + "\n\n".join(f"{n.text}\n\nCreated {n.created_at.isoformat()}" for n in idea.notes)
+        for entry in idea.explorations:
+            from .exploration_repository import ExplorationRepository
+            capture = ExplorationRepository(self).get_capture(idea.id, entry.snapshot_id)
+            markdown += f"\n\n## Exploration: {capture.workspace.name}\n\nRole: {entry.role}\n\nQuestion: {capture.workspace.question}\n\n{capture.workspace.notes}\n\n{entry.note}\n\n"
+            for result in capture.results:
+                markdown += f"### {result.view.name}\n\n![Chart](../../explorations/{capture.id}/{result.id}.png)\n\n"
         atomic_bytes(version / "notes.md", markdown.encode())
         atomic_json(folder / "current.json", {"version": idea.version})
 

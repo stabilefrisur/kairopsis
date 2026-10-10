@@ -1,6 +1,6 @@
 # Run and preserve research
 
-Python 3.12, FastAPI/Uvicorn, Jinja2 and plain JavaScript. All browser assets are packaged locally. Prepare the extracted source workspace through the [agent setup runbook](../src/kairopsis/docs/agent-setup.md); startup never resolves dependencies. Three destinations: Analyses, Ideas, Library.
+Python 3.12, FastAPI/Uvicorn, Jinja2 and plain JavaScript. All browser assets are packaged locally. Prepare the extracted source workspace through the [agent setup runbook](../src/kairopsis/docs/agent-setup.md); startup never resolves dependencies. Four destinations: Analyses, Explore, Ideas, Library.
 
 ```powershell
 kairopsis --mode mock --host 127.0.0.1 --port 8765 --workspace C:\Users\Me\Kairopsis\rebuild-mock
@@ -56,7 +56,26 @@ process per workspace. Back up the complete workspace while the app is stopped.
 
 ## Evidence and recovery
 
-The rebuild uses workspace schema 2. Older/unmarked nonempty workspaces are refused without modification. Choose a new empty directory; no migration or deletion is performed. Retain older user directories independently.
+New workspaces begin at schema2. The first persistent Explore workspace/capture
+write upgrades the marker atomically to schema3 and preserves its exact earlier
+bytes in `workspace-schema2.json`. Both versions load; other/unmarked formats
+are refused without modification. Legacy Idea versions, Analysis definitions,
+Snapshots and screening records retain their original bytes. Schema2 binaries
+reject schema3 before loading research. Downgrade by restoring an entire schema2
+backup in a separate directory; never restore only the marker over newer evidence.
+
+`explorations/<id>/versions/<version>/workspace.json` retains pinned definitions;
+`current.json` commits a complete version with expected-version conflicts.
+`exploration-results/` retains checksummed immutable previews and a current bundle
+pointer; unsaved capture eligibility lasts 24 hours and a new preview supersedes
+the older bundle. Results are not automatically pruned.
+`ideas/<id>/explorations/<snapshot>/` contains full JSON, PNGs, per-view CSVs,
+readable question/notes and a hash manifest. All referenced files precede the
+Idea's current pointer. Incomplete/unreferenced directories are ignored after
+interruption; previous versions remain readable. Frozen evidence never expires.
+Reopen/export validates every expected file hash and needs no current Library
+or provider. Back up/restore the whole stopped workspace, including both markers,
+all retained versions and captured evidence. [Explore guide](../src/kairopsis/docs/explore.md).
 
 `workspace/ideas/<id>/current.json` selects a committed version under `versions/<version>/idea.json` and `notes.md`. `snapshots/<id>/` contains `snapshot.json`, `image.png` and `data.csv`. Snapshot JSON embeds resolved inputs/risk references, analytical settings, raw/aligned observations, measured inputs/scales/interval starts and retrieval/capture times. Display settings include hidden trace indices and axis ranges; the PNG has a verified content hash. Catalogue and dated evaluation/refresh records live outside the package. No database index is the only copy of evidence.
 

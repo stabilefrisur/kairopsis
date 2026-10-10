@@ -13,6 +13,9 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field, model_validator
 
 from .catalogue import Catalogue, CatalogueConflict
+from .exploration import Exploration
+from .exploration_models import WorkspaceDefinition
+from .exploration_repository import ExplorationConflict, ExplorationRepository
 from .config import Settings
 from .fixtures import MockMarketData
 from .metapyle_adapter import MetapyleMarketData
@@ -87,6 +90,25 @@ class AnalysisBundleRequest(BaseModel):
     base_revisions: dict[str, dict[str, int]] = Field(default_factory=dict)
 
 
+class WorkspaceRequest(BaseModel):
+    workspace: WorkspaceDefinition
+    expected_version: str | None = None
+
+
+class ExplorationResolveRequest(BaseModel):
+    analysis: AnalysisDefinition
+    series_drafts: tuple[SeriesBinding, ...] = ()
+
+
+class ExplorationCaptureRequest(BaseModel):
+    workspace: WorkspaceDefinition
+    result_ids: tuple[str, ...]
+    images: dict[str, str]
+    title: str = Field(default="", max_length=200)
+    idea_id: str | None = None
+    role: Literal["supporting", "challenging", "contextual"] = "contextual"
+
+
 def create_app(settings: Settings | None = None, market_data: MarketData | None = None,
                clock: Callable[[], datetime] | None = None) -> FastAPI:
     settings = settings or Settings()
@@ -97,8 +119,11 @@ def create_app(settings: Settings | None = None, market_data: MarketData | None 
     preview_provider = market_data or (provider if settings.mode == "mock" else MetapyleMarketData(settings, clock, ad_hoc=True,
         legacy_bindings=lambda: tuple(SeriesBinding.model_validate(s) for s in catalogue.records()["series"] if s.get("catalog_name") is None)))
     research = Research(repository, catalogue, provider, clock, settings.timezone, preview_provider)
+    exploration = Exploration(research)
+    exploration_repository = ExplorationRepository(repository)
     app = FastAPI(title="Kairopsis", docs_url=None, redoc_url=None)
     app.state.repository, app.state.research = repository, research
+    app.state.exploration, app.state.exploration_repository = exploration, exploration_repository
     app.state.settings = settings
     package = Path(__file__).resolve().parent
     templates = Jinja2Templates(directory=package / "templates")
@@ -120,6 +145,10 @@ def create_app(settings: Settings | None = None, market_data: MarketData | None 
 
     @app.exception_handler(CatalogueConflict)
     async def conflict(request: Request, error: CatalogueConflict):
+        return JSONResponse(status_code=409, content={"detail": str(error)})
+
+    @app.exception_handler(ExplorationConflict)
+    async def exploration_conflict(request: Request, error: ExplorationConflict):
         return JSONResponse(status_code=409, content={"detail": str(error)})
 
     @app.exception_handler(OSError)
@@ -155,6 +184,89 @@ def create_app(settings: Settings | None = None, market_data: MarketData | None 
     @app.get("/library", response_class=HTMLResponse)
     def library_page(request: Request):
         return page(request, "library")
+
+    def exploration_page(request: Request):
+        # Explore never triggers first_open's automatic screening refresh.
+        return templates.TemplateResponse(request=request, name="app.html", context={"page": "explore", "mode": settings.mode})
+
+    @app.get("/explore", response_class=HTMLResponse)
+    def explore_page(request: Request):
+        return exploration_page(request)
+
+    @app.get("/explore/captures/{idea_id}/{snapshot_id}", response_class=HTMLResponse)
+    def explore_capture_page(request: Request, idea_id: str, snapshot_id: str):
+        exploration_repository.get_capture(idea_id, snapshot_id)
+        return exploration_page(request)
+
+    @app.get("/explore/{key}", response_class=HTMLResponse)
+    def explore_saved_page(request: Request, key: str):
+        exploration_repository.get(key)
+        return exploration_page(request)
+
+    @app.get("/api/explore/library")
+    def exploration_library():
+        records = catalogue.records()
+        return {**records, "resolved_analyses": {a["id"]: catalogue.resolve(a["id"]).model_dump(mode="json") for a in records["analyses"]}}
+
+    @app.post("/api/explore/resolve")
+    def exploration_resolve(body: ExplorationResolveRequest):
+        return catalogue.resolve_draft(body.analysis, body.series_drafts)
+
+    @app.post("/api/explore/preview")
+    def exploration_preview(body: WorkspaceRequest):
+        token = exploration_repository.begin_preview(body.workspace.id)
+        result = exploration.preview(body.workspace)
+        exploration_repository.retain_results(result["resolved_results"], body.workspace.id, token)
+        return result
+
+    @app.get("/api/explore/results/{key}")
+    def exploration_result(key: str):
+        return exploration_repository.get_result(key)
+
+    @app.get("/api/explore/workspaces")
+    def exploration_workspaces():
+        return exploration_repository.list_workspaces()
+
+    @app.get("/api/explore/workspaces/{key}")
+    def exploration_workspace(key: str):
+        workspace = exploration_repository.get(key)
+        records = catalogue.records()
+        revisions = {"series": {s["id"]: s["revision"] for s in records["series"]}, "analysis": {a["id"]: a["revision"] for a in records["analyses"]}}
+        changes = []
+        for item in workspace.collection:
+            definition = item.binding or item.analysis
+            assert definition is not None
+            current = revisions["series" if item.kind == "series" else "analysis"].get(definition.id)
+            if current != definition.revision:
+                changes.append({"collection_id": item.id, "retained_revision": definition.revision, "current_revision": current})
+        return {"workspace": workspace, "library_changes": changes}
+
+    @app.post("/api/explore/workspaces")
+    def save_exploration_workspace(body: WorkspaceRequest):
+        return exploration_repository.save(body.workspace, body.expected_version)
+
+    @app.post("/api/explore/captures")
+    def capture_exploration(body: ExplorationCaptureRequest):
+        idea, snapshot = exploration_repository.capture(body.workspace, body.result_ids, body.images, clock(), body.title, body.idea_id, body.role)
+        return {"idea": idea, "snapshot": snapshot}
+
+    @app.get("/api/explore/captures/{idea_id}/{snapshot_id}")
+    def exploration_capture(idea_id: str, snapshot_id: str):
+        return exploration_repository.get_capture(idea_id, snapshot_id)
+
+    @app.get("/api/explore/captures/{idea_id}/{snapshot_id}/images/{result_id}")
+    def exploration_capture_image(idea_id: str, snapshot_id: str, result_id: str):
+        snapshot = exploration_repository.get_capture(idea_id, snapshot_id)
+        if result_id not in snapshot.images:
+            raise FileNotFoundError()
+        from .repository import safe_id
+        image = repository.idea_folder(idea_id) / "explorations" / safe_id(snapshot_id) / f"{safe_id(result_id)}.png"
+        return Response(image.read_bytes(), media_type="image/png")
+
+    @app.get("/api/explore/captures/{idea_id}/{snapshot_id}/export")
+    def exploration_capture_export(idea_id: str, snapshot_id: str):
+        return Response(exploration_repository.export(idea_id, snapshot_id), media_type="application/zip",
+            headers={"Content-Disposition": 'attachment; filename="kairopsis-exploration.zip"'})
 
     @app.get("/api/analyses")
     def rows(scope: Literal["all", "flagged"] = "flagged", q: str = "", kind: Literal["all", "standalone", "pair"] = "all"):
@@ -240,6 +352,10 @@ def create_app(settings: Settings | None = None, market_data: MarketData | None 
         found = []
         for idea in repository.list_ideas():
             text = " ".join([idea.title, idea.thought, *[n.text for n in idea.notes], *[c.note for c in idea.charts]])
+            for entry in idea.explorations:
+                captured = exploration_repository.get_capture(idea.id, entry.snapshot_id)
+                text += " " + " ".join([captured.workspace.name, captured.workspace.question, captured.workspace.notes, entry.note,
+                    *[r.view.name for r in captured.results]])
             if q.casefold() not in text.casefold():
                 continue
             if idea.archived != (scope == "archived") or (scope == "shortlist" and not idea.shortlisted):
@@ -251,6 +367,7 @@ def create_app(settings: Settings | None = None, market_data: MarketData | None 
     def idea(key: str):
         result = repository.get_idea(key)
         return {"idea": result.model_dump(mode="json"), "snapshots": {c.id: repository.get_snapshot(key, c.snapshot_id).model_dump(mode="json") for c in result.charts},
+                "exploration_snapshots": {e.id: exploration_repository.get_capture(key, e.snapshot_id).model_dump(mode="json") for e in result.explorations},
                 "changes": research.idea_changes(result)}
 
     @app.patch("/api/ideas/{key}")

@@ -301,6 +301,13 @@ class IdeaNote(Record):
     modified_at: AwareDatetime | None = None
 
 
+class ExplorationEntry(Record):
+    id: str = Field(default_factory=identity)
+    snapshot_id: str
+    role: Literal["supporting", "challenging", "contextual"] = "contextual"
+    note: str = ""
+
+
 class Idea(Record):
     id: str = Field(default_factory=identity)
     title: str = Field(min_length=1, max_length=200)
@@ -308,6 +315,7 @@ class Idea(Record):
     shortlisted: bool = False
     archived: bool = False
     charts: tuple[ChartEntry, ...] = ()
+    explorations: tuple[ExplorationEntry, ...] = ()
     notes: tuple[IdeaNote, ...] = ()
     created_at: AwareDatetime
     modified_at: AwareDatetime

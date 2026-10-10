@@ -9,9 +9,11 @@ you work with analyses, charts and notes.
 Use the launch shortcut or instructions supplied by your setup agent, then open
 Kairopsis in your browser. The usual address is <http://127.0.0.1:8765>.
 
-The top navigation has three destinations:
+The top navigation has four destinations:
 
 - **Analyses:** find a comparison or individual series to investigate.
+- **Explore:** build multi-view investigations with retained samples and frozen
+  Idea evidence. See the [Explore guide](explore.md).
 - **Ideas:** return to saved charts and notes.
 - **Library:** manage the series and analyses available for investigation.
 

@@ -131,14 +131,14 @@ const defaultRisk = () => ({method: "none", estimation_measure: null, reference_
 function riskOptions(settings, count) {
   return settings.risk_overrides?.length ? settings.risk_overrides : Array.from({length: count}, () => settings.risk_adjustment || defaultRisk());
 }
-function riskFields(risk, index, settings) {
+function riskFields(risk, index, settings, series = librarySeriesChoices()) {
   const select = (label, name, values) => `<label>${label}<select data-risk="${name}" data-leg="${index}">${values.map(([v, text]) => `<option value="${v}" ${String(risk[name] ?? "") === String(v) ? "selected" : ""}>${esc(text)}</option>`).join("")}</select></label>`;
   const numeric = (label, name, min, max) => `<label>${label}<input type="number" data-risk="${name}" data-leg="${index}" value="${risk[name]}" min="${min}" max="${max}" step="any" required></label>`;
-  return `<div class="risk-fields">${select("Method", "method", Object.entries(riskMethodNames))}${risk.method !== "none" ? `${select("Reference series", "reference_id", [["", index === "shared" ? "Each series itself" : "This series itself"], ...librarySeriesChoices().map(s => [s.id, s.name])])}${select("Estimate risk from", "estimation_measure", [["", "Follow input measure"], ["change", "Absolute changes"], ["return", "Percentage changes"]])}<p class="meta">Resolved basis: ${effectiveRiskMeasure(settings, risk) === "return" ? "Percentage changes" : "Absolute changes"} at the shared Frequency.</p><div class="risk-calibration">${select("Estimation history", "lookback_years", periodChoices(risk.lookback_years).map(n => [n, periodText(n)]))}${risk.method === "volatility" ? select("Weighting", "weighting", [["equal", "Equal"], ["exponential", "Exponential"]]) + (risk.weighting === "exponential" ? numeric("Half-life (weekday sessions)", "half_life", 1, 2520) : "") : ""}${["var", "es"].includes(risk.method) ? numeric("Confidence (%)", "confidence", 50.01, 99.99) + select("Downside", "downside", [["increase", "Increasing values"], ["decrease", "Decreasing values"]]) : ""}</div>` : ""}</div>`;
+  return `<div class="risk-fields">${select("Method", "method", Object.entries(riskMethodNames))}${risk.method !== "none" ? `${select("Reference series", "reference_id", [["", index === "shared" ? "Each series itself" : "This series itself"], ...series.map(s => [s.id, s.name])])}${select("Estimate risk from", "estimation_measure", [["", "Follow input measure"], ["change", "Absolute changes"], ["return", "Percentage changes"]])}<p class="meta">Resolved basis: ${effectiveRiskMeasure(settings, risk) === "return" ? "Percentage changes" : "Absolute changes"} at the shared Frequency.</p><div class="risk-calibration">${select("Estimation history", "lookback_years", periodChoices(risk.lookback_years).map(n => [n, periodText(n)]))}${risk.method === "volatility" ? select("Weighting", "weighting", [["equal", "Equal"], ["exponential", "Exponential"]]) + (risk.weighting === "exponential" ? numeric("Half-life (weekday sessions)", "half_life", 1, 2520) : "") : ""}${["var", "es"].includes(risk.method) ? numeric("Confidence (%)", "confidence", 50.01, 99.99) + select("Downside", "downside", [["increase", "Increasing values"], ["decrease", "Decreasing values"]]) : ""}</div>` : ""}</div>`;
 }
-function riskEditor(settings, inputs, estimates = []) {
+function riskEditor(settings, inputs, estimates = [], series = librarySeriesChoices()) {
   const customized = !!settings.risk_overrides?.length;
-  return `<div class="risk-editor">${inputs.length > 1 ? `<label class="risk-customize"><input type="checkbox" data-risk-customize ${customized ? "checked" : ""}> Customize per series</label>` : ""}${customized ? riskOptions(settings, inputs.length).map((r, i) => `<fieldset><legend>${esc(inputs[i]?.name || "Series " + (i+1))}</legend>${riskFields(r, i, settings)}</fieldset>`).join("") : riskFields(settings.risk_adjustment || defaultRisk(), "shared", settings)}${estimates.map((r, i) => `<p class="meta risk-estimate"><strong>${esc(inputs[i].name)}</strong><br>${riskOptions(settings, inputs.length)[i].method === "none" ? "Unadjusted" : `Scale: ${number(r.scale)} · ${r.sample_count} observations`}${r.limitation ? `<br>${esc(r.limitation)}` : ""}</p>`).join("")}</div>`;
+  return `<div class="risk-editor">${inputs.length > 1 ? `<label class="risk-customize"><input type="checkbox" data-risk-customize ${customized ? "checked" : ""}> Customize per series</label>` : ""}${customized ? riskOptions(settings, inputs.length).map((r, i) => `<fieldset><legend>${esc(inputs[i]?.name || "Series " + (i+1))}</legend>${riskFields(r, i, settings, series)}</fieldset>`).join("") : riskFields(settings.risk_adjustment || defaultRisk(), "shared", settings, series)}${estimates.map((r, i) => `<p class="meta risk-estimate"><strong>${esc(inputs[i].name)}</strong><br>${riskOptions(settings, inputs.length)[i].method === "none" ? "Unadjusted" : `Scale: ${number(r.scale)} · ${r.sample_count} observations`}${r.limitation ? `<br>${esc(r.limitation)}` : ""}</p>`).join("")}</div>`;
 }
 function renderRiskPanel() {
   document.querySelector("#risk-panel").innerHTML = `<h2>Analysis settings</h2><form id="investigation-form">${analysisControls(state.analysisDraft, state.previewCurrent ? state.evaluation.adjustment_estimates || [] : [])}</form>${button("Reset to defaults", "risk-reset", 'class="quiet"')}<p class="settings-label">Exploratory edits save only through Library. <a data-action="edit-defaults" href="/library?edit=${encodeURIComponent(key)}">Edit defaults in Library</a></p>`;
@@ -256,6 +256,17 @@ function editor(formId, text, actionLabel = "Save changes", fields = "") {
 function chartNote(entry) {
   return `<div class="chart-note"><div class="chart-note-row">${entry.note ? `<p class="prose">${esc(entry.note)}</p>` : ""}<div class="chart-note-actions">${button(entry.note ? "Edit" : "Add note", "edit-chart-note", `class="quiet" aria-expanded="false" aria-controls="note-editor-${entry.id}"`)}${entry.note ? button("Delete", "delete-chart-note", `class="quiet" data-entry="${entry.id}"`) : ""}</div></div><div class="chart-note-editor" id="note-editor-${entry.id}" hidden>${editor("chart-note", entry.note, "Save changes", `<input type="hidden" name="entry_id" value="${entry.id}">`)}</div></div>`;
 }
+function ideaExplorations(result) {
+  return (result.idea.explorations || []).map(entry => {
+    const snapshot = result.exploration_snapshots?.[entry.id];
+    if (!snapshot) return `<article class="paper"><h2>Exploration evidence unavailable</h2><p class="warning">Retained capture ${esc(entry.snapshot_id)} could not be read.</p></article>`;
+    const root = `/api/explore/captures/${key}/${snapshot.id}`;
+    return `<article class="paper saved-chart" id="exploration-${entry.id}"><div class="chart-heading"><div><small>Frozen exploration · ${esc(entry.role || snapshot.role)} · Saved ${stamp(snapshot.captured_at)}</small><h2>${esc(snapshot.workspace.name)}</h2></div><div class="actions"><a class="button primary" href="/explore/captures/${key}/${snapshot.id}">Open frozen evidence</a><a class="button" href="${root}/export">Export evidence ZIP</a></div></div>
+      ${snapshot.workspace.question ? `<p class="prose"><strong>Working question</strong><br>${esc(snapshot.workspace.question)}</p>` : ""}
+      ${(snapshot.results || []).map(view => `<figure><img src="${root}/images/${view.id}" alt="${esc(view.view.name)} frozen chart" style="max-width:100%;height:auto"><figcaption>${esc(view.view.name)} · ${view.rows.length} retained observations</figcaption></figure>`).join("")}
+      ${snapshot.workspace.notes ? `<p class="prose">${esc(snapshot.workspace.notes)}</p>` : ""}${entry.note ? `<p class="prose">${esc(entry.note)}</p>` : ""}</article>`;
+  }).join("");
+}
 async function idea() {
   const result = await api(`/api/ideas/${key}`);
   state.idea = result.idea;
@@ -270,7 +281,7 @@ async function idea() {
     })
     .join(
       "",
-    )}<section><h2 class="notes-heading">Idea notes</h2>${i.notes.map((n) => `<div><p class="prose">${esc(n.text)}</p><div class="note-actions"><time>${stamp(n.created_at)}</time><details><summary>Edit</summary>${editor("idea-note", n.text, "Save changes", `<input type="hidden" name="note_id" value="${n.id}">`)}</details>${button("Delete", "delete-idea-note", `data-note="${n.id}"`)}</div></div>`).join("")}<details><summary>Add Idea note</summary>${editor("add-idea-note", "", "Save note")}</details></section>`;
+    )}${ideaExplorations(result)}<section><h2 class="notes-heading">Idea notes</h2>${i.notes.map((n) => `<div><p class="prose">${esc(n.text)}</p><div class="note-actions"><time>${stamp(n.created_at)}</time><details><summary>Edit</summary>${editor("idea-note", n.text, "Save changes", `<input type="hidden" name="note_id" value="${n.id}">`)}</details>${button("Delete", "delete-idea-note", `data-note="${n.id}"`)}</div></div>`).join("")}<details><summary>Add Idea note</summary>${editor("add-idea-note", "", "Save note")}</details></section>`;
   if (location.hash) document.querySelector(location.hash)?.scrollIntoView();
   await renderSavedCharts();
 }
@@ -375,8 +386,8 @@ async function library() {
   resetLibraryPreview();
   renderLibrary();
 }
-function seriesOptions(selected) {
-  return librarySeriesChoices()
+function seriesOptions(selected, choices = librarySeriesChoices()) {
+  return choices
     .map(
       (s) =>
         `<option value="${s.id}" ${s.id === selected ? "selected" : ""}>${esc(s.name)} · ${esc(s.unit)}</option>`,
@@ -678,7 +689,7 @@ document.addEventListener("click", (event) => {
 window.addEventListener("pagehide", () => {
   if (page === "analyses") persistContext();
 });
-const navPage = ["chart", "analyses"].includes(page)
+const navPage = page === "explore" ? "explore" : ["chart", "analyses"].includes(page)
   ? "analyses"
   : ["idea", "ideas"].includes(page)
     ? "ideas"
@@ -686,6 +697,6 @@ const navPage = ["chart", "analyses"].includes(page)
 document
   .querySelector(`nav a[href="/${navPage}"]`)
   .setAttribute("aria-current", "page");
-({ analyses, chart, ideas, idea, library })[page]().catch((error) => {
+if (page !== "explore") ({ analyses, chart, ideas, idea, library })[page]().catch((error) => {
   main.innerHTML = `<h1>Unable to load research</h1><p class="warning">${esc(error.message)}</p><p><a href="${location.pathname}">Retry</a></p>`;
 });

@@ -1,6 +1,6 @@
 # Explore UI prototype
 
-Question: which workspace layout best supports comparing exposures, challenging
+Question: which workspace layout best supports comparing symbols, challenging
 a Relative Value View, and capturing evidence? Three layouts, one synthetic
 collection and shared in-memory investigation state.
 
@@ -15,7 +15,7 @@ as a way to concentrate on one chart. C / Research sheet is useful for writing u
 evidence; its notes should inform the design, without imposing a narrative on
 free exploration. These are proposed directions, pending user review.
 
-The prototype validates six chart families, multiple fields per exposure,
+The prototype validates six chart families, multiple fields per symbol,
 cross-sectional/history/panel mappings, separate global date and history, explicit
 per-view pins, highlight versus filter, and frozen evidence capture. Before real
 implementation, map the remaining [research use cases](../docs/research/relative-value-exploration-workspace.md)
@@ -53,17 +53,17 @@ shortcuts, not the intended product contract. Correct the next iteration as foll
   Library's series-creation flow for a new source/symbol/field query. Metapyle
   remains the retrieval boundary. Multiple fields for one symbol are separate
   SeriesBindings/catalogue entries. Associate them explicitly with the same
-  exposure and semantic measures when forming cross-sections or panels; there
+  symbol and semantic measures when forming cross-sections or panels; there
   is no need for a second, disconnected series catalogue.
 - **Do not assume classifications.** Neither Metapyle CatalogEntry nor Kairopsis
   SeriesBinding defines rating or peer group. Current labels are invented fixture
   metadata. Offer these colour/group choices only when explicitly supplied and
-  mapped, with provenance. Default to series/exposure identity; arbitrary provider
+  mapped, with provenance. Default to series/symbol identity; arbitrary provider
   parameters are not a classification schema.
 - **Explain scatter observations.** "Two series · one dot per date" means X(t)
   against Y(t), with dates in hover details. Example: US IG spread against Agency
   MBS spread on each matched date. The two numeric axes identify their respective
-  series. A cross-section instead has one point per exposure on a chosen date.
+  series. A cross-section instead has one point per symbol on a chosen date.
 - **Date axes have no title.** Keep date ticks and hover dates. This applies to
   history, heatmap, enlarged charts and newly captured images.
 - **Marker size is constant.** Scatter and ranking previously enlarged the linked
@@ -71,6 +71,10 @@ shortcuts, not the intended product contract. Correct the next iteration as foll
   use equal-sized dots, with an outline for highlighted observations. A future
   data-driven size mapping needs an explicit "Size by" control (default None),
   a size legend and stated units; it is not currently implemented.
+- **Use analytical terminology.** A Symbol identifies the subject being studied;
+  a Data Series contains observations for one measure. Neither implies a holding
+  or position. Apply these terms throughout all layouts, controls and evidence.
+  The distribution option is simply "KDE", without an editorial preference label.
 
 This revision removes the date-axis title, clarifies temporal-scatter labels and
 marks demo classification choices. Full Library/Analysis integration remains to
@@ -107,22 +111,22 @@ workspace. Refresh resets it. Collapsible state inspector and
 
 Keep Kairopsis's existing Segoe UI/Calibri typography and blue/slate visual shell.
 White `#ffffff` paper; `#f3f5f8` canvas; `#203047` text; `#627185` secondary text;
-`#255cc5` selected views; `#147b86` MBS exposure. Colour identifies exposures and
+`#255cc5` selected views; `#147b86` MBS series. Colour identifies symbols and
 groups, rather than decorating independent cards. Plots carry the information
 hierarchy; local samples, observation counts and formulas qualify the evidence.
 Structural differences live in layout, not palette changes.
 
 ## Working coverage
 
-Eight USD credit exposures, four numeric fields each, 157 deterministic weekly
+Eight USD credit symbols, four numeric fields each, 157 deterministic weekly
 dates from 2023-10-06 through 2026-10-02. EM HY deliberately misses every 13th
 observation. Fixed classifications and membership; synthetic current-universe
 history. Derived spread-minus-US-IG field stands in for a saved Pair Analysis
 output; no real Analysis is read or revised.
 
-Six rendered chart families: multi-exposure history; exposure/date/panel scatter;
-ranked comparisons; KDE with histogram/box alternatives; exposure-week heatmap;
-correlation across exposures over dates or fields across exposures. Field and
+Six rendered chart families: multi-symbol history; symbol/date/panel scatter;
+ranked comparisons; KDE with histogram/box alternatives; symbol-week heatmap;
+correlation across symbols over dates or fields across symbols. Field and
 axis transformations calculate from the same numeric inputs. Descriptive linear
 scatter fit optional. Gaussian KDE uses Silverman bandwidth × adjustable factor;
 tiny/constant samples stay points. Correlation is Pearson with common complete
@@ -132,12 +136,12 @@ Global exact as-of and history are distinct. Weekly change uses the previous
 calendar week, including its raw observation outside the display window.
 Percentage change is proportional field change; not automatically an investment
 return. Rebase anchors the first exact date in the window, and is unavailable
-when that anchor is missing/zero. Z-score uses available values in that exposure's
+when that anchor is missing/zero. Z-score uses available values in that symbol's
 selected history. Changes retain original field units. No forward filling.
 
-Collection inclusion changes collection-based views. Linked highlight identifies exposures
+Collection inclusion changes collection-based views. Linked highlight identifies symbols
 and dates without removing peers. Explicit filter changes the sample and says so.
-Temporal scatter has explicit X/Y exposures, independent of collection inclusion.
+Temporal scatter has explicit X/Y symbols, independent of collection inclusion.
 Per-view pinned date/history enable comparisons. Add, duplicate, move earlier,
 full-width (Workbench), maximise and remove act in memory.
 

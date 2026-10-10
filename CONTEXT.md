@@ -61,6 +61,10 @@ A stated condition whose fulfillment warrants renewed attention to an Idea.
 **Data Series**:
 A time-ordered set of observations for a particular asset measure, with an identified source, units and Comparison Basis.
 
+**Symbol**:
+A source-specific identifier for an instrument, index or other subject of analysis. Different fields for one Symbol provide distinct Data Series.
+_Avoid_: Exposure when referring to a subject under investigation rather than a holding or position
+
 **Analysis**:
 A defined investigation of one or two Data Series, including its calculation, analytical settings and Economic Rationale where recorded. Its type is Standalone or Pair.
 

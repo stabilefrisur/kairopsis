@@ -22,7 +22,7 @@ def run(url: str, screenshots: Path) -> None:
         page.wait_for_load_state("networkidle")
         assert page.locator("body").get_attribute("data-mode") == "mock", "Use an isolated mock app"
         page.locator('[name="workspace_name"]').fill("Explore acceptance " + uuid4().hex[:8])
-        for identifier in ["usd-ig", "hy"]:
+        for identifier in ["usd-ig", "hy", "mbs"]:
             page.locator(f'[data-explore="add-item"][data-kind="series"][data-id="{identifier}"]').click()
         for family in ["history", "scatter", "ranking", "distribution", "heatmap", "correlation"]:
             page.locator('[name="new_family"]').select_option(family)
@@ -40,6 +40,12 @@ def run(url: str, screenshots: Path) -> None:
         preview()
         assert page.evaluate("[...window.exploreWorkspace.results.values()].every(r=>r.statistics.traces.length)")
         assert page.evaluate("window.exploreWorkspace.results.size") == 6
+        # First preview must match the untouched Distribution inspector defaults.
+        distribution_groups = page.evaluate("[...window.exploreWorkspace.results.values()].find(r=>r.view.family==='distribution').statistics.groups")
+        assert {group["group"] for group in distribution_groups} == {"usd-ig", "hy", "mbs"}, distribution_groups
+        assert len(distribution_groups) == 3
+        assert all(group["weight_policy"] == "equal_row" for group in distribution_groups)
+        print("PASS: new three-symbol Distribution retains three equal-row groups")
         # Inspect actual bundled Plotly titles, not only the input layout.
         scatter_titles = page.evaluate("""() => {
           const state=window.exploreWorkspace, view=state.workspace.views.find(v=>v.family==='scatter');
@@ -98,7 +104,7 @@ def run(url: str, screenshots: Path) -> None:
         page.locator('#explore-analysis-form [data-risk="weighting"]').select_option("exponential")
         page.locator('#explore-analysis-form [data-risk="half_life"]').fill("42")
         page.locator('[data-explore="apply-analysis"]').click()
-        page.wait_for_function("window.exploreWorkspace.workspace.collection.length===3")
+        page.wait_for_function("window.exploreWorkspace.workspace.collection.length===4")
         assert page.locator("#explore-dialog").get_attribute("open") is None
         assert page.evaluate("window.exploreWorkspace.workspace.collection.at(-1).analysis.settings.risk_adjustment.half_life") == 42
         page.locator('[name="new_family"]').select_option("history")

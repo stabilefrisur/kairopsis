@@ -60,7 +60,7 @@ function exploreAddView(family = "history") {
     sample: {start: null, end: null, members: null, excluded_row_ids: [], row_ids: [], date_policy: "exact", maximum_age_days: 0, interval_start: null, interval_measure: "level"},
     as_of: null, display_start: null, display_end: null, pinned: false, width: 1, highlight: [],
     size_by: null, color_by: "symbol", facet_by: null,
-    options: {axes, x: axes[0], y: axes[1], distribution: "kde", descriptive_fit: false, heatmap_layout: "time", correlation_orientation: "series", correlation_method: "pearson", correlation_sample: "common"}};
+    options: {axes, x: axes[0], y: axes[1], distribution: "kde", group_by: "symbol", weight_policy: "equal_row", descriptive_fit: false, heatmap_layout: "time", correlation_orientation: "series", correlation_method: "pearson", correlation_sample: "common"}};
   explore.workspace.views.push(view); explore.selected = view.id; explore.checked.add(view.id);
   exploreDirty(); exploreRender();
 }
@@ -247,6 +247,10 @@ function exploreReadView(form, changedControl) {
   view.options.x = axes.includes(x) ? x : axes[0]; view.options.y = axes.includes(y) && oldShape === view.shape ? y : axes[1];
   view.options.axes = ["scatter"].includes(view.family) ? [view.options.x, view.options.y].filter(Boolean) : axis && axes.includes(axis) && !["heatmap", "correlation"].includes(view.family) ? [axis] : axes;
   for (const name of ["distribution", "heatmap_layout", "correlation_orientation", "correlation_method", "correlation_sample", "group_by", "weight_policy", "history_layout"]) if (data.has(name)) view.options[name] = data.get(name);
+  if (view.family === "distribution") {
+    view.options.group_by ||= "symbol";
+    view.options.weight_policy ||= "equal_row";
+  }
   if (changedControl !== "shape" && (view.family === "heatmap" && view.options.heatmap_layout === "fields" || view.family === "correlation" && view.options.correlation_orientation === "fields")) {
     view.shape = "cross_section"; view.options.axes = exploreFields(view); view.options.x = view.options.axes[0]; view.options.y = view.options.axes[1];
   }

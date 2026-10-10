@@ -5,10 +5,59 @@ Requires development-only Playwright and its Chromium browser. Creates test
 workspaces/Ideas in the supplied mock repository; use a disposable workspace.
 """
 import argparse
+from hashlib import sha256
 from pathlib import Path
+from urllib.request import urlopen
 from uuid import uuid4
 
 from playwright.sync_api import sync_playwright
+
+
+def verify_fork(page, url: str) -> None:
+    """A frozen capture remains immutable while a fork restores authoring choices."""
+    capture_url = page.url
+    parts = capture_url.rstrip("/").split("/")
+    snapshot_url = url.rstrip("/") + "/api/explore/captures/" + "/".join(parts[-2:])
+    with urlopen(snapshot_url) as response:
+        original_hash = sha256(response.read()).hexdigest()
+    retained_workspace = page.evaluate("window.exploreWorkspace.workspace")
+    requests: list[str] = []
+    page.on("request", lambda request: requests.append(request.url))
+    page.route("**/api/ideas", lambda route: route.fulfill(status=503, json={"detail": "Authoring metadata unavailable"}))
+    page.locator('[data-explore="fork"]').click()
+    page.wait_for_function("document.querySelector('#message').textContent==='Authoring metadata unavailable'")
+    assert page.url == capture_url
+    assert page.evaluate("window.exploreWorkspace.capture.id") == parts[-1]
+    assert page.evaluate("window.exploreWorkspace.workspace") == retained_workspace
+    assert not any("/api/explore/preview" in request for request in requests)
+    page.unroute("**/api/ideas")
+    page.locator('[data-explore="fork"]').click()
+    page.wait_for_function("window.exploreWorkspace.capture===null")
+    assert page.url == url.rstrip("/") + "/explore"
+    fork = page.evaluate("window.exploreWorkspace.workspace")
+    assert fork["id"] != retained_workspace["id"] and fork["version"] is None
+    assert fork["collection"] == retained_workspace["collection"]
+    assert fork["question"] == retained_workspace["question"] and fork["notes"] == retained_workspace["notes"]
+    assert page.locator('[data-explore="add-item"][data-kind="analysis"]').count() > 0
+    assert page.locator('[name="saved_workspace"] option').count() > 1
+    assert page.locator('#explore-capture-idea option').count() > 1
+    assert not any("/api/explore/preview" in request for request in requests)
+    page.locator('[data-explore="add-item"][data-kind="series"][data-id="eur-ig"]').click()
+    assert page.evaluate("window.exploreWorkspace.workspace.collection.at(-1).binding.id") == "eur-ig"
+    page.locator('[name="new_family"]').select_option("history")
+    page.locator('[data-explore="add-view"]').click()
+    page.locator('[data-explore="preview"]').click()
+    page.wait_for_function("window.exploreWorkspace.status !== 'previewing'")
+    assert page.evaluate("window.exploreWorkspace.status") == "current", page.locator("#message").inner_text()
+    assert page.evaluate("window.exploreWorkspace.results.get(window.exploreWorkspace.selected).rows.some(row=>row.symbol==='eur-ig')")
+    page.locator('[data-explore="capture"]').click()
+    page.wait_for_url("**/explore/captures/**", timeout=60000)
+    page.wait_for_load_state("networkidle")
+    assert page.url != capture_url
+    assert page.evaluate("window.exploreWorkspace.workspace.collection.some(item=>item.binding?.id==='eur-ig')")
+    with urlopen(snapshot_url) as response:
+        assert sha256(response.read()).hexdigest() == original_hash
+    print("PASS: fork metadata failure preserves evidence; retry restores Library/Analysis/workspace/Idea choices, adds binding, previews and captures immutable fork")
 
 
 def run(url: str, screenshots: Path) -> None:
@@ -182,6 +231,8 @@ def run(url: str, screenshots: Path) -> None:
         assert not errors, errors
         print("PASS: workspace save, eight-view capture, frozen offline reopen, original PNG links, layouts")
         print("Captured evidence:", page.url)
+        verify_fork(page, url)
+        assert not errors, errors
         browser.close()
 
 

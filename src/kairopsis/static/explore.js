@@ -472,7 +472,15 @@ document.addEventListener("click", async event => {
       await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]); notify("Chart PNG copied."); }
     else if (action === "check-all") { explore.checked = new Set(explore.workspace.views.map(view => view.id)); exploreRender(); }
     else if (action === "clear-highlight") { explore.highlighted = []; if (!explore.capture) { explore.workspace.views.forEach(view => view.highlight = []); exploreDirty(); } exploreRenderPlots(); }
-    else if (action === "fork") { explore.workspace = structuredClone(explore.workspace); explore.workspace.id = exploreID(); explore.workspace.version = null; explore.workspace.name += " (fork)"; explore.capture = null; exploreDirty(); history.replaceState(null, "", "/explore"); exploreRender(); }
+    else if (action === "fork") {
+      const capture = explore.capture, workspace = structuredClone(explore.workspace);
+      const context = await exploreAuthoringContext(true);
+      if (explore.capture !== capture) return;
+      state.catalogue = context.catalogue; explore.saved = context.saved; state.exploreIdeas = context.ideas;
+      workspace.id = exploreID(); workspace.version = null; workspace.name += " (fork)";
+      explore.workspace = workspace; explore.capture = null; explore.libraryChanges = [];
+      exploreDirty(); history.replaceState(null, "", "/explore"); exploreRender();
+    }
     else if (action === "new-analysis" || action === "edit-analysis") exploreAnalysisDialog(explore.workspace.collection.find(item => item.id === button.dataset.id));
     else if (action === "new-series" || action === "stage-series") exploreSeriesDialog(action === "stage-series");
     else if (action === "attributes") exploreDialog(`<h2>Supplied attributes</h2><p class="meta">Enter explicit symbol assignments with source and optional effective dates. Historical use of undated labels remains current/static.</p><label>Attribute records (JSON)<textarea id="explore-attributes" rows="12" spellcheck="false">${esc(JSON.stringify(explore.workspace.attributes, null, 2))}</textarea></label><p class="meta">Each record: symbol, name, value, source, effective_start, effective_end.</p><div class="actions">${exploreButton("Apply attributes", "apply-attributes", 'class="primary"')}${exploreButton("Cancel", "close-dialog")}</div>`);
@@ -491,6 +499,14 @@ document.addEventListener("click", async event => {
   } catch (error) { notify(error.message); }
   finally { if (button.isConnected) button.disabled = false; }
 });
+async function exploreAuthoringContext(requireAll = false) {
+  const responses = await Promise.allSettled([api("/api/explore/library"), api("/api/explore/workspaces"), api("/api/ideas")]);
+  const failure = requireAll ? responses.find(response => response.status === "rejected") : responses[0].status === "rejected" ? responses[0] : null;
+  if (failure) throw failure.reason;
+  return {catalogue: responses[0].value,
+    saved: responses[1].status === "fulfilled" ? responses[1].value.workspaces || responses[1].value : [],
+    ideas: responses[2].status === "fulfilled" ? responses[2].value.ideas || responses[2].value : []};
+}
 async function exploreStart() {
   const segments = location.pathname.split("/").filter(Boolean);
   state.catalogue = {series: [], analyses: [], resolved_analyses: []}; state.stagedSeries = {}; state.controlMemory = {};
@@ -502,11 +518,8 @@ async function exploreStart() {
     const results = explore.capture.results || explore.capture.resolved_results || response.results || [];
     explore.results = new Map(results.map(result => [result.view_id, result])); explore.status = "current";
   } else {
-    const responses = await Promise.allSettled([api("/api/explore/library"), api("/api/explore/workspaces"), api("/api/ideas")]);
-    if (responses[0].status === "rejected") throw responses[0].reason;
-    state.catalogue = responses[0].value;
-    explore.saved = responses[1].status === "fulfilled" ? responses[1].value.workspaces || responses[1].value : [];
-    state.exploreIdeas = responses[2].status === "fulfilled" ? responses[2].value.ideas || responses[2].value : [];
+    const context = await exploreAuthoringContext();
+    state.catalogue = context.catalogue; explore.saved = context.saved; state.exploreIdeas = context.ideas;
     explore.workspace = exploreNewWorkspace();
     if (segments[1]) { const response = await api(`/api/explore/workspaces/${segments[1]}`); explore.workspace = response.workspace || response; explore.libraryChanges = response.library_changes || []; }
   }

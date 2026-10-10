@@ -66,6 +66,11 @@ shortcuts, not the intended product contract. Correct the next iteration as foll
   series. A cross-section instead has one point per exposure on a chosen date.
 - **Date axes have no title.** Keep date ticks and hover dates. This applies to
   history, heatmap, enlarged charts and newly captured images.
+- **Marker size is constant.** Scatter and ranking previously enlarged the linked
+  highlight, which looked like an unexplained quantitative encoding. Both now
+  use equal-sized dots, with an outline for highlighted observations. A future
+  data-driven size mapping needs an explicit "Size by" control (default None),
+  a size legend and stated units; it is not currently implemented.
 
 This revision removes the date-axis title, clarifies temporal-scatter labels and
 marks demo classification choices. Full Library/Analysis integration remains to

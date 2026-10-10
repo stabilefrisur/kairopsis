@@ -1,7 +1,8 @@
 # Relative-value exploration: design
 
-Proposed implementation design, 10 October 2026. Source baseline: `615334c`;
-branch: `codex/explore-workspace-prototype`. No production implementation yet.
+Implementation design, 10 October 2026. Prototype baseline: `615334c`;
+branch: `codex/explore-workspace-prototype`. The P1–P6 foundation is implemented;
+P7 research operations and P8 release acceptance remain planned.
 Read the [implementation plan](relative-value-exploration-implementation-plan.md)
 for sequence, use-case coverage and acceptance gates.
 

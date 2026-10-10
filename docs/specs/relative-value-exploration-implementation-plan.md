@@ -1,7 +1,10 @@
 # Relative-value exploration: implementation plan
 
-Proposed, 10 October 2026. Branch: `codex/explore-workspace-prototype`;
-reviewed baseline: `615334c`. Documentation only at this stage.
+Updated 10 October 2026. Branch: `codex/explore-workspace-prototype`;
+implementation baseline: `a2b6daa`. **Milestone 1 (P1–P6) is implemented.**
+P7 and P8 remain planned; the release/scale gates below are not yet satisfied.
+See the [implemented guide](../../src/kairopsis/docs/explore.md) and
+[verification record](../verification.md#explore-foundation--10-october-2026).
 Implement against the [design](relative-value-exploration-workspace.md) and
 [Analysis contract](../../src/kairopsis/skills/kairopsis-analysis/SKILL.md).
 

@@ -7,6 +7,43 @@ Verify the built artifacts as well as the source checkout. Source tests establis
 application behavior; installed-package checks establish that the distribution
 contains the code, browser assets and guides needed outside the checkout.
 
+## Explore foundation — 10 October 2026
+
+Milestone 1 (P1–P6) is implemented on `codex/explore-workspace-prototype`.
+GPT-6.1 SOL at high effort built the feature; the parent agent independently
+reviewed the changes from `a2b6daa`, checked numerical results and exercised the
+production UI. The source suite passes **377 tests**; mypy checks all 24 modules,
+and modified JavaScript passes syntax checks.
+
+All **23 independent acceptance checks** pass. They use actual Metapyle `localfile`
+retrieval through Library, with three symbols, multiple fields, gaps and a signed
+series crossing zero. Pearson/Spearman, OLS and Gaussian KDE match SciPy;
+histogram density and box quartiles match NumPy. Checks cover historical cutoffs,
+display independence, distinct binding revisions, retained drilldown samples,
+auxiliary size/colour
+fields, save conflicts, capture hashes, restart/export and old-model compatibility.
+
+Chromium journeys verify Library selection, matrix-to-scatter drilldown, question
+and notes, multi-view capture from Focus, saved/frozen reopen, multiple fields per
+symbol, non-time heatmaps, size/None, rendered percentage units, empty selections
+and shared local Analysis controls. The existing Library/Analysis acceptance
+journey also passes its 13 checks. No script errors or laptop page overflow were
+observed. Additional checks verify readable distribution legends at 1440/1180px,
+Focus/PNG export, and forking with Library additions and a fresh preview while
+the original capture remains byte-identical. Reusable Explore checks:
+`scripts/explore-ui-acceptance.py`.
+
+Review fixes include stale draft labels, filtered drilldown membership, missing
+encoding dependencies, percentage units, Plotly title compatibility, first-click
+editor actions, initial distribution grouping, compact chart legends,
+unprovenanced fit rows and schema-2 Idea serialization. Evidence:
+`.scratch/explore-milestone-review/` and the builder's isolated acceptance records.
+
+One existing Starlette/httpx deprecation warning remains. These source/mock and
+local-file checks do not establish external market-provider coverage, corporate
+Windows deployment or release-scale performance. P7 research operations and P8
+release/scale acceptance remain planned; no distribution release is claimed.
+
 ## 0.1.2 release verification — 8 October 2026
 
 All 304 source tests and mypy checks for 20 files pass. The release wheel and

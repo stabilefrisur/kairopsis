@@ -7,6 +7,12 @@ collection and shared in-memory investigation state.
 Branch: `codex/explore-workspace-prototype`. Built by GPT-6.1 Sol at high effort;
 independently explored and reviewed by the parent agent, 2026-10-09.
 
+Next stage: [proposed design](../docs/specs/relative-value-exploration-workspace.md)
+and [implementation plan](../docs/specs/relative-value-exploration-implementation-plan.md).
+The later analytical review found defects beyond the initial checks below; its
+[reproductions and required regressions](../docs/specs/relative-value-exploration-implementation-plan.md#review-regressions)
+supersede any implication of complete analytical validation.
+
 ## Review verdict
 
 **Prefer A / Workbench as the default.** Its collection, simultaneous charts and

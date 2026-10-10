@@ -2,6 +2,11 @@
 
 Research and recommendations, 8 October 2026. Current-capability audit: Kairopsis `c384dd1`. Requirements discussion only; no implementation decisions. All worked examples are hypothetical.
 
+Follow-on, 10 October: [proposed design](../specs/relative-value-exploration-workspace.md)
+and [implementation plan](../specs/relative-value-exploration-implementation-plan.md).
+They retain this use-case catalogue and incorporate prototype review. They use
+Symbol/Data Series terminology; “exposure” below reflects the earlier research wording.
+
 ## Conclusion
 
 Build a flexible investigation space around **selected exposures, their fields, dates and derived relationships**. Its purpose is to develop and challenge Relative Value Views, including Cross-Market Inconsistencies without an identified trade expression. Keep rarity monitoring a separate, optional destination.

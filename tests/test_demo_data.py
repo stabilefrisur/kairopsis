@@ -14,6 +14,7 @@ import pytest
 
 from kairopsis.analytics import evaluate
 from kairopsis.config import Settings
+from kairopsis.exploration_models import CollectionItem
 from kairopsis.metapyle_adapter import MetapyleMarketData
 from kairopsis.models import (AnalysisSettings, DataRequest, DataResponse, Observation,
     ResolvedDefinition, RiskAdjustment, SeriesBinding, SeriesResult)
@@ -52,8 +53,8 @@ def test_fixture_regenerates_byte_for_byte(tmp_path, manifest):
 
 def test_inventory_dates_and_missingness(frame, manifest):
     assert list(frame) == [m["id"] for m in manifest["series"]]
-    assert frame.shape == (4368, 42)
-    assert frame.notna().sum().sum() == manifest["observations"] == 164130
+    assert frame.shape == (4368, 74)
+    assert frame.notna().sum().sum() == manifest["observations"] == 303894
     assert frame.index.is_monotonic_increasing and frame.index.is_unique
     assert all(frame.index.weekday < 5)
     assert str(frame.index[0].date()) == manifest["start"]
@@ -67,6 +68,67 @@ def test_inventory_dates_and_missingness(frame, manifest):
         assert meta["description"].startswith("SYNTHETIC.")
         if meta["role"] == "core":
             assert len(observed) == len(frame)
+
+
+def test_credit_fields_have_explicit_reusable_symbol_associations(manifest):
+    metadata = {m["id"]: m for m in manifest["series"]}
+    expected = {"usd_ig", "usd_hy", "usd_banks_credit", "usd_industrials_credit", "usd_broad_credit", "usd_em_hy"}
+    assert {s["symbol"] for s in manifest["symbols"]} == expected
+    required = {"oas_bp": "bp", "spread_duration_years": "years", "yield_pct": "%",
+        "total_return_index": "index", "total_return_pct": "%", "excess_return_pct": "%",
+        "treasury_benchmark_index": "index"}
+    collection = []
+    for symbol in manifest["symbols"]:
+        assert required.keys() <= symbol["fields"].keys()
+        for field, key in symbol["fields"].items():
+            meta = metadata[key]
+            assert meta["symbol"] == symbol["symbol"] and meta["field"] == field
+            assert meta["currency"] == symbol["currency"] == "USD"
+            if field in required:
+                assert meta["unit"] == required[field]
+            collection.append(CollectionItem(id=key, symbol=symbol["symbol"], field=field,
+                origin="local", binding=binding(meta), semantics=meta["description"]))
+    assert len(collection) == len({item.binding.id for item in collection}) == 45
+    assert len({(item.symbol, item.field) for item in collection}) == len(collection)
+    assert all(item.binding.field is None for item in collection)  # localfile has no query field.
+    assert all(item.binding.instrument != "usd_banks_tr" for item in collection)  # Equity stays distinct.
+    assert {m["id"] for m in metadata.values() if "symbol" in m} == {item.binding.id for item in collection}
+
+
+@pytest.mark.parametrize("symbol", ["usd_ig", "usd_hy", "usd_banks_credit", "usd_industrials_credit", "usd_broad_credit", "usd_em_hy"])
+def test_credit_fields_reconcile_to_their_spread_and_benchmark(frame, manifest, symbol):
+    fields = next(s["fields"] for s in manifest["symbols"] if s["symbol"] == symbol)
+    metadata = {m["id"]: m for m in manifest["series"]}
+    actual_yield = frame[fields["yield_pct"]]
+    expected_yield = frame.usd_5y_yield_pct + frame[fields["oas_bp"]] / 100
+    assert actual_yield.tolist() == pytest.approx(expected_yield.tolist(), rel=0, abs=1e-8)
+    duration = frame[fields["spread_duration_years"]]
+    assert (duration > 0).all()
+    credit = frame[fields["total_return_index"]]
+    treasury = frame[fields["treasury_benchmark_index"]]
+    assert (credit > 0).all() and (treasury > 0).all() and treasury.iloc[0] == 100
+    total_return = frame[fields["total_return_pct"]]
+    excess_return = frame[fields["excess_return_pct"]]
+    expected_total = credit.pct_change(fill_method=None) * 100
+    expected_excess = expected_total - treasury.pct_change(fill_method=None) * 100
+    assert total_return.isna().sum() == excess_return.isna().sum() == 1
+    assert pd.isna(total_return.iloc[0]) and pd.isna(excess_return.iloc[0])
+    assert total_return.iloc[1:].tolist() == pytest.approx(expected_total.iloc[1:].tolist(), rel=0, abs=1e-8)
+    assert excess_return.iloc[1:].tolist() == pytest.approx(expected_excess.iloc[1:].tolist(), rel=0, abs=1e-8)
+    for field in ("total_return_pct", "excess_return_pct"):
+        assert metadata[fields[field]]["supplied_measure"] == "precomputed return"
+    assert metadata[fields["excess_return_pct"]]["benchmark_series_id"] == fields["treasury_benchmark_index"]
+    # Independently check the benchmark convention and credit carry/price linkage.
+    import numpy as np
+    rates = frame.usd_5y_yield_pct
+    expected_treasury_log = rates.shift() / 100 / 252 - duration * rates.diff() / 100
+    observed_treasury_log = np.log(treasury / treasury.shift())
+    assert observed_treasury_log.iloc[1:].tolist() == pytest.approx(expected_treasury_log.iloc[1:].tolist(), rel=0, abs=1e-8)
+    credit_log = np.log(credit / credit.shift())
+    model_credit_log = expected_yield.shift() / 100 / 252 - duration * (rates.diff() / 100 + frame[fields["oas_bp"]].diff() / 10000)
+    residual = (credit_log - model_credit_log).dropna()
+    assert residual.std() == pytest.approx(.0004, rel=.1)
+    assert abs(residual.mean()) < .00003
 
 
 def test_standard_metapyle_catalogue_reads_csv_without_filling(frame, monkeypatch):
@@ -202,6 +264,12 @@ def test_bank_return_regression_uses_returns_not_arbitrary_index_bases(synthetic
     latest = actual.points[-1]
     y, x = latest.transformed_inputs
     assert actual.current == pytest.approx(y - (actual.fit.intercept + actual.fit.slope * x))
+
+
+def test_precomputed_credit_excess_returns_keep_their_supplied_measure(frame, synthetic_results):
+    actual = analyse(synthetic_results, ["usd_ig_excess_return_pct", "usd_hy_excess_return_pct"], calculation="difference")
+    assert actual.eligible and actual.unit == "%", actual.limitations
+    assert actual.current == pytest.approx(frame.usd_ig_excess_return_pct.iloc[-1] - frame.usd_hy_excess_return_pct.iloc[-1])
 
 
 def test_edge_cases_remain_missing_or_unavailable(frame, synthetic_results):

@@ -18,7 +18,8 @@ A built-in demo lets you explore without market-data credentials. Your research
 stays in a local workspace. Live data access uses Metapyle.
 
 For repeatable development tests, the [persisted CSV demo dataset](tests/fixtures/demo/README.md)
-provides 42 synthetic series and a standard Metapyle `localfile` catalogue.
+provides 74 synthetic series, including six credit assets with multiple fields,
+and a standard Metapyle `localfile` catalogue.
 
 ## Guides
 

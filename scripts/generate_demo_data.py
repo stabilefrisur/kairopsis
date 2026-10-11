@@ -20,9 +20,17 @@ START = date(2010, 1, 4)
 END = date(2026, 9, 30)
 SEED = 20261011
 DEFAULT_OUTPUT = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "demo"
+CREDIT_ASSETS = [
+    ("usd_ig", "US IG credit", "usd_ig_oas_bp", 5.5, 100),
+    ("usd_hy", "US HY credit", "usd_hy_oas_bp", 3.5, 250),
+    ("usd_banks_credit", "US bank credit", "usd_banks_oas_bp", 4.5, 180),
+    ("usd_industrials_credit", "US industrial credit", "usd_industrials_oas_bp", 6, 125),
+    ("usd_broad_credit", "US broad credit", "usd_broad_credit_oas_bp", 5, 200),
+    ("usd_em_hy", "USD EM sovereign HY", "usd_em_hy_oas_bp", 6.5, 300),
+]
 
 
-def build_dataset() -> tuple[list[date], dict[str, list[float | None]], list[dict]]:
+def build_dataset() -> tuple[list[date], dict[str, list[float | None]], list[dict], list[dict]]:
     """Return weekday observations plus explicit supplied-series semantics."""
     days = []
     day = START
@@ -37,6 +45,8 @@ def build_dataset() -> tuple[list[date], dict[str, list[float | None]], list[dic
 
     def add(key, name, unit, currency, basis, description, values, *,
             kind="level", cadence="weekday", role="core"):
+        if key in data:
+            raise ValueError(f"Duplicate demo series: {key}")
         data[key] = [None if value is None else round(value, 8) for value in values]
         metadata.append(dict(id=key, name=name, unit=unit, currency=currency,
             comparison_basis=basis, supplied_measure=kind, cadence=cadence,
@@ -103,18 +113,46 @@ def build_dataset() -> tuple[list[date], dict[str, list[float | None]], list[dic
         [x / 100 for x in data["usd_ig_oas_bp"]])
 
     # These are illustrative price/carry dynamics, not bond valuation equations.
-    for segment, duration, base in [("ig", 5.5, 100), ("hy", 3.5, 250)]:
-        oas = data[f"usd_{segment}_oas_bp"]
+    for symbol, name, spread_id, duration, base in CREDIT_ASSETS:
+        oas = data[spread_id]
         index = [float(base)]
+        benchmark = [100.0]
         for i in range(1, count):
             carry = (yields[5][i-1] / 100 + oas[i-1] / 10000) / 252
             price = -duration * ((yields[5][i] - yields[5][i-1]) / 100 + (oas[i] - oas[i-1]) / 10000)
             index.append(index[-1] * exp(carry + price + rng.gauss(0, .0004)))
-        add(f"usd_{segment}_tr", f"USD {segment.upper()} total return", "index", "USD", "USD, income reinvested, unhedged",
+            benchmark.append(benchmark[-1] * exp(yields[5][i-1] / 100 / 252
+                - duration * (yields[5][i] - yields[5][i-1]) / 100))
+        add(f"{symbol}_tr", f"{name} total return", "index", "USD", "USD, income reinvested, unhedged",
             f"Base {base} on {START}. Toy carry/duration model with fixed duration {duration}; "
             "no default losses, convexity or trading costs. Percentage change is synthetic index return.", index)
-        add(f"usd_{segment}_duration_years", f"USD {segment.upper()} spread duration", "years", "USD", "Constant model sensitivity",
+        add(f"{symbol}_duration_years", f"{name} spread duration", "years", "USD", "Constant model sensitivity",
             "Fixed illustrative spread duration used in the toy credit total-return model.", [duration] * count)
+        add(f"{symbol}_yield_pct", f"{name} model yield", "%", "USD", "USD 5Y Treasury yield plus OAS",
+            f"Toy yield proxy: usd_5y_yield_pct + {spread_id} / 100. "
+            "Not a priced yield-to-worst or option valuation.",
+            [r + s / 100 for r, s in zip(data["usd_5y_yield_pct"], oas)])
+        benchmark_id = f"{symbol}_treasury_tr"
+        add(benchmark_id, f"{name} Treasury benchmark", "index", "USD", "USD, income reinvested, model duration matched",
+            f"Base 100 on {START}. Toy Treasury benchmark using the USD 5Y yield factor "
+            f"and the same fixed {duration:g}-year sensitivity as {symbol}. "
+            "Daily log return = prior yield / 100 / 252 - duration * yield change / 100. "
+            "No credit spread, residual noise, convexity, or actual bond replication.", benchmark)
+        total_returns = [None] + [100 * (current / previous - 1)
+            for previous, current in zip(data[f"{symbol}_tr"], data[f"{symbol}_tr"][1:])]
+        benchmark_returns = [None] + [100 * (current / previous - 1)
+            for previous, current in zip(data[benchmark_id], data[benchmark_id][1:])]
+        add(f"{symbol}_total_return_pct", f"{name} daily total return", "%", "USD", "One-session simple total return",
+            f"100 * ({symbol}_tr(t) / {symbol}_tr(previous weekday) - 1). "
+            "First date missing. Precomputed return: use Measure Level.",
+            total_returns, kind="precomputed return", role="shaped")
+        add(f"{symbol}_excess_return_pct", f"{name} daily excess return", "%", "USD", "Credit minus model Treasury return",
+            f"Daily simple return of {symbol}_tr minus daily simple return of {benchmark_id}, "
+            "in percentage points. Same interval and currency, model duration matched. "
+            "First date missing. Use Measure Level. Not a ratio, spread change, cash excess, or cumulative relative wealth.",
+            [None] + [r - b for r, b in zip(total_returns[1:], benchmark_returns[1:])],
+            kind="precomputed return", role="shaped")
+        metadata[-1]["benchmark_series_id"] = benchmark_id
 
     for key, name, currency, values, description in [
         ("usd_equity_tr", "USD broad equity total return", "USD", market, "Base 100; broad equity risk reference."),
@@ -191,12 +229,29 @@ def build_dataset() -> tuple[list[date], dict[str, list[float | None]], list[dic
     add("edge_tiny_beta_bp", "Tiny credit sensitivity", "bp", "USD", "Synthetic small sensitivity",
         "100 plus 0.0001 times broad credit OAS. Numerically nonzero beta can be economically unusable as a divisor.",
         [100 + .0001*x for x in data["usd_broad_credit_oas_bp"]], role="edge")
-    return days, data, metadata
+    # Research symbol/field associations are independent of the localfile query
+    # symbol, which must remain the CSV column. Reuse Explore's association terms.
+    by_id = {m["id"]: m for m in metadata}
+    symbols = []
+    for symbol, name, spread_id, _, _ in CREDIT_ASSETS:
+        fields = dict(oas_bp=spread_id, spread_duration_years=f"{symbol}_duration_years",
+            yield_pct=f"{symbol}_yield_pct", total_return_index=f"{symbol}_tr",
+            total_return_pct=f"{symbol}_total_return_pct", excess_return_pct=f"{symbol}_excess_return_pct",
+            treasury_benchmark_index=f"{symbol}_treasury_tr")
+        if symbol == "usd_ig":
+            fields["oas_pct"] = "usd_ig_oas_pct"
+        if symbol in ("usd_ig", "usd_hy"):
+            fields["total_return_index_rebased_100"] = f"{symbol}_tr_100"
+        for field, key in fields.items():
+            by_id[key].update(symbol=symbol, field=field)
+        symbols.append(dict(symbol=symbol, name=name, currency="USD", fields=fields))
+    return days, data, metadata, symbols
 
 
 def write_catalog(metadata: list[dict], csv_path: Path, target: Path) -> None:
     entries = {m["id"]: CatalogEntry(my_name=m["id"], source="localfile", symbol=m["id"],
-        path=str(csv_path), unit=m["unit"], description=f'{m["name"]}. {m["comparison_basis"]}. {m["description"]}')
+        path=str(csv_path), unit=m["unit"], description=f'{m["name"]}. {m["comparison_basis"]}. {m["description"]}'
+        + (f' Research symbol: {m["symbol"]}; field: {m["field"]}.' if "symbol" in m else ""))
         for m in metadata}
     target.parent.mkdir(parents=True, exist_ok=True)
     Catalog(entries).to_yaml(target)
@@ -206,7 +261,7 @@ def write_catalog(metadata: list[dict], csv_path: Path, target: Path) -> None:
 
 
 def generate(output: Path) -> dict:
-    days, data, metadata = build_dataset()
+    days, data, metadata, symbols = build_dataset()
     output.mkdir(parents=True, exist_ok=True)
     csv_path = output / "market.csv"
     with csv_path.open("w", encoding="utf-8", newline="") as stream:
@@ -223,7 +278,7 @@ def generate(output: Path) -> dict:
         csv_sha256=hashlib.sha256(csv_path.read_bytes()).hexdigest(),
         calendar="Monday-Friday only; no real exchange holidays or intraday timestamps",
         missing="Empty CSV cell means missing; never forward-filled",
-        series=metadata)
+        series=metadata, symbols=symbols)
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n")
     # Metapyle resolves relative data paths against process cwd, not catalogue dir.
     write_catalog(metadata, Path("market.csv"), output / "catalog.yaml")

@@ -1,6 +1,6 @@
 # Persisted synthetic market data
 
-42 Data Series, 4,368 weekday rows, 164,130 populated observations. Fixed range:
+74 Data Series, 4,368 weekday rows, 303,894 populated observations. Fixed range:
 4 January 2010–30 September 2026. About sixteen years of history supports separate
 risk, fitting and reference windows, including the Analysis skill's provisional
 three-year / 500-observation reference profile after risk warm-up.
@@ -16,7 +16,8 @@ the existing built-in demo and user workspaces are unaffected.
 - `catalog.yaml`: standard Metapyle entries (`my_name`, `source: localfile`,
   `symbol`, `path`, `description`, `unit`). `field` is omitted as required.
 - `manifest.json`: units, currency, Comparison Basis, supplied measure, cadence,
-  shaping, intended use, per-series coverage and CSV SHA-256.
+  shaping, intended use, per-series coverage and CSV SHA-256. Its `symbols` list
+  explicitly maps six credit assets to their fields and Data Series IDs.
 
 From the repository root, using the project environment:
 
@@ -76,7 +77,7 @@ live-provider freshness or change the adapter contract.
 | --- | --- |
 | Credit | USD IG, HY, banks, industrials, broad-credit reference, EM sovereign HY and agency MBS OAS; EUR and GBP IG OAS. All bp. Native curves and illustrative durations documented per series. |
 | Rates | USD 2Y, 5Y, 10Y yields in percent; actual 10Y bp conversion and 10Y-minus-2Y slope in bp. |
-| Credit returns | USD IG/HY total-return indices with different initial bases, plus their fixed illustrative spread durations. Toy carry/duration dynamics, income reinvested. |
+| Credit fields | Six USD credit assets each have OAS, spread duration, model yield, total-return index, daily total return, daily excess return and a supplied Treasury benchmark. See the mappings below. |
 | Equity | USD broad equity and banks total-return indices, broad price-only index, EUR total-return index. Bank return sensitivity changes in 2022. |
 | FX | EURUSD in USD per EUR; explicitly converted unhedged EUR equity wealth in USD. No hedged series claimed. |
 | Common-start wealth | Five USD total-return paths rebased to 100 on 2015-01-02, missing before that date. |
@@ -90,6 +91,70 @@ dates do not imply reconstructed market history. The calendar contains every
 weekday, including real-world holidays; there are no exchange calendars,
 timestamps, publication lags, bid/ask spreads or provider revisions. Credit
 indices use a simplified fixed-duration/carry model without defaults or convexity.
+
+## Multiple fields for the same credit asset
+
+| Research symbol | Asset | Spread duration (years) |
+| --- | --- | --- |
+| `usd_ig` | US investment-grade credit | 5.5 |
+| `usd_hy` | US high-yield credit | 3.5 |
+| `usd_banks_credit` | US bank credit | 4.5 |
+| `usd_industrials_credit` | US industrial credit | 6.0 |
+| `usd_broad_credit` | US broad credit | 5.0 |
+| `usd_em_hy` | USD EM sovereign high yield | 6.5 |
+
+Each asset exposes the same seven fields. Resolve each field through
+`manifest.symbols[].fields`; do not infer column names from prefixes. For example,
+bank credit's OAS column is `usd_banks_oas_bp`, while its total-return index is
+`usd_banks_credit_tr`. The existing `usd_banks_tr` remains **bank equity**.
+
+| Field | Meaning |
+| --- | --- |
+| `oas_bp` | Option-adjusted spread, bp. |
+| `spread_duration_years` | Fixed sensitivity used by the model, years. |
+| `yield_pct` | Toy credit yield: USD 5Y Treasury yield + OAS / 100, quoted in percent. Not yield-to-worst. |
+| `total_return_index` | Synthetic credit wealth index, income reinvested. |
+| `total_return_pct` | One-session simple index return, numerically in percent. |
+| `excess_return_pct` | Credit's one-session simple return minus its supplied Treasury benchmark return, percentage points. |
+| `treasury_benchmark_index` | Related Treasury wealth benchmark, using the same yield factor and model duration. |
+
+The IG/HY rebased indices and IG's percent OAS representation have additional,
+distinct field names. Each associated series also records `symbol` and `field`
+in its manifest entry. These map directly to Explore's `CollectionItem.symbol`
+and `CollectionItem.field`, alongside that series' normal retrieval binding.
+Metapyle's `localfile` query still uses the **CSV column** as its provider symbol
+and omits its provider `field`. No provider schema extension or workspace import
+is required to read the CSV; the manifest supplies the research associations.
+
+Example association lookup:
+
+```python
+import json
+from pathlib import Path
+
+manifest = json.loads(Path("manifest.json").read_text())
+ig = next(item for item in manifest["symbols"] if item["symbol"] == "usd_ig")
+columns = [ig["fields"][field] for field in
+           ("oas_bp", "spread_duration_years", "total_return_pct", "excess_return_pct")]
+# Pass columns to the ordinary Client.get() call above.
+```
+
+For each session, with Treasury yield `y` in percent, spread `s` in bp and
+duration `D`, the credit index's log return is
+`(y_previous / 100 + s_previous / 10000) / 252
+- D * (change(y) / 100 + change(s) / 10000) + residual_noise`.
+The benchmark's log return is
+`y_previous / 100 / 252 - D * change(y) / 100`.
+This supplies an explicit model duration-matching convention, not a claim of
+actual Treasury replication. Excess return is the difference of the resulting
+**simple** returns, not the difference of their log returns or an index ratio.
+Each excess-return series records its exact `benchmark_series_id`.
+
+Daily total/excess returns are missing on the first date because no earlier
+baseline exists. Use **Measure Level** to preserve these precomputed returns.
+For longer-interval excess return, calculate each index's return over the same
+endpoints, then subtract. Compounding the daily arithmetic differences does not
+produce that longer-interval excess return.
 
 ## Research cases from the Analysis skill
 
@@ -112,8 +177,9 @@ The tests validate representative mechanics with explicitly synthetic native dat
 | How much policy movement passed through? | Deposit move / policy move over an explicitly selected episode | Select material policy-change episodes after retaining baselines. No all-date ratio Z-score or monitoring claim. |
 | Are native credit markets moving differently? | EUR IG vs GBP/USD IG OAS | Descriptive native-market comparison only; neither currency nor reference curves have been harmonized. |
 
-No all-date event-ratio filtering, duration matching, FX hedge or curve rebasing
-is implicit. Monthly precomputed returns avoid a second transformation but do not
+No all-date event-ratio filtering, FX hedge or curve rebasing is implicit.
+Duration matching applies only to each explicitly supplied toy credit benchmark.
+Monthly precomputed returns avoid a second transformation but do not
 remove the engine's sparse-cadence restrictions. Synthetic statistics validate
 mechanics, not economic calibration or investment performance.
 

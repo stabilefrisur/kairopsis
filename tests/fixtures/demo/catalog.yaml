@@ -2,49 +2,55 @@
   source: localfile
   symbol: usd_ig_oas_bp
   path: market.csv
-  description: USD IG OAS. Native USD / Treasury OAS. SYNTHETIC. investment grade,
+  description: 'USD IG OAS. Native USD / Treasury OAS. SYNTHETIC. investment grade,
     broad corporate; illustrative spread duration 5.5 years. Different credit quality,
-    composition and duration remain. No FX hedge or curve rebasing.
+    composition and duration remain. No FX hedge or curve rebasing. Research symbol:
+    usd_ig; field: oas_bp.'
   unit: bp
 - my_name: usd_hy_oas_bp
   source: localfile
   symbol: usd_hy_oas_bp
   path: market.csv
-  description: USD HY OAS. Native USD / Treasury OAS. SYNTHETIC. high yield, broad
+  description: 'USD HY OAS. Native USD / Treasury OAS. SYNTHETIC. high yield, broad
     corporate; illustrative spread duration 3.5 years. Different credit quality, composition
-    and duration remain. No FX hedge or curve rebasing.
+    and duration remain. No FX hedge or curve rebasing. Research symbol: usd_hy; field:
+    oas_bp.'
   unit: bp
 - my_name: usd_banks_oas_bp
   source: localfile
   symbol: usd_banks_oas_bp
   path: market.csv
-  description: USD banks OAS. Native USD / Treasury OAS. SYNTHETIC. investment grade,
+  description: 'USD banks OAS. Native USD / Treasury OAS. SYNTHETIC. investment grade,
     banks; illustrative spread duration 4.5 years. Different credit quality, composition
-    and duration remain. No FX hedge or curve rebasing.
+    and duration remain. No FX hedge or curve rebasing. Research symbol: usd_banks_credit;
+    field: oas_bp.'
   unit: bp
 - my_name: usd_industrials_oas_bp
   source: localfile
   symbol: usd_industrials_oas_bp
   path: market.csv
-  description: USD industrials OAS. Native USD / Treasury OAS. SYNTHETIC. investment
+  description: 'USD industrials OAS. Native USD / Treasury OAS. SYNTHETIC. investment
     grade, industrials; illustrative spread duration 6 years. Different credit quality,
-    composition and duration remain. No FX hedge or curve rebasing.
+    composition and duration remain. No FX hedge or curve rebasing. Research symbol:
+    usd_industrials_credit; field: oas_bp.'
   unit: bp
 - my_name: usd_broad_credit_oas_bp
   source: localfile
   symbol: usd_broad_credit_oas_bp
   path: market.csv
-  description: USD broad credit OAS. Native USD / Treasury OAS. SYNTHETIC. mixed ratings,
-    broad credit risk reference; illustrative spread duration 5 years. Different credit
-    quality, composition and duration remain. No FX hedge or curve rebasing.
+  description: 'USD broad credit OAS. Native USD / Treasury OAS. SYNTHETIC. mixed
+    ratings, broad credit risk reference; illustrative spread duration 5 years. Different
+    credit quality, composition and duration remain. No FX hedge or curve rebasing.
+    Research symbol: usd_broad_credit; field: oas_bp.'
   unit: bp
 - my_name: usd_em_hy_oas_bp
   source: localfile
   symbol: usd_em_hy_oas_bp
   path: market.csv
-  description: USD EM sovereign HY OAS. Native USD / Treasury OAS. SYNTHETIC. high
+  description: 'USD EM sovereign HY OAS. Native USD / Treasury OAS. SYNTHETIC. high
     yield, emerging sovereigns; illustrative spread duration 6.5 years. Different
     credit quality, composition and duration remain. No FX hedge or curve rebasing.
+    Research symbol: usd_em_hy; field: oas_bp.'
   unit: bp
 - my_name: usd_mbs_oas_bp
   source: localfile
@@ -109,39 +115,346 @@
   source: localfile
   symbol: usd_ig_oas_pct
   path: market.csv
-  description: USD IG OAS in percent. Native USD / Treasury OAS. SYNTHETIC. Same USD
-    IG spread divided by 100. Convert observations before a bp difference.
+  description: 'USD IG OAS in percent. Native USD / Treasury OAS. SYNTHETIC. Same
+    USD IG spread divided by 100. Convert observations before a bp difference. Research
+    symbol: usd_ig; field: oas_pct.'
   unit: '%'
 - my_name: usd_ig_tr
   source: localfile
   symbol: usd_ig_tr
   path: market.csv
-  description: USD IG total return. USD, income reinvested, unhedged. SYNTHETIC. Base
-    100 on 2010-01-04. Toy carry/duration model with fixed duration 5.5; no default
+  description: 'US IG credit total return. USD, income reinvested, unhedged. SYNTHETIC.
+    Base 100 on 2010-01-04. Toy carry/duration model with fixed duration 5.5; no default
     losses, convexity or trading costs. Percentage change is synthetic index return.
+    Research symbol: usd_ig; field: total_return_index.'
   unit: index
 - my_name: usd_ig_duration_years
   source: localfile
   symbol: usd_ig_duration_years
   path: market.csv
-  description: USD IG spread duration. Constant model sensitivity. SYNTHETIC. Fixed
-    illustrative spread duration used in the toy credit total-return model.
+  description: 'US IG credit spread duration. Constant model sensitivity. SYNTHETIC.
+    Fixed illustrative spread duration used in the toy credit total-return model.
+    Research symbol: usd_ig; field: spread_duration_years.'
   unit: years
+- my_name: usd_ig_yield_pct
+  source: localfile
+  symbol: usd_ig_yield_pct
+  path: market.csv
+  description: 'US IG credit model yield. USD 5Y Treasury yield plus OAS. SYNTHETIC.
+    Toy yield proxy: usd_5y_yield_pct + usd_ig_oas_bp / 100. Not a priced yield-to-worst
+    or option valuation. Research symbol: usd_ig; field: yield_pct.'
+  unit: '%'
+- my_name: usd_ig_treasury_tr
+  source: localfile
+  symbol: usd_ig_treasury_tr
+  path: market.csv
+  description: 'US IG credit Treasury benchmark. USD, income reinvested, model duration
+    matched. SYNTHETIC. Base 100 on 2010-01-04. Toy Treasury benchmark using the USD
+    5Y yield factor and the same fixed 5.5-year sensitivity as usd_ig. Daily log return
+    = prior yield / 100 / 252 - duration * yield change / 100. No credit spread, residual
+    noise, convexity, or actual bond replication. Research symbol: usd_ig; field:
+    treasury_benchmark_index.'
+  unit: index
+- my_name: usd_ig_total_return_pct
+  source: localfile
+  symbol: usd_ig_total_return_pct
+  path: market.csv
+  description: 'US IG credit daily total return. One-session simple total return.
+    SYNTHETIC. 100 * (usd_ig_tr(t) / usd_ig_tr(previous weekday) - 1). First date
+    missing. Precomputed return: use Measure Level. Research symbol: usd_ig; field:
+    total_return_pct.'
+  unit: '%'
+- my_name: usd_ig_excess_return_pct
+  source: localfile
+  symbol: usd_ig_excess_return_pct
+  path: market.csv
+  description: 'US IG credit daily excess return. Credit minus model Treasury return.
+    SYNTHETIC. Daily simple return of usd_ig_tr minus daily simple return of usd_ig_treasury_tr,
+    in percentage points. Same interval and currency, model duration matched. First
+    date missing. Use Measure Level. Not a ratio, spread change, cash excess, or cumulative
+    relative wealth. Research symbol: usd_ig; field: excess_return_pct.'
+  unit: '%'
 - my_name: usd_hy_tr
   source: localfile
   symbol: usd_hy_tr
   path: market.csv
-  description: USD HY total return. USD, income reinvested, unhedged. SYNTHETIC. Base
-    250 on 2010-01-04. Toy carry/duration model with fixed duration 3.5; no default
+  description: 'US HY credit total return. USD, income reinvested, unhedged. SYNTHETIC.
+    Base 250 on 2010-01-04. Toy carry/duration model with fixed duration 3.5; no default
     losses, convexity or trading costs. Percentage change is synthetic index return.
+    Research symbol: usd_hy; field: total_return_index.'
   unit: index
 - my_name: usd_hy_duration_years
   source: localfile
   symbol: usd_hy_duration_years
   path: market.csv
-  description: USD HY spread duration. Constant model sensitivity. SYNTHETIC. Fixed
-    illustrative spread duration used in the toy credit total-return model.
+  description: 'US HY credit spread duration. Constant model sensitivity. SYNTHETIC.
+    Fixed illustrative spread duration used in the toy credit total-return model.
+    Research symbol: usd_hy; field: spread_duration_years.'
   unit: years
+- my_name: usd_hy_yield_pct
+  source: localfile
+  symbol: usd_hy_yield_pct
+  path: market.csv
+  description: 'US HY credit model yield. USD 5Y Treasury yield plus OAS. SYNTHETIC.
+    Toy yield proxy: usd_5y_yield_pct + usd_hy_oas_bp / 100. Not a priced yield-to-worst
+    or option valuation. Research symbol: usd_hy; field: yield_pct.'
+  unit: '%'
+- my_name: usd_hy_treasury_tr
+  source: localfile
+  symbol: usd_hy_treasury_tr
+  path: market.csv
+  description: 'US HY credit Treasury benchmark. USD, income reinvested, model duration
+    matched. SYNTHETIC. Base 100 on 2010-01-04. Toy Treasury benchmark using the USD
+    5Y yield factor and the same fixed 3.5-year sensitivity as usd_hy. Daily log return
+    = prior yield / 100 / 252 - duration * yield change / 100. No credit spread, residual
+    noise, convexity, or actual bond replication. Research symbol: usd_hy; field:
+    treasury_benchmark_index.'
+  unit: index
+- my_name: usd_hy_total_return_pct
+  source: localfile
+  symbol: usd_hy_total_return_pct
+  path: market.csv
+  description: 'US HY credit daily total return. One-session simple total return.
+    SYNTHETIC. 100 * (usd_hy_tr(t) / usd_hy_tr(previous weekday) - 1). First date
+    missing. Precomputed return: use Measure Level. Research symbol: usd_hy; field:
+    total_return_pct.'
+  unit: '%'
+- my_name: usd_hy_excess_return_pct
+  source: localfile
+  symbol: usd_hy_excess_return_pct
+  path: market.csv
+  description: 'US HY credit daily excess return. Credit minus model Treasury return.
+    SYNTHETIC. Daily simple return of usd_hy_tr minus daily simple return of usd_hy_treasury_tr,
+    in percentage points. Same interval and currency, model duration matched. First
+    date missing. Use Measure Level. Not a ratio, spread change, cash excess, or cumulative
+    relative wealth. Research symbol: usd_hy; field: excess_return_pct.'
+  unit: '%'
+- my_name: usd_banks_credit_tr
+  source: localfile
+  symbol: usd_banks_credit_tr
+  path: market.csv
+  description: 'US bank credit total return. USD, income reinvested, unhedged. SYNTHETIC.
+    Base 180 on 2010-01-04. Toy carry/duration model with fixed duration 4.5; no default
+    losses, convexity or trading costs. Percentage change is synthetic index return.
+    Research symbol: usd_banks_credit; field: total_return_index.'
+  unit: index
+- my_name: usd_banks_credit_duration_years
+  source: localfile
+  symbol: usd_banks_credit_duration_years
+  path: market.csv
+  description: 'US bank credit spread duration. Constant model sensitivity. SYNTHETIC.
+    Fixed illustrative spread duration used in the toy credit total-return model.
+    Research symbol: usd_banks_credit; field: spread_duration_years.'
+  unit: years
+- my_name: usd_banks_credit_yield_pct
+  source: localfile
+  symbol: usd_banks_credit_yield_pct
+  path: market.csv
+  description: 'US bank credit model yield. USD 5Y Treasury yield plus OAS. SYNTHETIC.
+    Toy yield proxy: usd_5y_yield_pct + usd_banks_oas_bp / 100. Not a priced yield-to-worst
+    or option valuation. Research symbol: usd_banks_credit; field: yield_pct.'
+  unit: '%'
+- my_name: usd_banks_credit_treasury_tr
+  source: localfile
+  symbol: usd_banks_credit_treasury_tr
+  path: market.csv
+  description: 'US bank credit Treasury benchmark. USD, income reinvested, model duration
+    matched. SYNTHETIC. Base 100 on 2010-01-04. Toy Treasury benchmark using the USD
+    5Y yield factor and the same fixed 4.5-year sensitivity as usd_banks_credit. Daily
+    log return = prior yield / 100 / 252 - duration * yield change / 100. No credit
+    spread, residual noise, convexity, or actual bond replication. Research symbol:
+    usd_banks_credit; field: treasury_benchmark_index.'
+  unit: index
+- my_name: usd_banks_credit_total_return_pct
+  source: localfile
+  symbol: usd_banks_credit_total_return_pct
+  path: market.csv
+  description: 'US bank credit daily total return. One-session simple total return.
+    SYNTHETIC. 100 * (usd_banks_credit_tr(t) / usd_banks_credit_tr(previous weekday)
+    - 1). First date missing. Precomputed return: use Measure Level. Research symbol:
+    usd_banks_credit; field: total_return_pct.'
+  unit: '%'
+- my_name: usd_banks_credit_excess_return_pct
+  source: localfile
+  symbol: usd_banks_credit_excess_return_pct
+  path: market.csv
+  description: 'US bank credit daily excess return. Credit minus model Treasury return.
+    SYNTHETIC. Daily simple return of usd_banks_credit_tr minus daily simple return
+    of usd_banks_credit_treasury_tr, in percentage points. Same interval and currency,
+    model duration matched. First date missing. Use Measure Level. Not a ratio, spread
+    change, cash excess, or cumulative relative wealth. Research symbol: usd_banks_credit;
+    field: excess_return_pct.'
+  unit: '%'
+- my_name: usd_industrials_credit_tr
+  source: localfile
+  symbol: usd_industrials_credit_tr
+  path: market.csv
+  description: 'US industrial credit total return. USD, income reinvested, unhedged.
+    SYNTHETIC. Base 125 on 2010-01-04. Toy carry/duration model with fixed duration
+    6; no default losses, convexity or trading costs. Percentage change is synthetic
+    index return. Research symbol: usd_industrials_credit; field: total_return_index.'
+  unit: index
+- my_name: usd_industrials_credit_duration_years
+  source: localfile
+  symbol: usd_industrials_credit_duration_years
+  path: market.csv
+  description: 'US industrial credit spread duration. Constant model sensitivity.
+    SYNTHETIC. Fixed illustrative spread duration used in the toy credit total-return
+    model. Research symbol: usd_industrials_credit; field: spread_duration_years.'
+  unit: years
+- my_name: usd_industrials_credit_yield_pct
+  source: localfile
+  symbol: usd_industrials_credit_yield_pct
+  path: market.csv
+  description: 'US industrial credit model yield. USD 5Y Treasury yield plus OAS.
+    SYNTHETIC. Toy yield proxy: usd_5y_yield_pct + usd_industrials_oas_bp / 100. Not
+    a priced yield-to-worst or option valuation. Research symbol: usd_industrials_credit;
+    field: yield_pct.'
+  unit: '%'
+- my_name: usd_industrials_credit_treasury_tr
+  source: localfile
+  symbol: usd_industrials_credit_treasury_tr
+  path: market.csv
+  description: 'US industrial credit Treasury benchmark. USD, income reinvested, model
+    duration matched. SYNTHETIC. Base 100 on 2010-01-04. Toy Treasury benchmark using
+    the USD 5Y yield factor and the same fixed 6-year sensitivity as usd_industrials_credit.
+    Daily log return = prior yield / 100 / 252 - duration * yield change / 100. No
+    credit spread, residual noise, convexity, or actual bond replication. Research
+    symbol: usd_industrials_credit; field: treasury_benchmark_index.'
+  unit: index
+- my_name: usd_industrials_credit_total_return_pct
+  source: localfile
+  symbol: usd_industrials_credit_total_return_pct
+  path: market.csv
+  description: 'US industrial credit daily total return. One-session simple total
+    return. SYNTHETIC. 100 * (usd_industrials_credit_tr(t) / usd_industrials_credit_tr(previous
+    weekday) - 1). First date missing. Precomputed return: use Measure Level. Research
+    symbol: usd_industrials_credit; field: total_return_pct.'
+  unit: '%'
+- my_name: usd_industrials_credit_excess_return_pct
+  source: localfile
+  symbol: usd_industrials_credit_excess_return_pct
+  path: market.csv
+  description: 'US industrial credit daily excess return. Credit minus model Treasury
+    return. SYNTHETIC. Daily simple return of usd_industrials_credit_tr minus daily
+    simple return of usd_industrials_credit_treasury_tr, in percentage points. Same
+    interval and currency, model duration matched. First date missing. Use Measure
+    Level. Not a ratio, spread change, cash excess, or cumulative relative wealth.
+    Research symbol: usd_industrials_credit; field: excess_return_pct.'
+  unit: '%'
+- my_name: usd_broad_credit_tr
+  source: localfile
+  symbol: usd_broad_credit_tr
+  path: market.csv
+  description: 'US broad credit total return. USD, income reinvested, unhedged. SYNTHETIC.
+    Base 200 on 2010-01-04. Toy carry/duration model with fixed duration 5; no default
+    losses, convexity or trading costs. Percentage change is synthetic index return.
+    Research symbol: usd_broad_credit; field: total_return_index.'
+  unit: index
+- my_name: usd_broad_credit_duration_years
+  source: localfile
+  symbol: usd_broad_credit_duration_years
+  path: market.csv
+  description: 'US broad credit spread duration. Constant model sensitivity. SYNTHETIC.
+    Fixed illustrative spread duration used in the toy credit total-return model.
+    Research symbol: usd_broad_credit; field: spread_duration_years.'
+  unit: years
+- my_name: usd_broad_credit_yield_pct
+  source: localfile
+  symbol: usd_broad_credit_yield_pct
+  path: market.csv
+  description: 'US broad credit model yield. USD 5Y Treasury yield plus OAS. SYNTHETIC.
+    Toy yield proxy: usd_5y_yield_pct + usd_broad_credit_oas_bp / 100. Not a priced
+    yield-to-worst or option valuation. Research symbol: usd_broad_credit; field:
+    yield_pct.'
+  unit: '%'
+- my_name: usd_broad_credit_treasury_tr
+  source: localfile
+  symbol: usd_broad_credit_treasury_tr
+  path: market.csv
+  description: 'US broad credit Treasury benchmark. USD, income reinvested, model
+    duration matched. SYNTHETIC. Base 100 on 2010-01-04. Toy Treasury benchmark using
+    the USD 5Y yield factor and the same fixed 5-year sensitivity as usd_broad_credit.
+    Daily log return = prior yield / 100 / 252 - duration * yield change / 100. No
+    credit spread, residual noise, convexity, or actual bond replication. Research
+    symbol: usd_broad_credit; field: treasury_benchmark_index.'
+  unit: index
+- my_name: usd_broad_credit_total_return_pct
+  source: localfile
+  symbol: usd_broad_credit_total_return_pct
+  path: market.csv
+  description: 'US broad credit daily total return. One-session simple total return.
+    SYNTHETIC. 100 * (usd_broad_credit_tr(t) / usd_broad_credit_tr(previous weekday)
+    - 1). First date missing. Precomputed return: use Measure Level. Research symbol:
+    usd_broad_credit; field: total_return_pct.'
+  unit: '%'
+- my_name: usd_broad_credit_excess_return_pct
+  source: localfile
+  symbol: usd_broad_credit_excess_return_pct
+  path: market.csv
+  description: 'US broad credit daily excess return. Credit minus model Treasury return.
+    SYNTHETIC. Daily simple return of usd_broad_credit_tr minus daily simple return
+    of usd_broad_credit_treasury_tr, in percentage points. Same interval and currency,
+    model duration matched. First date missing. Use Measure Level. Not a ratio, spread
+    change, cash excess, or cumulative relative wealth. Research symbol: usd_broad_credit;
+    field: excess_return_pct.'
+  unit: '%'
+- my_name: usd_em_hy_tr
+  source: localfile
+  symbol: usd_em_hy_tr
+  path: market.csv
+  description: 'USD EM sovereign HY total return. USD, income reinvested, unhedged.
+    SYNTHETIC. Base 300 on 2010-01-04. Toy carry/duration model with fixed duration
+    6.5; no default losses, convexity or trading costs. Percentage change is synthetic
+    index return. Research symbol: usd_em_hy; field: total_return_index.'
+  unit: index
+- my_name: usd_em_hy_duration_years
+  source: localfile
+  symbol: usd_em_hy_duration_years
+  path: market.csv
+  description: 'USD EM sovereign HY spread duration. Constant model sensitivity. SYNTHETIC.
+    Fixed illustrative spread duration used in the toy credit total-return model.
+    Research symbol: usd_em_hy; field: spread_duration_years.'
+  unit: years
+- my_name: usd_em_hy_yield_pct
+  source: localfile
+  symbol: usd_em_hy_yield_pct
+  path: market.csv
+  description: 'USD EM sovereign HY model yield. USD 5Y Treasury yield plus OAS. SYNTHETIC.
+    Toy yield proxy: usd_5y_yield_pct + usd_em_hy_oas_bp / 100. Not a priced yield-to-worst
+    or option valuation. Research symbol: usd_em_hy; field: yield_pct.'
+  unit: '%'
+- my_name: usd_em_hy_treasury_tr
+  source: localfile
+  symbol: usd_em_hy_treasury_tr
+  path: market.csv
+  description: 'USD EM sovereign HY Treasury benchmark. USD, income reinvested, model
+    duration matched. SYNTHETIC. Base 100 on 2010-01-04. Toy Treasury benchmark using
+    the USD 5Y yield factor and the same fixed 6.5-year sensitivity as usd_em_hy.
+    Daily log return = prior yield / 100 / 252 - duration * yield change / 100. No
+    credit spread, residual noise, convexity, or actual bond replication. Research
+    symbol: usd_em_hy; field: treasury_benchmark_index.'
+  unit: index
+- my_name: usd_em_hy_total_return_pct
+  source: localfile
+  symbol: usd_em_hy_total_return_pct
+  path: market.csv
+  description: 'USD EM sovereign HY daily total return. One-session simple total return.
+    SYNTHETIC. 100 * (usd_em_hy_tr(t) / usd_em_hy_tr(previous weekday) - 1). First
+    date missing. Precomputed return: use Measure Level. Research symbol: usd_em_hy;
+    field: total_return_pct.'
+  unit: '%'
+- my_name: usd_em_hy_excess_return_pct
+  source: localfile
+  symbol: usd_em_hy_excess_return_pct
+  path: market.csv
+  description: 'USD EM sovereign HY daily excess return. Credit minus model Treasury
+    return. SYNTHETIC. Daily simple return of usd_em_hy_tr minus daily simple return
+    of usd_em_hy_treasury_tr, in percentage points. Same interval and currency, model
+    duration matched. First date missing. Use Measure Level. Not a ratio, spread change,
+    cash excess, or cumulative relative wealth. Research symbol: usd_em_hy; field:
+    excess_return_pct.'
+  unit: '%'
 - my_name: usd_equity_tr
   source: localfile
   symbol: usd_equity_tr
@@ -194,7 +507,8 @@
   path: market.csv
   description: 'usd ig tr rebased. USD wealth, common start 2015-01-02 = 100. SYNTHETIC.
     Upstream shaping: 100 * usd_ig_tr(t) / usd_ig_tr(2015-01-02); earlier dates missing.
-    Level comparisons describe growth since that date.'
+    Level comparisons describe growth since that date. Research symbol: usd_ig; field:
+    total_return_index_rebased_100.'
   unit: index
 - my_name: usd_hy_tr_100
   source: localfile
@@ -202,7 +516,8 @@
   path: market.csv
   description: 'usd hy tr rebased. USD wealth, common start 2015-01-02 = 100. SYNTHETIC.
     Upstream shaping: 100 * usd_hy_tr(t) / usd_hy_tr(2015-01-02); earlier dates missing.
-    Level comparisons describe growth since that date.'
+    Level comparisons describe growth since that date. Research symbol: usd_hy; field:
+    total_return_index_rebased_100.'
   unit: index
 - my_name: usd_equity_tr_100
   source: localfile

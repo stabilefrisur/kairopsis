@@ -1,6 +1,6 @@
 # Analysis controls and calculation contract
 
-Implementation specification, 6 October 2026.
+Implementation specification, 6 October 2026. Editor/reference update: 11 October 2026.
 
 ## Objective
 
@@ -45,16 +45,20 @@ versions below remain unchanged.
 
 ### One sequence in Library and Investigation
 
-Use shared control rendering/state rules for the analytical settings in both
-surfaces. Preserve the current Library preview workspace and staged-series flow;
-this is an editor cleanup, not a new application shell.
+Library creation/editing and monitoring links open one Analysis editor at
+`/analyses/new` or `/analyses/{id}`. Name, rationale, calculation and monitoring
+share one draft. Changes update the chart automatically; a visible unsaved state,
+Save changes and Discard changes control persistence. Inline Series edits remain
+staged until the atomic Analysis bundle save. Save to Idea captures the current
+draft independently of saving its Library definition. Older Library edit URLs
+redirect to this editor. Data Series retain their query/preview editor.
 
 **Inputs → Measure → Scale inputs → Compare → Historical context**
 
 | Section | Controls | Behaviour |
 | --- | --- | --- |
 | Inputs | Type: Standalone / Pair; one or two Data Series | Type controls input count; it is not stored as a second competing calculation field |
-| Measure | Level / Absolute change / Percentage change; Frequency: Daily / Weekly / Monthly | Measure applies to each input before comparison; Frequency remains visible because it also controls risk estimation and reported level-result changes |
+| Measure | Level / Change / Percentage change; Frequency: Daily / Weekly / Monthly | Measure applies to each input before comparison; Frequency remains visible because it also controls risk estimation and reported level-result changes |
 | Scale inputs | Method: None / Volatility / Beta to reference / Value at Risk / Expected Shortfall | Available for every input measure; None hides inactive calibration controls |
 | Compare | Difference / Ratio / Regression residual | Shown for Pair only; regression additionally shows Fitting window |
 | Historical context | Reference history; Output scale: Original units / Z-score | Both output scales available for every calculation and measure; show underlying magnitude with a standardized result |
@@ -78,8 +82,8 @@ Each active scaling definition exposes:
 
 - Reference series: This series itself / a named available Data Series. For
   shared settings, “Each series itself” means a separate self-reference per input.
-- Estimate risk from: Follow input measure / Absolute changes / Percentage
-  changes. Follow input measure resolves to absolute changes for Level and
+- Estimate risk from: Follow input measure / Changes / Percentage
+  changes. Follow input measure resolves to changes for Level and
   otherwise follows the selected measure. Display that resolved meaning beside
   the control. This preserves automatic defaults while allowing explicit choices.
 - Estimation history, using the existing period options.
@@ -179,7 +183,7 @@ For input i at eligible date t, let b be its existing backward-only baseline for
 Frequency. Define numerator n_i(t):
 
 - Level: A_i(t), in the supplied unit U_i.
-- Absolute change: A_i(t) − A_i(b), in U_i.
+- Change: A_i(t) − A_i(b), in U_i.
 - Percentage change: 100 × (A_i(t)/A_i(b) − 1), in percentage points of relative
   change, displayed using the existing `%` convention. Baseline must be positive.
 
@@ -272,7 +276,7 @@ Examples establishing the convention:
 - Level 450 bp / absolute-change SD 30 bp = 15 risk units.
 - Level 450 bp / percentage-change SD 5% = 90 bp/%; percentage changes are stored
   numerically as 5, not 0.05. No hidden factor of 100.
-- Absolute change 20 bp / percentage-change SD 5% = 4 bp/%.
+- Change 20 bp / percentage-change SD 5% = 4 bp/%.
 - Percentage change 2% / absolute-change SD 10 bp = 0.2 %/bp.
 - Level 450 bp / beta 2 estimated from target/reference percentage changes =
   225 bp, because that beta is dimensionless.
@@ -291,9 +295,14 @@ difference instead of inventing an additional method whitelist.
   negative or very small nonzero denominator remains inspectable with its value
   and sign visible; nonfinite arithmetic is unavailable.
 - Regression residual: fit u_A = a + b × u_B on eligible prior fitting-window
-  observations, excluding the latest observation, and return
-  x(t) = u_A(t) − (a + b × u_B(t)). Retain the current intercept fit, sample/coverage
-  requirements and descriptive retrospective residual-history convention.
+  observations and return x(t) = u_A(t) − (a + b × u_B(t)). `fit_mode=current`
+  (As-of window, legacy default) excludes latest and applies that fit throughout.
+  `fit_mode=rolling` fits separately before each date; the current observation
+  is excluded from its own fit. New UI definitions start with rolling fitting.
+  Retain intercept OLS, sample/coverage requirements and descriptive meaning.
+  Every rolling point retains its fit coefficients, R², count and sample dates;
+  the top-level fit and scatter line describe the latest fit. Unavailable latest
+  fits do not erase valid earlier fits. All-history rolling fits expand.
 
 Ratio units are the quotient; regression residual units are those of u_A. A
 negative ratio or residual does not by itself say which exposure is attractive.
@@ -306,10 +315,22 @@ reference sample from eligible completed x values within Reference history,
 excluding the latest observation. Compute z(t) = (x(t) − mean(x_history)) /
 sample_SD(x_history). Retain current minimum history and zero-dispersion handling.
 
-Use the current reference throughout the displayed history, preserving the
-current retrospective convention. Preserve unstandardized x values and unit in
-the result and exports. Reference standardization follows the relationship;
-it never standardizes inputs separately.
+`reference_mode` selects As-of window (`current`, backward-compatible default),
+Rolling window (`rolling`, selected for newly created UI Analyses), or Fixed dates
+(`fixed`, inclusive `reference_start`/`reference_end`). As-of uses one current
+prior-history sample throughout. Rolling excludes each date from its own prior
+calendar window and retains each point's reference estimate. Fixed uses the
+specified calendar sample throughout; an end on/after latest makes reference
+results unavailable. Minimum history and dispersion rules apply to every sample.
+Retrieval includes rolling reference, regression-fit and risk warmup in pipeline
+order, or an older fixed reference period.
+
+Percentile compares unstandardized results within the latest point's reference;
+historical scores with different rolling baselines are not pooled for rank.
+Original units retain plotted values while reference choices affect percentile
+and eligibility. Regression fitting mode is independent of reference mode.
+Preserve unstandardized results and per-point rolling reference evidence in JSON
+and CSV. Reference standardization follows the relationship, never its inputs.
 
 Z-score availability does not certify stationarity, denominator stability or
 mean reversion. The skill and contextual help explain those distinctions.

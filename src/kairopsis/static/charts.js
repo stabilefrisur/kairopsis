@@ -1,5 +1,7 @@
 const periodText = value => value === "all" ? "Longest available history" : value < 1 ? `${Math.round(value * 12)} months` : `${value} ${value === 1 ? "year" : "years"}`;
 const periodValue = value => value === "all" ? "all" : Number(value);
+const referenceText = s => s.reference_mode === "fixed" ? `Fixed dates: ${s.reference_start} to ${s.reference_end}` :
+  `${periodText(s.history_years)} · ${s.reference_mode === "rolling" ? "Rolling window" : "As-of window"}`;
 /* Evidence rendering and image capture share the same resolved evaluation. */
 const esc = (value) =>
   String(value ?? "").replace(
@@ -52,11 +54,11 @@ function analysisFormula(d, inputs = d.inputs) {
   const s = d.settings, frequency = {day: "daily", week: "weekly", month: "monthly"}[s.horizon];
   const bindings = [...(inputs || []), ...(d.references || []), ...(typeof state !== "undefined" ? state.catalogue?.series || [] : [])];
   const legs = (inputs || []).map((b, i) => {
-    let text = `${b.name} ${s.measure === "return" ? `${frequency} percentage change` : s.measure === "change" ? `${frequency} absolute change` : "level"}`;
+    let text = `${b.name} ${s.measure === "return" ? `${frequency} percentage change` : s.measure === "change" ? `${frequency} change` : "level"}`;
     const r = s.risk_overrides?.[i] || s.risk_adjustment;
     if (r && r.method !== "none") {
       const ref = bindings.find(b => b.id === (r.reference_id || (inputs || [])[i]?.id))?.name || "this series";
-      const basis = effectiveRiskMeasure(s, r) === "return" ? "percentage changes" : "absolute changes";
+      const basis = effectiveRiskMeasure(s, r) === "return" ? "percentage changes" : "changes";
       const estimator = r.method === "volatility" ? `${r.weighting === "exponential" ? "exponentially weighted " : ""}SD` : r.method === "beta" ? "signed beta" : riskMethodNames[r.method];
       text += ` / ${estimator} of prior ${frequency} ${ref} ${basis} (${periodText(r.lookback_years)})`;
     }
@@ -64,7 +66,7 @@ function analysisFormula(d, inputs = d.inputs) {
   });
   let text = d.calculation === "level" ? legs[0] : d.calculation === "regression" ? `Residual of (${legs[0]}) fitted on (${legs[1]})` : `(${legs[0]}) ${d.calculation === "ratio" ? "÷" : "−"} (${legs[1]})`;
   if (d.calculation === "ratio" && s.measure !== "level") text = "Ratio of changes: " + text;
-  return s.standardization === "zscore" ? `Z-score of ${text}; ${periodText(s.history_years)} prior result reference` : text;
+  return s.standardization === "zscore" ? `Z-score of ${text}; ${referenceText(s)}` : text;
 }
 function analysisInterpretation(d) {
   if (d.settings.standardization === "zscore") return "Positive Z-score: the completed result exceeds its prior reference mean. Inspect the unstandardized magnitude and inputs; historical distance alone does not establish attractiveness.";
@@ -80,7 +82,7 @@ function riskDescription(e) {
   return e.definition.inputs.map((s, i) => {
     const r = settings.risk_overrides?.[i] || settings.risk_adjustment;
     const ref = bindings.find(b => b.id === r?.reference_id) || s;
-    return `${s.name}: ${settings.measure === "level" ? "level numerator" : settings.horizon + (settings.measure === "return" ? " percentage change" : " absolute change")} · ${riskMethodNames[r?.method || "none"]}${r && r.method !== "none" ? ` / ${ref.name}; estimate from ${settings.horizon} ${effectiveRiskMeasure(settings, r) === "return" ? "percentage" : "absolute"} changes` : ""} · ${(e.input_units || [])[i] || s.unit}`;
+    return `${s.name}: ${settings.measure === "level" ? "level numerator" : settings.horizon + (settings.measure === "return" ? " percentage change" : " change")} · ${riskMethodNames[r?.method || "none"]}${r && r.method !== "none" ? ` / ${ref.name}; estimate from ${settings.horizon} ${effectiveRiskMeasure(settings, r) === "return" ? "percentage changes" : "changes"}` : ""} · ${(e.input_units || [])[i] || s.unit}`;
   });
 }
 function chartFootnote(e, display = null) {
@@ -110,10 +112,10 @@ function chartFootnote(e, display = null) {
   }
   if (e.fit && display?.view !== "underlying")
     lines.push(
-      `Regression fit: ${dateText(e.fit.start)}–${dateText(e.fit.end)}`,
+      `Regression · ${settings.fit_mode === "rolling" ? "Rolling fits; latest" : "As-of fit"}: ${dateText(e.fit.start)}–${dateText(e.fit.end)}`,
     );
   if (settings.standardization === "zscore" && display?.view !== "underlying" && display?.view !== "changes" && display?.view !== "scatter")
-    lines.push(`Z-score · ${periodText(settings.history_years)} prior reference`);
+    lines.push(`Z-score · ${referenceText(settings)}`);
   return lines;
 }
 function detailList(items) {
@@ -157,13 +159,14 @@ function evidenceDetails(e, originalImage = "", display = null) {
         ["R²", e.fit.r_squared?.toFixed(3) ?? "Unavailable"],
         ["Observations used", e.fit.sample_count],
         ["Fitted period", `${dateText(e.fit.start)}–${dateText(e.fit.end)}`],
+        ["Chart fits", settings.fit_mode === "rolling" ? "Each residual uses its own prior fit; coefficients above and scatter line describe the latest fit" : "Current fit applied throughout the chart"],
       ])}`
     : "";
   const z = e.standardization_estimate;
   const standardizationDetails = z ? `<h3 class="disclosure-heading">Z-score reference</h3>${detailList([
     ["Mean", number(z.mean, z.unit)], ["Sample standard deviation", number(z.standard_deviation, z.unit)],
     ["Observations used", z.sample_count], ["Reference period", `${dateText(z.start)}–${dateText(z.end)}`],
-    ["Chart baseline", "Current reference applied throughout; latest observation excluded"],
+    ["Chart baseline", settings.reference_mode === "rolling" ? "Each point uses its own prior window; mean and sample SD above describe the latest point" : settings.reference_mode === "fixed" ? "Selected calendar reference applied throughout" : "Current reference applied throughout; latest observation excluded"],
   ])}` : "";
   const rows = e.points
     .slice(-30)
@@ -197,7 +200,7 @@ function evidenceDetails(e, originalImage = "", display = null) {
             ],
           ]
         : []),
-      ["Reference history", `${periodText(settings.history_years)}`],
+      ["Reference period", referenceText(settings)],
       ["Formula", analysisFormula(e.definition)],
       ["Output units", e.unit],
       ["Calculation contract", settings.calculation_contract || "input-pipeline-v1"],
@@ -210,7 +213,7 @@ function evidenceDetails(e, originalImage = "", display = null) {
         return options?.method !== "none" ? [["Estimation basis", `${r.estimation_measure || effectiveRiskMeasure(settings, options)}; cutoff ${dateText(r.cutoff)}`], ["Estimation settings", `${periodText(options.lookback_years)}; ${options.method === "volatility" ? options.weighting + (options.weighting === "exponential" ? "; half-life " + options.half_life + " sessions" : "") : ["var", "es"].includes(options.method) ? options.confidence + "% confidence; downside " + options.downside : "intercept OLS"}`], ["Estimated scale", `${r.scale ?? "Unavailable"}; ${r.sample_count} observations; ${dateText(r.start)}–${dateText(r.end)}`]] : [];
       }),
       ...(e.definition.calculation === "regression"
-        ? [["Fitting window", `${periodText(settings.fit_years)}`]]
+        ? [["Fitting period", settings.fit_mode === "rolling" ? "Rolling window" : "As-of window"], ["Fitting history", `${periodText(settings.fit_years)}`]]
         : []),
     ],
   )}${fitDetails}${standardizationDetails}<h3 class="disclosure-heading">Data and quality</h3>${detailList(
@@ -238,6 +241,8 @@ async function copyData(element) {
     "Chart date",
     `Calculated ${e.unit}`,
     ...(e.standardization_estimate ? [`Before standardization (${e.standardization_estimate.unit})`] : []),
+    ...(e.definition.settings.standardization === "zscore" && e.definition.settings.reference_mode === "rolling" ? ["Reference mean", "Reference SD", "Reference count", "Reference start", "Reference end"] : []),
+    ...(e.definition.calculation === "regression" && e.definition.settings.fit_mode === "rolling" ? ["Fit intercept", "Fit slope", "Fit R²", "Fit count", "Fit start", "Fit end"] : []),
     ...e.definition.inputs.flatMap((s) => [
       `${s.name} (${s.unit})`,
       "Source date",
@@ -248,6 +253,8 @@ async function copyData(element) {
     p.date,
     p.value,
     ...(e.standardization_estimate ? [p.unstandardized_value] : []),
+    ...(e.definition.settings.standardization === "zscore" && e.definition.settings.reference_mode === "rolling" ? [p.reference_estimate?.mean, p.reference_estimate?.standard_deviation, p.reference_estimate?.sample_count, p.reference_estimate?.start, p.reference_estimate?.end] : []),
+    ...(e.definition.calculation === "regression" && e.definition.settings.fit_mode === "rolling" ? [p.fit_estimate?.intercept, p.fit_estimate?.slope, p.fit_estimate?.r_squared, p.fit_estimate?.sample_count, p.fit_estimate?.start, p.fit_estimate?.end] : []),
     ...p.inputs.flatMap((value, i) => [value, p.observed_on[i]]),
     ...(hasTransformedInputs(e) ? e.definition.inputs.flatMap((s, i) => [p.transformed_inputs[i], p.risk_scales[i], p.period_start[i]]) : []),
   ]);
@@ -284,7 +291,7 @@ async function plotEvidence(element, e, display, exporting = false) {
   const measured = p => p.transformed_inputs?.length ? p.transformed_inputs : p.inputs;
   const inputUnits = e.input_units?.length ? e.input_units : e.definition.inputs.map(s => s.unit);
   if (display.view === "scatter" && e.definition.calculation === "regression") {
-    const p = points.filter((p) => p.eligible && measured(p).every((v) => v != null));
+    const p = points.filter(p => measured(p).every(v => v != null) && p.observed_on.every(d => d === p.date) && ![0, 6].includes(new Date(p.date + "T12:00:00Z").getUTCDay()));
     traces.push({
       x: p.map((p) => measured(p)[1]),
       y: p.map((p) => measured(p)[0]),
@@ -301,7 +308,7 @@ async function plotEvidence(element, e, display, exporting = false) {
           e.fit.intercept + e.fit.slope * e.fit.x_max,
         ],
         mode: "lines",
-        name: "Selected fit",
+        name: e.definition.settings.fit_mode === "rolling" ? "Latest fit" : "Selected fit",
         line: { color: "#9180a8" },
       });
     xTitle = `${e.definition.inputs[1].name} (${inputUnits[1]})`;

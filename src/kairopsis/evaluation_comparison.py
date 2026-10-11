@@ -2,7 +2,7 @@
 from math import isclose
 from typing import cast
 from .analytics import condition_rules
-from .periods import period_start
+from .references import reference_bounds
 from .models import Evaluation, MetricPoint
 
 
@@ -62,8 +62,9 @@ def compare(current: Evaluation, baseline: Evaluation | None) -> Evaluation:
             delta = fixed - baseline.current
             fixed_values = {point.date: cast(float, (point.transformed_inputs or point.inputs)[0]) - baseline.fit.intercept - baseline.fit.slope * cast(float, (point.transformed_inputs or point.inputs)[1])
                 for point in current.points if point.eligible and all(v is not None for v in (point.transformed_inputs or point.inputs))}
-            history = [value for day, value in fixed_values.items() if current.observation_date and
-                period_start(current.observation_date, current.definition.settings.history_years) <= day < current.observation_date]
+            assert current.observation_date is not None
+            start, end = reference_bounds(current.definition.settings, current.observation_date)
+            history = [value for day, value in fixed_values.items() if start <= day <= end < current.observation_date]
             percentile = (100 * (sum(v < fixed for v in history) + .5 * sum(v == fixed for v in history)) / len(history)) if len(history) >= current.definition.settings.minimum_history else None
             change = fixed if current.definition.settings.measure != "level" else fixed - fixed_values[current.change_start] if current.change_start in fixed_values else None
             fixed_reasons, fixed_keys = condition_rules(current.definition, current.unit, percentile, change, current.eligible)

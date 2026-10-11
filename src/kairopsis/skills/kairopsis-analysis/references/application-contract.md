@@ -1,6 +1,6 @@
 # Mapping an Analysis to the current application
 
-This is the contract inspected on 7 October 2026. Source checkouts and installed
+This is the contract inspected on 11 October 2026. Source checkouts and installed
 distributions bearing the same development version may have different features.
 For existing evidence, resolve the captured contract and settings first. For new
 or revised definitions, inspect the running `/openapi.json`, installed models and
@@ -29,7 +29,7 @@ validation, revision handling and consistency checks.
 | --- | --- | --- |
 | Inspect series and analyses | `GET /api/library` | Discover actual IDs, definitions and revisions |
 | Preview a series query | `POST /api/library/series/preview` | Body contains `series` and `period`; inspect raw observations/metadata |
-| Preview a draft analysis | `POST /api/library/analyses/preview` | Body contains `analysis`, optional `series_drafts`, and `period`; no Library save |
+| Preview a draft analysis | `POST /api/library/analyses/preview` | Body contains `analysis`, optional `series_drafts`, `period`, and `retain` (default false); retain stores an Evaluation for Idea capture, never a Library definition |
 | Preview changes to an existing analysis | `POST /api/analyses/{key}/preview` | Settings overrides; inspect schema/implementation for accepted shape |
 | Save an analysis | `POST /api/library/analyses` | Save a definition referencing existing series |
 | Save analysis with staged series | `POST /api/library/analyses/bundle` | `analysis`, `series_drafts`, `base_revisions`; preserve concurrency checks |
@@ -53,13 +53,15 @@ separate the latest attempt's outcome from the older displayed Evaluation.
 | Standalone | `calculation: "level"`, one `series_ids` entry | The internal calculation name does not force Measure Level |
 | Pair | `calculation: "difference"`, `"ratio"` or `"regression"`, two ordered IDs | IDs must differ; first is minuend/numerator/dependent input |
 | Economic Rationale | `economic_rationale` | Optional text alongside the definition; [read/write and evidence semantics](#economic-rationale) |
-| Input measure | `settings.measure: "level"`, `"change"`, `"return"` | `return` means percentage change of the supplied values; shared across both inputs |
+| Input measure | `settings.measure: "level"`, `"change"`, `"return"` | `change` is the signed difference in original units, never an absolute value; `return` means percentage change of the supplied values; shared across both inputs |
 | Frequency | `settings.horizon: "day"`, `"week"`, `"month"` | Also sets completed-result change interval when Measure is Level |
 | Calculation contract | `settings.calculation_contract: "input-pipeline-v1"` or `"input-pipeline-v2"` | Omitted means v1; new callers should explicitly request v2 |
 | Result standardization | `settings.standardization: "none"` or `"zscore"` | Applied after calculation; all v2 combinations supported |
 | Historical comparison | `settings.history_years` | Reference for percentile and result Z-score |
+| Reference mode | `settings.reference_mode`: `current`, `rolling`, `fixed` | Missing means legacy `current`; new UI definitions select `rolling` |
+| Fixed reference dates | `settings.reference_start`, `settings.reference_end` | Both inclusive and ordered; required only for `fixed`; end must precede the latest observation |
 | Reference sample floor | `settings.minimum_history` | Eligible prior result observations; computational floor, not independent-sample adequacy |
-| Regression fit | `settings.fit_years` | Relevant to regression only |
+| Regression fit | `settings.fit_mode`, `settings.fit_years` | `current` (As-of window, legacy default) or `rolling`; relevant to regression only |
 | Shared input scaling | `settings.risk_adjustment` | A RiskAdjustment record applied to each input |
 | Per-input scaling | `settings.risk_overrides` | Empty uses shared settings; otherwise one record per input, replacing shared settings |
 | Monitoring | `monitored` | Separate from successfully defining or previewing the analysis |
@@ -136,7 +138,7 @@ with explicit dependencies, or a verified preview, according to the evidence.
 | Field | Values and purpose |
 | --- | --- |
 | `method` | `none`, `volatility`, `beta`, `var`, `es` |
-| `estimation_measure` | Null/omitted follows input measure; `change` or `return` chooses an independent risk basis in v2. Follow resolves Level to absolute changes. |
+| `estimation_measure` | Null/omitted follows input measure; `change` or `return` chooses an independent risk basis in v2. Follow resolves Level to changes. |
 | `reference_id` | Null uses this input itself; otherwise a discovered Data Series ID |
 | `lookback_years` | Estimation history, using the period values above |
 | `weighting` | `equal` or `exponential`; volatility only |
@@ -207,22 +209,48 @@ units or Comparison Basis does not transform observations.
 Risk samples end at the actual change numerator baseline; Level uses the nominal
 Frequency target (previous weekday, seven days earlier or previous clamped month).
 Risk moves are measured independently from the numerator and exclude the current
-Frequency interval. Level needs only its native current observation, without a
+Frequency interval. Risk is re-estimated at every chart date: finite lookbacks
+roll, while all-history samples expand. Level needs only its native current observation, without a
 change baseline for a reference-only estimator.
 Beta samples align both endpoints. Near-zero beta, zero variance, nonpositive
 tail scales, inadequate or stale estimation samples produce unavailable values.
 All-history estimates use common eligible history according to the engine's
 rules, not an unlimited economic history.
 
-Regression is fitted on eligible observations before the latest point. The
-current fit is then used retrospectively for plotted residual history. Z-score
-uses eligible prior result history excluding the latest point; its current mean
-and sample SD are applied throughout the chart. Neither chart is a historical
-point-in-time strategy backtest. Read fit, adjustment and standardization
-estimates and limitations returned by the preview.
+Regression uses intercept OLS on eligible aligned observations. `fit_mode=current`
+fits before the latest point and applies that fit retrospectively throughout.
+`fit_mode=rolling` fits before each point using its own preceding `fit_years`;
+all-history expands. Existing sample count, full-window coverage, freshness and
+constant-input rules apply to each fit. Missing fits leave unavailable residuals.
+Every rolling point retains `fit_estimate`; top-level `fit` and the scatter line
+describe the latest fit. Saved and copied CSV data retain per-point coefficients,
+R², counts and actual sample dates. Older definitions default to `current`;
+new UI definitions select `rolling`. Retrieval includes fitting warmup before
+the required residual/reference history, then risk and measurement warmup.
+Result reference mode controls Z-score timing:
 
-Percentile also excludes current and uses eligible prior result observations inside
-`history_years`, after alignment and transformations. Count this reference sample,
+- `current` (As-of window): prior `history_years` at the latest observation;
+  one mean and sample SD apply throughout the chart. Preserves older definitions.
+- `rolling` (Rolling window): each date uses its own preceding `history_years`,
+  excluding that date. Each point retains `reference_estimate` with sample
+  count, actual dates, mean and sample SD. Early insufficient/constant samples
+  produce unavailable scores. The top-level estimate describes the latest point.
+- `fixed` (Fixed dates): one inclusive calendar sample applies throughout;
+  `history_years` does not choose this sample. Both dates are required, and its
+  end must precede the latest observation. An unfinished reference is unavailable,
+  rather than silently shortened. Historical scores can use later information.
+
+Rolling standardization does not change the selected regression fitting mode.
+An As-of fit still uses later information for past residuals, even with rolling
+Z-scores. Rolling fit plus rolling standardization excludes each date from its
+own estimates; that does not by itself provide a strategy backtest. Read captured
+mode, fit, adjustment and standardization evidence before interpreting history.
+
+Percentile ranks the latest unstandardized completed result against eligible
+unstandardized results in its reference sample. It excludes current, including
+when rolling historical scores use different baselines. Original units retain
+their chart values; reference settings still govern rank and eligibility.
+All references apply after alignment and transformations. Count this reference sample,
 not plotted points: five plotted observations can supply four prior observations,
 and missing/ineligible/out-of-window points reduce it further. If retained evidence
 cannot establish the sample, report the count as unknown. Historical rank is not

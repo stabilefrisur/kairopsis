@@ -36,7 +36,7 @@ accounting for a historical relationship. These produce different evidence.
 | What compensation is quoted? | Standalone spread level | Expected return or compensation sufficient for the risk |
 | How much additional compensation does A offer? | Difference of comparable spread levels | Hedged profit after duration, currency and financing costs |
 | How large is A relative to B? | Ratio of meaningful levels | An investment-performance comparison when index bases are arbitrary |
-| Which market repriced more? | Difference of absolute changes | Relative shock size when normal variability differs |
+| Which market repriced more? | Difference of changes | Relative shock size when normal variability differs |
 | Which move was larger for that market? | Difference of each input's volatility-scaled changes | The standard deviation or risk of a long-short portfolio |
 | Which exposure performed better? | Difference of percentage changes in comparable total-return indices | Implementable funded portfolio P&L without weights and costs |
 | Did A depart from its usual relationship with B? | Regression residual on appropriate levels or changes/returns | Causal explanation or persistent alpha |
@@ -101,7 +101,7 @@ is price return; in a spread it is proportional repricing. A spread changing
 can be economically useful; approximate spread-driven return also needs spread
 duration.
 
-For yields/spreads that approach or cross zero, absolute changes often retain a
+For yields/spreads that approach or cross zero, changes often retain a
 clearer interpretation. Ordinary growth rates around zero can be explosive or
 undefined; check the engine's
 [baseline eligibility](application-contract.md#dates-and-estimation).
@@ -253,12 +253,23 @@ do not choose the economic Frequency, fit or risk-estimation windows.
 Before interpreting a displayed move or setting a movement threshold, resolve
 the returned [change-field meaning](application-contract.md#dates-and-estimation).
 
+For regression, choose As-of fitting to describe history against the latest
+relationship, or Rolling fitting for residuals against each date's prior
+relationship. Fitting history is independent of Z-score reference history.
+Rolling all-history fits expand; finite histories roll. Verify early sample
+coverage and the retained per-point fit before interpreting historical signals.
+
 ## Choose result standardization
 
 Retain original result units when absolute magnitude matters. Add a Z-score when
 the question concerns deviation from the result's own historical mean. Inspect
 the unstandardized result alongside it so an economically tiny deviation is not
 mistaken for a material opportunity.
+
+Choose As-of window for a common current baseline, Rolling window for prior-only
+standardization at each date, or Fixed dates for a named calendar sample. Preserve
+an existing choice when editing. Check the [timing contract](application-contract.md#dates-and-estimation),
+especially for current-fit regression residuals.
 
 An empirical percentile reports rank within the reference history; Z-score
 reports distance from its mean in SD units. Both depend on the chosen sample.
@@ -374,7 +385,7 @@ change in the completed level gap.
 
 Question: did HY widen more than IG relative to their own normal weekly moves?
 
-Use Difference, Absolute change, Weekly, each input's own volatility. Choose the
+Use Difference, Change, Weekly, each input's own volatility. Choose the
 risk lookback and weighting for the desired regime responsiveness. A positive
 result means a larger HY shock in own-volatility units. Optional final Z-score
 answers whether that difference itself is unusual. Neither statistic is the
@@ -406,7 +417,7 @@ record that shaping/capability requirement instead of substituting a daily ratio
 Question: which credit market's weekly widening used more of its own typical
 tail-widening scale?
 
-Use Difference, Absolute change, Weekly and ES with increasing values as downside
+Use Difference, Change, Weekly and ES with increasing values as downside
 for both long-credit interpretations. Match confidence and estimation conventions;
 inspect tail support and the actual scales. The result compares fractions of
 own tail widening, not portfolio ES. Use VaR instead if the question concerns a
@@ -419,7 +430,7 @@ Question: is HY spread high relative to its spread-change variability?
 Specify the intended ratio explicitly, such as current OAS / prior weekly
 spread-change SD. This retains a level numerator and uses change risk as its
 denominator. In v2 choose Standalone, Level, Weekly, Volatility, Each series
-itself, and Estimate risk from Absolute changes. Check the prior sample and scale.
+itself, and Estimate risk from Changes. Check the prior sample and scale.
 Switching the numerator to a weekly change would instead answer a shock-size question.
 
 ## Preview and retain the definition

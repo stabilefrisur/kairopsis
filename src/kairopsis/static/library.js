@@ -1,7 +1,7 @@
 /* Library drafts and ad-hoc evidence live in memory until an explicit Save. */
 function librarySeriesChoices() {
   const choices = new Map(state.catalogue.series.map(s => [s.id, s]));
-  if (page === "library") Object.values(state.stagedSeries || {}).forEach(s => choices.set(s.id, s));
+  if (["library", "chart"].includes(page)) Object.values(state.stagedSeries || {}).forEach(s => choices.set(s.id, s));
   return [...choices.values()];
 }
 function resetLibraryPreview() {
@@ -44,7 +44,7 @@ function retainedDrafts(draft = state.draft) {
 function librarySaveLabel(draft) {
   const count = retainedDrafts(draft).length;
   return count ? `Save analysis and ${count} series` :
-    state.catalogue.analyses.some(a => a.id === draft.id) ? "Save defaults" : "Save analysis";
+    state.catalogue.analyses.some(a => a.id === draft.id) ? "Save changes" : "Save analysis";
 }
 function librarySeriesActions(draft) {
   const retained = retainedSeries(draft);
@@ -217,6 +217,11 @@ function applyStagedSeries(form) {
     } else state.draft.series_ids[destination === "left" ? 0 : 1] = staged.draft.id;
   }
   document.querySelector("#library-series-dialog").close();
+  if (page === "chart") {
+    replaceInvestigationControls();
+    scheduleAnalysisPreview();
+    return;
+  }
   outdatedLibraryPreview();
   replaceLibraryEditor();
   document.querySelector("#library-form [name=left]")?.focus({preventScroll: true});
@@ -251,7 +256,7 @@ async function saveLibraryDraft(form) {
   } finally { state.librarySaving = false; controls.forEach(c => c.disabled = false); }
 }
 document.addEventListener("input", event => {
-  if (page !== "library") return;
+  if (!["library", "chart"].includes(page)) return;
   if (event.target.closest("#library-form")) {
     outdatedLibraryPreview();
     try { readLibraryDraft(); updateLibrarySummary(); } catch { /* Keep incomplete text editable. */ }
@@ -261,7 +266,7 @@ document.addEventListener("input", event => {
   }
 });
 document.addEventListener("change", async event => {
-  if (page !== "library") return;
+  if (!["library", "chart"].includes(page)) return;
   const control = event.target;
   try {
     if (control.id === "library-period") {
@@ -290,13 +295,12 @@ document.addEventListener("change", async event => {
   } catch (error) { notify(error.message); }
 }, true);
 document.addEventListener("click", async event => {
-  if (page !== "library") return;
+  if (!["library", "chart"].includes(page)) return;
   const control = event.target.closest("[data-action]");
   if (!control) return;
   const action = control.dataset.action;
   if (state.librarySaving && action.startsWith("library-")) { event.stopPropagation(); return; }
   if (["library-tab", "library-new", "library-edit", "library-cancel"].includes(action)) { resetLibraryPreview(); return; }
-  if (action === "use-exploratory") { outdatedLibraryPreview(); return; }
   if (!["library-preview", "inline-series", "stage-series", "stage-preview", "stage-cancel"].includes(action)) return;
   event.stopPropagation();
   control.disabled = true;
@@ -309,7 +313,7 @@ document.addEventListener("click", async event => {
   finally { control.disabled = false; }
 }, true);
 document.addEventListener("submit", async event => {
-  if (page !== "library" || !["library-form", "staged-series-form"].includes(event.target.id)) return;
+  if (!["library", "chart"].includes(page) || !["library-form", "staged-series-form"].includes(event.target.id)) return;
   event.preventDefault();
   event.stopPropagation();
   try {

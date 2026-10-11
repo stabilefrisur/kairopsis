@@ -33,6 +33,8 @@ function exploreAnalysisContext() {
 }
 function exploreStatusText() {
   if (explore.capture) return "Saved chart evidence";
+  const incomplete = explore.workspace.views.find(view => exploreDateProblem(view));
+  if (incomplete) return `${incomplete.name}: ${exploreDateProblem(incomplete)}`;
   if (!explore.workspace.collection.length) return "Add data from Library, then add a chart.";
   if (!explore.workspace.views.length) return {dirty: "Loading data…", previewing: "Loading data…", current: "Data loaded · Add a chart.", failed: "Could not load data. Check the error below, then retry."}[explore.status];
   return {dirty: "Changes pending · charts update automatically", previewing: "Updating charts…", current: "Charts up to date", failed: "Could not update charts. Check the error below, then retry."}[explore.status];
@@ -43,8 +45,10 @@ function exploreUpdateStatus() {
   document.querySelectorAll('[data-explore="capture"], [data-explore="capture-dialog"], [data-explore="export-png"], [data-explore="copy-png"]').forEach(button => button.disabled = explore.status !== "current" || button.dataset.explore !== "copy-png" && !explore.checked.size);
   document.querySelectorAll('[data-explore="preview"]').forEach(button => { button.disabled = explore.status === "previewing"; button.textContent = explore.status === "failed" ? "Retry update" : "Refresh data"; });
   document.querySelectorAll('.explore-result-state').forEach(node => {
-    if (!explore.capture) node.textContent = explore.status === "current" ? "" : explore.status === "failed" ? "Previous chart · update failed" : "Updating · previous chart shown";
+    if (!explore.capture) node.textContent = explore.status === "current" ? "" : explore.workspace.views.some(view => exploreDateProblem(view)) ? "Previous chart · complete date settings" : explore.status === "failed" ? "Previous chart · update failed" : "Updating · previous chart shown";
   });
+  const dateProblem = document.querySelector('.explore-date-problem');
+  if (dateProblem) { dateProblem.textContent = exploreDateProblem(exploreCurrentView()); dateProblem.hidden = !dateProblem.textContent; }
 }
 function exploreSchedulePreview() {
   clearTimeout(explore.previewTimer);
@@ -117,6 +121,60 @@ function exploreCalculationSummary(definition) {
   const scaling = settings.risk_overrides?.length ? "Custom input scaling" : risk && risk !== "none" ? `${{volatility: "Volatility", beta: "Beta", var: "VaR", es: "ES"}[risk] || risk} scaled` : "";
   return `${definition.inputs.map(input => input.name).join(", ")} · ${measure}${scaling ? ` · ${scaling}` : ""}${comparison ? ` · ${comparison}` : ""}${settings.standardization === "zscore" ? " · Z-score" : ""}`;
 }
+function exploreDateEnd(view, fallback = explore.workspace.as_of) {
+  return view.sample.end || view.as_of || fallback || explore.results.get(view.id)?.as_of || null;
+}
+function exploreDateProblem(view) {
+  if (!view) return "";
+  const end = exploreDateEnd(view), cutoff = view.as_of || explore.workspace.as_of;
+  if (view.pinned && !view.as_of) return "Choose a date for this chart.";
+  if (view.sample.end && cutoff && view.sample.end > cutoff) return "End date exceeds the data cutoff. Choose the chart date again.";
+  if (view.sample.start && end && view.sample.start > end) return "Start date must be on or before the end date.";
+  if (view.sample.interval_measure !== "level") {
+    if (!view.sample.interval_start) return "Choose a From date to calculate the change.";
+    if (end && view.sample.interval_start > end) return "From date must be on or before the comparison date.";
+  }
+  return "";
+}
+function exploreDateControls(view) {
+  const single = view.shape === "cross_section", interval = view.sample.interval_measure !== "level";
+  const custom = !!(view.as_of || view.sample.end || view.pinned), end = exploreDateEnd(view);
+  const workspaceDate = explore.workspace.as_of || explore.results.get(view.id)?.as_of;
+  const canCompare = single || view.family === "ranking" || interval;
+  return `<fieldset class="explore-dates"><legend>${single ? "Comparison" : "History period"}</legend>
+    ${canCompare ? exploreSelect("Values", "interval_measure", view.sample.interval_measure, [["level", single ? "Level on a date" : "Level"], ["change", "Change between dates"], ["return", "Percentage change"]]) : ""}
+    ${!single ? exploreInput("Start date (optional)", "start", view.sample.start, "date") : ""}
+    ${interval ? exploreInput("From", "interval_start", view.sample.interval_start, "date").replace('<input ', '<input required ') : ""}
+    ${exploreSelect(single ? interval ? "To" : "Date" : "End date", "date_source", custom ? "chart" : "workspace", [["workspace", "Follow workspace date"], ["chart", "Set chart date"]])}
+    ${custom ? exploreInput(single ? interval ? "To date" : "Comparison date" : "End date for this chart", "chart_date", end, "date").replace('<input ', '<input required ') : ""}
+    <p class="meta">${custom ? "This chart keeps its own date when the workspace date changes." : `Uses ${workspaceDate ? esc(dateText(workspaceDate)) : "today"}; follows changes to the workspace date.`}${!single ? " Leave start blank to use all loaded history." : ""}${interval ? " Changes compare the two endpoints." : ""}</p>
+    <p class="warning explore-date-problem" role="status" ${exploreDateProblem(view) ? "" : "hidden"}>${esc(exploreDateProblem(view))}</p>
+    <details data-details="date-matching"><summary>Missing dates</summary>${exploreSelect("When a date is missing", "date_policy", view.sample.date_policy, [["exact", "Leave missing"], ["backward", "Use an earlier observation"]])}
+      ${view.sample.date_policy === "backward" ? exploreInput("Look back at most (calendar days)", "maximum_age_days", view.sample.maximum_age_days, "number") : ""}
+      <p class="meta">${view.sample.date_policy === "backward" ? "Uses an earlier available date only within this limit. Actual dates remain in the observations table." : "Requires an observation on the requested date. Weekends and gaps stay missing."}</p>
+    </details></fieldset>`;
+}
+function exploreReadDates(view, data, changedControl) {
+  if (changedControl === "date_source" || changedControl === "chart_date") {
+    const end = exploreDateEnd(view);
+    view.pinned = data.get("date_source") === "chart";
+    view.as_of = view.pinned ? (changedControl === "date_source" ? end || new Date().toISOString().slice(0, 10) : data.get("chart_date") || null) : null;
+    view.sample.end = null;
+  }
+  if (data.has("start")) view.sample.start = data.get("start") || null;
+  if (data.has("interval_measure")) view.sample.interval_measure = data.get("interval_measure");
+  if (data.has("interval_start")) view.sample.interval_start = data.get("interval_start") || null;
+  if (view.sample.interval_measure === "level") view.sample.interval_start = null;
+  if (data.has("date_policy")) view.sample.date_policy = data.get("date_policy");
+  if (data.has("maximum_age_days")) view.sample.maximum_age_days = Number(data.get("maximum_age_days") || 0);
+  else if (changedControl === "date_policy" && view.sample.date_policy === "backward" && !view.sample.maximum_age_days) view.sample.maximum_age_days = 7;
+}
+function exploreDateSummary(view, asOf) {
+  const end = exploreDateEnd(view, asOf);
+  if (view.sample.interval_measure !== "level") return `${view.sample.interval_measure === "return" ? "Percentage change" : "Change"} from ${dateText(view.sample.interval_start)} to ${dateText(end)}`;
+  if (view.shape === "cross_section") return `Level on ${dateText(end)}`;
+  return `${view.sample.start ? "History from " + dateText(view.sample.start) : "History"} through ${dateText(end)}`;
+}
 function exploreEditorHTML() {
   const view = exploreCurrentView();
   if (!view) return '<aside class="explore-editor"><h2>Chart settings</h2><p class="meta">Add a chart to choose its series and date range.</p></aside>';
@@ -134,17 +192,14 @@ function exploreEditorHTML() {
     ${view.family === "heatmap" ? exploreSelect("Layout", "heatmap_layout", view.options.heatmap_layout, [["time", "Symbols × dates"], ["fields", "Symbols × fields"]]) : ""}
     ${view.family === "correlation" ? `${exploreSelect("Compare", "correlation_orientation", view.options.correlation_orientation, [["series", "Series across dates"], ["fields", "Fields across symbols"]])}<div class="fields">${exploreSelect("Coefficient", "correlation_method", view.options.correlation_method, [["pearson", "Pearson"], ["spearman", "Spearman"]])}${exploreSelect("Sample", "correlation_sample", view.options.correlation_sample, [["common", "Common complete"], ["pairwise", "Pairwise"]])}</div>` : ""}
     ${view.family === "scatter" ? `${exploreSelect("Size by", "size_by", view.size_by || "", [["", "None"], ...explore.workspace.collection.map(item => [item.id, exploreItemLabel(item)])])}${exploreSelect("Colour by", "color_by", view.color_by || "", [["", "None"], ["symbol", "Symbol"], ...(view.shape === "paired_date" ? explore.workspace.collection.map(item => [item.id, exploreItemLabel(item)]) : fields.map(field => [field, field])), ...attributes.map(name => [name, name])])}${exploreSelect("Facet by", "facet_by", view.facet_by || "", [["", "None"], ...attributes.map(name => [name, name])])}` : ""}
-    <fieldset><legend>Dates & filters</legend><label><input name="pinned" type="checkbox" ${view.pinned ? "checked" : ""}> Keep a fixed date for this chart</label>
-      ${exploreInput(view.pinned ? "Fixed date" : "Chart date (optional)", "as_of", view.as_of, "date")}
-      <div class="fields">${exploreInput("Start", "start", view.sample.start, "date")}${exploreInput("End", "end", view.sample.end, "date")}</div>
-      ${exploreSelect("Date matching", "date_policy", view.sample.date_policy, [["exact", "Exact"], ["backward", "Bounded backward"]])}
-      ${view.sample.date_policy === "backward" ? exploreInput("Maximum age (days)", "maximum_age_days", view.sample.maximum_age_days, "number") : ""}
-      ${view.family === "ranking" || view.shape === "cross_section" ? `${exploreInput("Interval start (optional)", "interval_start", view.sample.interval_start, "date")}${exploreSelect("Endpoint measure", "interval_measure", view.sample.interval_measure, [["level", "Level"], ["change", "Absolute change"], ["return", "Percentage change"]])}` : ""}
-      <details><summary>Filter symbols</summary>${members.map(member => `<label><input name="members" type="checkbox" value="${esc(member)}" ${view.sample.members == null || view.sample.members.includes(member) ? "checked" : ""}> ${esc(member)}</label>`).join("")}</details>
+    ${exploreDateControls(view)}
+    <details data-details="sample-filters"><summary>Filter observations</summary>
+      ${view.shape === "cross_section" && view.sample.start ? `${exploreInput("Existing filter: exclude dates before", "start", view.sample.start, "date")}<p class="meta">Clear to remove this earlier history filter. It is separate from the change's From date.</p>` : ""}
+      ${members.map(member => `<label><input name="members" type="checkbox" value="${esc(member)}" ${view.sample.members == null || view.sample.members.includes(member) ? "checked" : ""}> ${esc(member)}</label>`).join("")}
       ${view.sample.row_ids.length ? `<p class="meta">Restricted to ${view.sample.row_ids.length} drilldown rows.</p>${exploreButton("Release drilldown sample", "release-sample")}` : ""}
       ${view.sample.excluded_row_ids.length ? `<p class="meta">${view.sample.excluded_row_ids.length} observations excluded.</p>${exploreButton("Restore excluded rows", "restore-rows")}` : ""}
-    </fieldset>
-    <details><summary>Visible date range</summary><p class="meta">Zoom the display without changing the calculation history.</p><div class="fields">${exploreInput("Show from", "display_start", view.display_start, "date")}${exploreInput("Show through", "display_end", view.display_end, "date")}</div></details>
+    </details>
+    ${view.family === "history" || view.family === "heatmap" && view.options.heatmap_layout !== "fields" || view.family === "scatter" && view.shape !== "cross_section" ? `<details><summary>Zoom chart</summary><p class="meta">Display only; calculations keep the full history period above.</p><div class="fields">${exploreInput("Show from", "display_start", view.display_start, "date")}${exploreInput("Show through", "display_end", view.display_end, "date")}</div></details>` : ""}
     <div class="actions">${exploreButton("Duplicate chart", "duplicate")}${exploreButton("Move earlier", "earlier")}${exploreButton(view.width === 2 ? "Half width" : "Full width", "width")}${exploreButton("Remove chart", "remove-view", 'class="quiet"')}</div></fieldset></form></aside>`;
 }
 function exploreRowsHTML(result) {
@@ -157,6 +212,7 @@ function exploreViewHTML(view) {
   return `<section class="explore-view ${view.id === explore.selected ? "selected" : ""} ${view.width === 2 ? "wide" : ""}" data-view="${view.id}">
     <div class="explore-view-title"><h2>${exploreButton(esc(view.name), "select", `data-id="${view.id}" class="quiet" title="Edit this chart"`)}</h2><div class="actions">${explore.selectionMode ? `<label class="explore-select-chart"><input type="checkbox" data-capture-view="${view.id}" aria-label="Select ${esc(view.name)}" ${explore.checked.has(view.id) ? "checked" : ""}> Select</label>` : ""}${exploreButton("Copy PNG", "copy-png", `data-id="${view.id}" ${explore.status !== "current" ? "disabled" : ""}`)}${exploreButton(explore.workspace.layout === "focus" ? "Back to overview" : "Enlarge", explore.workspace.layout === "focus" ? "layout" : "focus-view", `data-id="${view.id}"`)}</div></div>
     <p class="meta explore-result-state">${result ? explore.capture ? `Saved evidence · <a href="/api/explore/captures/${explore.capture.idea_id}/${explore.capture.id}/images/${result.id}" download>Original PNG</a>` : explore.status === "current" ? "" : "Updating · previous chart shown" : "Waiting for data…"}</p>
+    ${result ? `<p class="meta explore-date-summary">${esc(exploreDateSummary(retainedView, result.as_of))}</p>` : ""}
     <div id="explore-plot-${view.id}" class="plot" role="img" aria-label="${esc(view.name)}"><p class="empty">${result ? "Drawing chart…" : "Updating chart…"}</p></div>
     ${result ? `<p class="meta">${esc(result.sample_meaning || {history: "One observation per series and date", cross_section: "One observation per symbol at the chosen date", paired_date: "Two series, one observation per matched date", panel: "One observation per symbol and date"}[retainedView.shape])} · ${result.rows.length} retained rows</p><details data-details="measure-details-${view.id}"><summary>Series and units</summary><p class="meta">${Object.entries(result.measures || {}).filter(([id]) => retainedView.measures.includes(id)).map(([, measure]) => `${esc(measure.symbol)} / ${esc(measure.field)}: ${esc(measure.unit)}${measure.meaning ? " · " + esc(measure.meaning) : ""}`).join("</p><p class=meta>")}</p></details>
       ${result.statistics?.size_legend ? `<div class="explore-size-legend" aria-label="Marker area legend"><strong>${esc(exploreAxisLabel(result.statistics.size_legend.field))}</strong>${result.statistics.size_legend.values.map((value, index) => `<span><i style="width:${result.statistics.size_legend.sizes[index]}px;height:${result.statistics.size_legend.sizes[index]}px"></i>${number(value, result.statistics.size_legend.unit)}</span>`).join("")}</div><p class="meta">Marker area represents the selected field. Missing or negative values use a constant marker and are reported.</p>` : ""}
@@ -174,7 +230,7 @@ function exploreRender() {
   main.innerHTML = `<div class="explore-top"><div><h1>${explore.capture ? "Saved exploration" : "Explore"}</h1><p id="explore-status" class="explore-status ${explore.status}" role="status" aria-live="polite">${exploreStatusText()}</p></div><div class="actions">${explore.capture ? exploreButton("Make an editable copy", "fork", 'class="primary"') : `${exploreButton("Refresh data", "preview", `${explore.status === "previewing" ? "disabled" : ""}`)}${exploreButton("Save workspace", "save", 'class="primary"')}${exploreButton("New workspace", "new")}`}</div></div>
     ${explore.conflict ? `<div class="explore-conflict" role="alert">${esc(explore.conflict)} Your draft is retained. ${exploreButton("Save as new workspace", "save-copy")}${exploreButton("Open saved version", "open-saved", `data-id="${workspace.id}"`)}</div>` : ""}
     ${explore.libraryChanges?.length && !explore.capture ? `<p class="explore-revisions">Library changes available: ${explore.libraryChanges.map(change => `${esc(exploreItemLabel(workspace.collection.find(item => item.id === change.collection_id)))} (saved version ${change.retained_revision}; ${change.current_revision == null ? "no longer in Library" : `Library version ${change.current_revision}`})`).join("; ")}. Review each series’ details to update its saved definition.</p>` : ""}
-    <div class="explore-context" aria-label="Workspace">${exploreInput("Workspace name", "workspace_name", workspace.name)}${exploreInput("Data through", "workspace_as_of", workspace.as_of, "date")}${explore.capture ? "" : `${exploreSelect("Saved workspaces", "saved_workspace", "", [["", "Choose workspace"], ...explore.saved.map(record => [record.id || record.workspace?.id, record.name || record.workspace?.name])])}${exploreButton("Open", "open")}`}</div>
+    <div class="explore-context" aria-label="Workspace">${exploreInput("Workspace name", "workspace_name", workspace.name)}${exploreInput("Workspace date", "workspace_as_of", workspace.as_of, "date")}${explore.capture ? "" : `${exploreSelect("Saved workspaces", "saved_workspace", "", [["", "Choose workspace"], ...explore.saved.map(record => [record.id || record.workspace?.id, record.name || record.workspace?.name])])}${exploreButton("Open", "open")}`}</div>
     ${explore.capture ? `<p class="meta">Saved ${esc(explore.capture.captured_at || explore.capture.created_at || "")} · <a href="${explore.capture.export_url || `/api/explore/captures/${explore.capture.idea_id}/${explore.capture.id}/export`}">Download evidence ZIP</a></p>` : ""}
     <div class="explore-layout ${workspace.layout}">${exploreCollectionHTML()}<div class="explore-canvas">${exploreChartToolbar()}
       ${workspace.layout === "focus" ? `<div class="explore-filmstrip" aria-label="Charts">${visibleViews.map(view => exploreButton(esc(view.name), "select", `data-id="${view.id}" aria-pressed="${view.id === explore.selected}"`)).join("")}</div>` : ""}<div class="explore-grid">${visibleViews.map(exploreViewHTML).join("") || '<section class="explore-view wide"><h2>Explore a relationship</h2><p class="empty">Add series from Library on the left, then choose a chart above.</p></section>'}</div></div>${exploreEditorHTML()}</div>
@@ -208,12 +264,39 @@ async function exploreRenderPlots() {
     const result = explore.results.get(view.id), plot = document.querySelector(`#explore-plot-${view.id}`);
     if (!result || !plot || explore.workspace.layout === "focus" && view.id !== explore.selected) continue;
     const statistics = result.statistics || {}, chart = exploreChartData(result.view || view, result), traces = chart.traces;
-    if (!traces.length || !result.rows.length) { plot.innerHTML = '<p class="empty">No available values for this sample. Inspect limitations and excluded rows.</p>'; continue; }
+    if (!traces.length || !result.rows.length) { const retained = result.view || view; plot.innerHTML = `<p class="empty">${retained.shape === "cross_section" ? `No matching observations for ${esc(dateText(exploreDateEnd(retained, result.as_of)))}. Check the comparison date, Missing dates or filters.` : "No available values for this period. Check the history dates and filters."}</p>`; continue; }
     plot.innerHTML = "";
+    plot.style.height = "";
+    const baseHeight = plot.clientHeight, plotHeight = baseHeight - chart.layout.margin.t - chart.layout.margin.b;
     await Plotly.newPlot(plot, traces, chart.layout, {responsive: true, displaylogo: false, modeBarButtonsToRemove: ["sendDataToCloud"]});
     if (generation !== explore.renderGeneration || !plot.isConnected) return;
+    // Let legend rows grow the card instead of consuming the plotting area.
+    const missingHeight = plotHeight - plot._fullLayout._size.h;
+    if (missingHeight > 1 && plot.querySelector(".legend")) {
+      const height = baseHeight + Math.ceil(missingHeight * (1 - chart.layout.legend.y));
+      plot.style.height = `${height}px`;
+      await Plotly.relayout(plot, {height, autosize: true});
+      if (generation !== explore.renderGeneration || !plot.isConnected) return;
+    }
     plot.on("plotly_click", event => explorePlotClick(result.view || view, result, event));
   }
+}
+function exploreLegendLabel(text) {
+  const context = document.createElement("canvas").getContext("2d");
+  context.font = "11px Segoe UI, Calibri, sans-serif";
+  const lines = []; let line = "";
+  // Bound individual labels as well as wrapping entries onto further rows.
+  // Splitting long identifiers also keeps legends inside narrow chart cards.
+  for (const word of String(text).split(/\s+/)) {
+    if (line && context.measureText(`${line} ${word}`).width > 200) { lines.push(line); line = ""; }
+    if (line) line += " ";
+    for (const character of word) {
+      if (context.measureText(line + character).width > 200) { lines.push(line); line = ""; }
+      line += character;
+    }
+  }
+  if (line) lines.push(line);
+  return lines.map(esc).join("<br>");
 }
 function exploreChartData(view, result) {
   const statistics = result.statistics || {}, traces = structuredClone(statistics.traces || []);
@@ -226,7 +309,7 @@ function exploreChartData(view, result) {
     else if (layout[key].title.text) layout[key].title.text = labelText(layout[key].title.text);
   }
   traces.forEach(trace => { if (trace.name) trace.name = labelText(trace.name); });
-  if (["history", "distribution"].includes(view.family)) layout.legend = {...layout.legend,
+  layout.legend = {...layout.legend,
     orientation: "h", x: 0, xanchor: "left", y: -.25, yanchor: "top", font: {size: 11}, groupclick: "togglegroup"};
   if (view.family === "distribution") {
     // Retained group metadata also identifies auxiliary traces in older captures.
@@ -270,6 +353,8 @@ function exploreChartData(view, result) {
     const title = colorbar.title;
     colorbar.title = typeof title === "string" ? {text: labelText(title)} : title || {text: ""};
   }
+  // Format only presentation copies; retained series labels and evidence stay exact.
+  traces.forEach(trace => { if (trace.name) trace.name = exploreLegendLabel(trace.name); });
   return {traces, layout};
 }
 function explorePlotClick(view, result, event) {
@@ -311,12 +396,8 @@ function exploreReadView(form, changedControl) {
       view.shape = view.family === "scatter" ? fields.size > 1 ? "cross_section" : "paired_date" : view.family === "ranking" ? "cross_section" : "history";
     }
   }
-  for (const name of ["as_of", "display_start", "display_end", "size_by", "color_by", "facet_by"]) view[name] = data.get(name) || null;
-  view.pinned = data.has("pinned");
-  if (view.pinned && !view.as_of) view.as_of = explore.workspace.as_of || explore.results.get(view.id)?.as_of || new Date().toISOString().slice(0, 10);
-  for (const name of ["start", "end", "interval_start"]) view.sample[name] = data.get(name) || null;
-  view.sample.date_policy = data.get("date_policy"); view.sample.maximum_age_days = Number(data.get("maximum_age_days") || 0);
-  view.sample.interval_measure = data.get("interval_measure") || "level";
+  for (const name of ["display_start", "display_end", "size_by", "color_by", "facet_by"]) if (data.has(name)) view[name] = data.get(name) || null;
+  exploreReadDates(view, data, changedControl);
   const members = data.getAll("members"), all = new Set(explore.workspace.collection.map(item => item.symbol));
   view.sample.members = members.length === all.size ? null : members;
   const axes = exploreFields(view), x = data.get("x"), y = data.get("y"), axis = data.get("axis");
@@ -340,6 +421,7 @@ function exploreReadView(form, changedControl) {
 async function explorePreview(refreshData = false) {
   clearTimeout(explore.previewTimer);
   if (explore.capture || !explore.workspace.collection.length) return;
+  if (explore.workspace.views.some(view => exploreDateProblem(view))) { explore.status = "dirty"; exploreUpdateStatus(); return; }
   if (explore.previewInFlight) { explore.previewQueued = true; explore.refreshQueued ||= refreshData; return; }
   refreshData ||= explore.refreshQueued;
   explore.refreshQueued = false;
@@ -487,9 +569,11 @@ function exploreAnalysisDialog(item = null) {
 }
 function exploreReplaceAnalysisDialog() {
   const draft = explore.analysisDraft, old = document.querySelector("#explore-dialog"), focused = document.activeElement;
+  const open = analysisDisclosureState(old);
   const selector = focused?.dataset.risk ? `[data-risk="${focused.dataset.risk}"][data-leg="${focused.dataset.leg}"]` : focused?.name ? `[name="${CSS.escape(focused.name)}"]` : null;
   const content = `<h2>${explore.analysisItem ? "Edit calculation" : "Add a calculation"}</h2><p class="meta">Use the Analysis controls to calculate a series for this workspace. Select the result in a chart to display it.</p><form id="explore-analysis-form">${exploreInput("Name", "name", draft.name)}<label>Economic rationale<textarea name="economic_rationale" maxlength="10000">${esc(draft.economic_rationale)}</textarea></label>${analysisControls(draft, [], exploreAnalysisContext())}<p class="meta">Need an input that is not in Library? Define it below for this calculation.</p><div class="actions">${exploreButton(explore.analysisItem ? "Update calculation" : "Add to workspace", "apply-analysis", 'class="primary"')}${exploreButton("Define new input…", "stage-series")}${exploreButton("Save calculation to Library", "save-analysis-library")}${exploreButton("Cancel", "close-dialog")}</div></form>`;
   if (old) { old.innerHTML = content; if (!old.open) old.showModal(); } else exploreDialog(content);
+  restoreAnalysisDisclosures(document.querySelector("#explore-dialog"), open);
   if (selector) document.querySelector("#explore-dialog")?.querySelector(selector)?.focus({preventScroll: true});
 }
 function exploreSeriesDialog(staged = false) {

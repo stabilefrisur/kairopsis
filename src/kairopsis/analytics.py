@@ -4,9 +4,11 @@ from datetime import date, datetime
 from math import fsum, isfinite
 from typing import cast
 from .frequencies import expected_session, horizon_target, previous_session
-from .periods import Period, period_start, period_label
+from .periods import Period, period_start
 from .risk import input_unit_expressions, transform_inputs
 from .standardization import standardize
+from .references import reference_bounds, reference_label
+from .regression import rolling_fits
 from .models import AdjustmentEstimate, DataRequest, DataResponse, Evaluation, Fit, MetricPoint, ResolvedDefinition
 
 
@@ -14,10 +16,10 @@ def condition_rules(definition: ResolvedDefinition, unit: str, percentile: float
     reasons, keys = [], []
     settings = definition.settings
     if eligible and settings.standardization == "zscore" and current_value is not None and abs(current_value) >= settings.zscore_threshold:
-        reasons.append(f"Z-score {current_value:+.2f} meets configured ±{settings.zscore_threshold:g} threshold / {period_label(settings.history_years)}")
+        reasons.append(f"Z-score {current_value:+.2f} meets configured ±{settings.zscore_threshold:g} threshold / {reference_label(settings)}")
         keys.append("upper" if current_value > 0 else "lower")
     if eligible and settings.standardization == "none" and percentile is not None and (percentile >= settings.upper_percentile or percentile <= 100 - settings.upper_percentile):
-        reasons.append(f"Historical standing {percentile:.1f}th percentile / {period_label(settings.history_years)}")
+        reasons.append(f"Historical standing {percentile:.1f}th percentile / {reference_label(settings)}")
         keys.append("upper" if percentile >= settings.upper_percentile else "lower")
     if eligible and change is not None and settings.move_threshold is not None and abs(change) >= settings.move_threshold:
         reasons.append(f"{change:+.2f} {unit} / {settings.horizon} meets configured {settings.move_threshold:g} {unit} rule")
@@ -106,11 +108,14 @@ def evaluate(definition: ResolvedDefinition, data: DataResponse, request: DataRe
     sensitivity = []
     current_day = points[-1].date if points else None
     if method == "regression" and current_day:
-        fit = regression(points, current_day, definition, definition.settings.fit_years)
+        rolling = definition.settings.fit_mode == "rolling"
+        fits = rolling_fits(points, definition.settings) if rolling else []
+        fit = fits[-1] if rolling else regression(points, current_day, definition, definition.settings.fit_years)
         if not fit:
             limits.append("Fit unavailable: insufficient full-window history or constant explanatory input")
         else:
-            limits.append("Residual history uses the current fit retrospectively; association is descriptive")
+            limits.append("Each residual uses its own prior-only fit; association is descriptive" if rolling else
+                          "Residual history uses the current fit retrospectively; association is descriptive")
             x = (points[-1].transformed_inputs or points[-1].inputs)[1]
             if x is not None and not fit.x_min <= x <= fit.x_max:
                 limits.append("Current explanatory input is outside fit range (extrapolation)")
@@ -124,11 +129,13 @@ def evaluate(definition: ResolvedDefinition, data: DataResponse, request: DataRe
                     b = selected - alternative.intercept - alternative.slope * x
                     if a * b < 0:
                         sensitivity.append(f"Residual direction changes under {years}y fit")
-        points = [p.model_copy(update={"value": (cast(float, (p.transformed_inputs or p.inputs)[0]) - fit.intercept - fit.slope * cast(float, (p.transformed_inputs or p.inputs)[1]))
-            if fit and all(v is not None for v in (p.transformed_inputs or p.inputs)) else None,
-            "eligible": p.eligible and fit is not None}) for p in points]
+        points = [p.model_copy(update={"value": (cast(float, (p.transformed_inputs or p.inputs)[0]) - point_fit.intercept - point_fit.slope * cast(float, (p.transformed_inputs or p.inputs)[1]))
+            if point_fit and all(v is not None for v in (p.transformed_inputs or p.inputs)) else None,
+            "eligible": p.eligible and point_fit is not None, "fit_estimate": point_fit if rolling else None})
+            for p, point_fit in zip(points, fits if rolling else [fit] * len(points))]
         if definition.settings.calculation_contract == "input-pipeline-v2":
             points = [p if p.value is None or isfinite(p.value) else p.model_copy(update={"value": None, "eligible": False}) for p in points]
+    reference_points = points
     standardization_estimate = None
     if definition.settings.standardization == "zscore":
         points, standardization_estimate = standardize(points, definition.settings, unit)
@@ -153,12 +160,16 @@ def evaluate(definition: ResolvedDefinition, data: DataResponse, request: DataRe
         limits.append("Upstream retrieval freshness unverified; excluded from findings")
     if current and current.value is not None:
         value = current.value
-        history = [p.value for p in points if p.eligible and p.value is not None and period_start(current.date, definition.settings.history_years) <= p.date < current.date]
+        reference_start, reference_end = reference_bounds(definition.settings, current.date)
+        history = [p.value for p in reference_points if p.eligible and p.value is not None and reference_start <= p.date <= reference_end < current.date]
+        ranked_value = cast(float, current.unstandardized_value) if standardization_estimate else value
         if len(history) >= definition.settings.minimum_history:
-            percentile = 100 * (sum(v < value for v in history) + .5 * sum(v == value for v in history)) / len(history)
+            percentile = 100 * (sum(v < ranked_value for v in history) + .5 * sum(v == ranked_value for v in history)) / len(history)
         else:
             eligible = False
             limits.append(f"Insufficient reference history: {len(history)}; require {definition.settings.minimum_history}")
+            if reference_end >= current.date:
+                limits.append("Fixed reference must end before the latest observation")
         target = horizon_target(current.date, definition.settings.horizon)
         valid = [p for p in points if p.eligible and p.value is not None]
         idx = bisect_right([p.date for p in valid], target) - 1

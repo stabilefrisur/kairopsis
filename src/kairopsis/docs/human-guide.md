@@ -27,10 +27,10 @@ The first visit to **Analyses** each day starts a background refresh if none has
 been attempted that day. Choose **Refresh** to fetch and recalculate all saved
 Analyses again, as often as needed. Restarting the app is unnecessary.
 
-Opening an Analysis, choosing **Preview** for an Analysis or Library Data Series,
-and selecting **Latest data** on an Idea chart each request data again. These
+Opening an Analysis, changing its calculation settings, choosing **Preview** for
+a Library Data Series, and selecting **Latest data** on an Idea chart request data. These
 chart requests do not update the Analyses list's results; use **Refresh** there.
-Opening or saving a Library entry without Preview does not fetch observations.
+Saving a Data Series without Preview does not fetch observations.
 **Saved evidence** always shows the captured observations.
 
 Reloading an Analysis chart requests data again. Reloading the Analyses list
@@ -74,19 +74,36 @@ standing. Check the observation date before treating a value as current.
 Unavailable values and data limitations are shown explicitly.
 
 The Analysis settings panel follows **Inputs → Measure → Scale inputs →
-Compare → Historical context**, matching Library. Choose Standalone or Pair,
-then Level, Absolute change or Percentage change and its Frequency. Pair
+Compare → Output**. Library creation/editing and monitoring links
+open this same editor. Charts update automatically after settings change.
+**Save changes** updates the Analysis; **Discard changes** restores its saved
+definition. **Save to Idea** captures evidence without updating the Analysis. Choose Standalone or Pair,
+then Level, Change or Percentage change and its Frequency. **Change** means
+current minus previous value, in the series' units; decreases stay negative. Pair
 comparison is Difference, Ratio or Regression residual. Display range and chart
 view stay beside the chart, separately from estimation/reference histories.
 
 Scale inputs offers None, Volatility, Beta to reference, VaR or Expected Shortfall
 for every measure. **Estimate risk from** follows the input automatically, using
-absolute changes for Level; choose explicit Absolute/Percentage changes to retain
+changes for Level; choose explicit Changes/Percentage changes to retain
 that basis when changing Measure. Level stays a level when scaling is selected.
 Shared settings are the default; **Customize per series** allows independent risk
 bases and references. Inspect the formula, actual units, scales and sample dates.
 For example, spread level / spread-change SD measures level per movement risk;
 spread level / percentage-change SD has composite bp/% units.
+
+Risk scaling is recalculated at every chart date. **Rolling estimation history**
+uses the chosen trailing window, excluding the current Frequency interval.
+**Longest available history** uses an expanding eligible sample instead. These
+controls are independent of the result's Z-score or percentile reference period.
+
+For **Regression residual**, **Fitting period** offers **As-of window** (one
+latest fit across the chart) or **Rolling window** (a separate fit from earlier
+observations at each chart date). **Fitting history** sets the sample length;
+Longest available history expands over time in rolling mode. New Analyses start
+with rolling fitting; existing definitions retain As-of fitting. Early residuals
+need enough prior fitting history. Chart details and the scatter line show the
+latest fit; saved/copyable data retain each rolling fit's coefficients and dates.
 
 Reference, fitting and estimation histories include 3 and 6 months, longer year
 windows and **Longest available history**. Short windows still need sufficient
@@ -95,8 +112,21 @@ remain subject to existing weekday/freshness and regression coverage limits.
 
 Choose **Output scale → Z-score** for any completed calculation. The score shows
 distance above/below its prior mean in sample standard deviations. Latest is
-excluded; the current reference applies throughout the chart. Original units
-retain any input scaling. Inspect the unstandardized magnitude alongside the
+excluded. **Reference period** offers:
+
+- **As-of window:** one current reference mean/SD for the whole chart; the
+  window advances on later evaluations. Existing Analyses retain this behavior.
+- **Rolling window:** each date has its own preceding reference window;
+  selected initially for new Analyses. Early scores need enough prior data.
+- **Fixed dates:** a selected calendar period supplies one mean/SD throughout.
+  Both endpoints are included; the end must precede the latest observation.
+
+In **Original units**, reference settings sit inside the collapsed **Percentile
+reference** section. They control percentile and monitoring without changing
+chart values. Regression fitting and Z-score reference periods are independent:
+rolling Z-scores alone do not remove an As-of regression fit's use of later data.
+Original units retain
+any input scaling. Inspect the unstandardized magnitude alongside the
 score. Z-score does not establish stationarity, reversal or investment return.
 Insufficient/constant references produce an unavailable result.
 
@@ -104,9 +134,12 @@ Insufficient/constant references produce an unavailable result.
 percentile tails; Z-score uses its absolute threshold and dashed chart lines.
 Formula changes clear optional move/materiality thresholds with an explanation,
 retaining monitoring enable state and extreme-rule settings. Defaults require
-calibration. Exploratory edits save only through **Edit defaults in Library →
-Use exploratory settings → Save defaults**. Preview failures retain a labelled
-previous chart and your edited values; Preview again before saving evidence.
+calibration. **Flag move at or above** tests the absolute Frequency change of a
+Level result, or the current calculated result for changes/returns. **Flag again
+after a change of** tests movement in either direction since the comparison
+evaluation while a flag remains active. Both use output units; blank disables
+the optional rule. Updates that fail retain a labelled previous chart and your
+edits; **Retry chart** recovers when the problem is resolved.
 
 When you ask the agent to set up monitoring across many Analyses, its starting
 policy uses the lowest/highest 1% of historical results, a three-year reference
@@ -133,6 +166,21 @@ consistent. Hiding a series does not change the calculation.
 **Source and chart details** explains the inputs, dates and settings when you
 need them. A flag is a reason to investigate, not an investment recommendation.
 
+## Choose dates in Explore
+
+**Workspace date** is the shared end date for charts. Each chart can follow it
+or choose **Set chart date** to keep its own date as the workspace date changes.
+
+For comparisons across symbols, choose **Level on a date**, **Change between
+dates**, or **Percentage change**. Changes need a **From** date and a **To** date;
+decreases stay negative. History charts instead show a start and end date. A blank
+start uses all loaded history. The chart caption states the dates used.
+
+**Missing dates** defaults to leaving gaps. To use an earlier observation, set
+the maximum number of calendar days to look back. The observations table retains
+the actual dates. **Filter observations** restricts the calculation sample;
+**Zoom chart** changes only the displayed range.
+
 ## Save evidence to an Idea
 
 Choose **Save to Idea** from the analysis. Create an Idea or select an existing
@@ -148,9 +196,10 @@ Catalogue edits and later market moves do not overwrite it.
 
 ## Preview and edit Library entries
 
-Open **Library**, then add or edit a Data Series or Analysis. The editor sits
-beside a chart. Choose **Preview** to fetch observations and inspect your
-unsaved settings. Preview does not add entries to the catalogue or save evidence.
+Open **Library**, then add or edit a Data Series or Analysis. Analysis entries
+open the shared editor with automatic charts and explicit Save/Discard actions.
+Data Series use a separate query editor; choose **Preview** to inspect their
+raw observations. Preview does not save Library definitions or create Ideas.
 
 The optional **Economic rationale** field records what you are investigating,
 why it matters and what might explain the result otherwise. Your agent can
@@ -160,16 +209,16 @@ changes; saving an Analysis does not require a rationale.
 **Source and chart details** shows the rationale captured with the displayed
 evaluation. Saved evidence and its **Latest data** calculations retain that
 original reasoning after you revise Library defaults. Older evidence may show
-**No economic rationale recorded**. **Use exploratory settings** preserves the
-rationale currently in your Library draft.
+**No economic rationale recorded**. The Analysis editor preserves your rationale
+alongside the calculation settings.
 
 The display range defaults to 3 years; choose months, longer year windows or
 **Longest available history**. Reference history, fitting and risk-estimation
 periods control the calculation independently. Switch chart views to inspect
 underlying observations, measured inputs or regression scatter where applicable.
 
-Editing a query, setting or display range marks the previous chart **Outdated**.
-Choose **Preview** again to update it. If retrieval fails, check the reported
+Editing a Data Series query or display range marks its previous chart **Outdated**.
+Choose **Preview** again to update it. Analysis charts update automatically. If retrieval fails, check the reported
 problem and retry; any retained chart still shows its previous settings under
 **Source and chart details**. Demo mode previews only the labelled fixture data.
 

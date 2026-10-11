@@ -7,6 +7,63 @@ Verify the built artifacts as well as the source checkout. Source tests establis
 application behavior; installed-package checks establish that the distribution
 contains the code, browser assets and guides needed outside the checkout.
 
+## Explore date controls — 11 October 2026
+
+Single-date comparisons show a date; changes add a From date; histories show a
+period. A single workspace/chart date choice replaces overlapping cutoff and end
+controls. Missing-date handling, observation filters and display zoom are separate.
+Incomplete or inverted periods show a prompt without posting an invalid preview.
+Existing explicit sample ends survive unrelated edits.
+
+`scripts/explore-dates-acceptance.py` passes against the CSV demo: numerical change
+and percentage endpoints, required dates, workspace/custom dates, exact/backward
+matching, history versus zoom, and legacy date preservation. Library definitions
+remain unchanged; no JavaScript errors or horizontal overflow were observed.
+Review images are in `.scratch/explore-date-review/`. JavaScript syntax and
+diff whitespace checks pass.
+
+## Shared Analysis editor and reference periods — 11 October 2026
+
+Library creation/editing and monitoring open one Analysis editor. Charts update
+automatically; explicit Save/Discard preserves the distinction between a draft,
+the saved definition and Idea evidence. Atomic saves retain revision checks and
+staged Series edits. Failures preserve the draft; older responses cannot replace
+a newer chart. Legacy Library edit URLs redirect to the same editor.
+
+Reference modes are As-of window (legacy default), Rolling window (new UI
+definitions) and Fixed dates. Numerical tests cover prior-only calendar windows,
+native-date exclusions, constant/short samples, fixed inclusive dates, forbidden
+unfinished references, rank in original units, retrieval warmup, reference-drift
+monitoring comparisons, persistence and per-point rolling reference CSV evidence.
+Regression fitting independently offers As-of and Rolling windows. Legacy
+definitions retain the current retrospective fit; new UI definitions select
+rolling fitting. Tests cover prior-only fits, unchanged earlier residuals when
+data advances, calendar coverage, missing/carried observations, constant/stale
+samples, large input levels, combined fitting/reference/risk warmup, rolling
+Z-scores, monitoring refit noise and per-point JSON/CSV evidence across restarts.
+
+Original-units reference controls are collapsed under Percentile reference;
+Z-score controls remain visible. A separate browser check verifies preserved
+dates, accessible invalid dates and independent monitoring disclosures in the
+editor and Explore. Risk history labels distinguish rolling finite windows from
+expanding all-history samples. Four risk estimators were checked against earlier
+evaluation cutoffs for both finite and expanding histories; past values agree.
+
+All **427 tests** pass. Mypy checks the changed Python modules; changed
+JavaScript passes syntax checks. `scripts/analysis-editor-acceptance.py` verifies
+the shared editor, all three modes, automatic updates, save/discard, conflicts,
+preview failure/retry, response ordering, inline Series edits, independent Idea
+capture and desktop/laptop/narrow layouts without JavaScript errors. Review
+images are in `.scratch/editor-review/`.
+The extended journey also verifies independent regression/reference modes,
+expanding fit history, saved/reloaded rolling settings, latest-fit scatter labels
+and copied per-point fit evidence. The CSV rolling regression chart updated in
+0.89 seconds in this local run; images are in `.scratch/rolling-fit-review/`.
+The existing CSV Explore browser journey also passes, including all 74 Library
+series, cached updates, explicit refresh and local Analysis construction. The
+restarted demo's existing Analysis opens with As-of window selected; a before/after
+Library comparison confirms its saved definitions were not changed.
+
 ## CSV demo and Explore data reuse — 11 October 2026
 
 The active review demo now reads all 74 manifest series through Metapyle's
@@ -30,6 +87,14 @@ Reproducible launch: `scripts/run_csv_demo.py`; browser check:
 `scripts/csv-demo-acceptance.py`. Local review images: `.scratch/csv-demo/review-final/`.
 
 ## Explore controls — 11 October 2026
+
+Explore legends sit below every chart. Long labels wrap; chart cards grow to
+preserve plotting height. Browser checks cover all six chart families, full/half
+width and narrow layouts, long labels, legend toggling, repeated redraws and PNG
+export. Review images are in `.scratch/legend-review/`; no JavaScript errors were
+observed. The date-control acceptance still passes. The older CSV-demo journey
+stops at its fresh-Library assumption of exactly 74 entries in the populated demo;
+the targeted checks use the existing Library without changing saved definitions.
 
 Explore now updates charts automatically after settings changes. Authoring controls
 use plain labels; source definitions are read-only, grouping and classifications

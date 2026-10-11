@@ -12,7 +12,8 @@ from .analytics import evaluate
 from .exploration_models import CollectionItem, SampleRow, ViewDefinition, ViewResult, WorkspaceDefinition
 from .fixtures import MOCK_AS_OF
 from .models import DataFailure, DataRequest, DataResponse, SeriesBinding, SeriesResult, identity
-from .periods import period_start, retrieval_start
+from .periods import period_start
+from .references import analysis_start
 from .service import Research
 from .exploration_cache import ExplorationCache, WorkspaceCache
 
@@ -76,11 +77,9 @@ class Exploration:
             for item in workspace.collection:
                 if item.analysis:
                     d = item.analysis
-                    start = min(start, retrieval_start(end, (d.settings.history_years, d.settings.fit_years, 5),
-                        (r.lookback_years for r in d.settings.adjustments(len(d.inputs)) if r.method != "none"), d.settings.needs_moves(len(d.inputs))))
+                    start = min(start, analysis_start(end, d.settings, len(d.inputs), (5,), calculation=d.calculation))
                     if view.sample.start:
-                        start = min(start, retrieval_start(view.sample.start, (d.settings.history_years, d.settings.fit_years),
-                            (r.lookback_years for r in d.settings.adjustments(len(d.inputs)) if r.method != "none"), d.settings.needs_moves(len(d.inputs))))
+                        start = min(start, analysis_start(view.sample.start, d.settings, len(d.inputs), (), calculation=d.calculation))
         bundle: dict[str, DataResponse] = {}
         requests: dict[str, DataRequest] = {}
         for item in workspace.collection:

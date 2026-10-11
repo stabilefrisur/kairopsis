@@ -191,8 +191,8 @@ def run(url: str, screenshots: Path) -> None:
         ranking_id = page.evaluate("window.exploreWorkspace.workspace.views.find(v=>v.family==='ranking').id")
         page.locator(f'[data-explore="select"][data-id="{ranking_id}"]').first.click()
         interval_start = page.evaluate("[...window.exploreWorkspace.results.values()].find(r=>r.view.family==='history').rows[0].date")
-        page.locator('#explore-view-form [name="interval_start"]').fill(interval_start)
         page.locator('#explore-view-form [name="interval_measure"]').select_option("return")
+        page.locator('#explore-view-form [name="interval_start"]').fill(interval_start)
         preview()
         interval_titles = page.locator(f'#explore-plot-{ranking_id}').evaluate("plot=>[plot._fullLayout.yaxis.title.text,plot._fullLayout.yaxis2.title.text]")
         assert "%" in interval_titles[0] and "bp" in interval_titles[1], interval_titles

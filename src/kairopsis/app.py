@@ -82,6 +82,7 @@ class AnalysisPreviewRequest(BaseModel):
     analysis: AnalysisDefinition
     series_drafts: tuple[SeriesQuery, ...] = ()
     period: Period = 3
+    retain: bool = False
 
 
 class AnalysisBundleRequest(BaseModel):
@@ -174,6 +175,10 @@ def create_app(settings: Settings | None = None, market_data: MarketData | None 
     def analyses_page(request: Request):
         return page(request, "analyses")
 
+    @app.get("/analyses/new", response_class=HTMLResponse)
+    def new_analysis_page(request: Request):
+        return page(request, "chart")
+
     @app.get("/analyses/{key}", response_class=HTMLResponse)
     def chart_page(request: Request, key: str):
         catalogue.resolve(key)
@@ -190,6 +195,9 @@ def create_app(settings: Settings | None = None, market_data: MarketData | None 
 
     @app.get("/library", response_class=HTMLResponse)
     def library_page(request: Request):
+        if edit := request.query_params.get("edit"):
+            catalogue.resolve(edit)
+            return RedirectResponse(f"/analyses/{edit}", status_code=303)
         return page(request, "library")
 
     def exploration_page(request: Request):
@@ -326,7 +334,10 @@ def create_app(settings: Settings | None = None, market_data: MarketData | None 
 
     @app.post("/api/library/analyses/preview")
     def preview_analysis(body: AnalysisPreviewRequest):
-        return research.preview_analysis(body.analysis, body.series_drafts, body.period)
+        result = research.preview_analysis(body.analysis, body.series_drafts, body.period)
+        if body.retain:
+            repository.save_evaluation(result)
+        return result
 
     @app.post("/api/library/analyses/bundle")
     def save_bundle(body: AnalysisBundleRequest):

@@ -124,7 +124,11 @@ class RiskAdjustment(Record):
 class AnalysisSettings(Record):
     calculation_contract: Literal["input-pipeline-v1", "input-pipeline-v2"] = "input-pipeline-v1"
     history_years: Period = 3
+    reference_mode: Literal["current", "rolling", "fixed"] = "current"
+    reference_start: Date | None = None
+    reference_end: Date | None = None
     fit_years: Period = 3
+    fit_mode: Literal["current", "rolling"] = "current"
     horizon: Literal["day", "week", "month"] = "day"
     measure: Literal["level", "change", "return"] = "level"
     standardization: Literal["none", "zscore"] = "none"
@@ -140,6 +144,11 @@ class AnalysisSettings(Record):
 
     @model_validator(mode="after")
     def risk_measure(self):
+        if self.reference_mode == "fixed":
+            if self.reference_start is None or self.reference_end is None or self.reference_start > self.reference_end:
+                raise ValueError("Fixed reference requires a start date on or before its end date")
+        elif self.reference_start is not None or self.reference_end is not None:
+            raise ValueError("Reference dates apply only to Fixed dates")
         if self.calculation_contract == "input-pipeline-v1":
             if self.measure == "level" and any(r.method != "none" for r in self.adjustments(2)):
                 raise ValueError("Risk adjustment requires changes or percentage returns")
@@ -211,6 +220,8 @@ class MetricPoint(Record):
     observed_on: tuple[Date | None, ...]
     eligible: bool
     unstandardized_value: float | None = None
+    reference_estimate: "StandardizationEstimate | None" = None
+    fit_estimate: "Fit | None" = None
     transformed_inputs: tuple[float | None, ...] = ()
     risk_scales: tuple[float | None, ...] = ()
     period_start: tuple[Date | None, ...] = ()

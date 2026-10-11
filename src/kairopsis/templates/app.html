@@ -6,7 +6,7 @@
   <link rel="stylesheet" href="{{ asset_url('research.css') }}">
   {% if page == 'explore' %}<link rel="stylesheet" href="{{ asset_url('explore.css') }}">{% endif %}
   <script src="/static/vendor/plotly.min.js" defer></script>
-  <script src="{{ asset_url('charts.js') }}" defer></script><script src="{{ asset_url('library.js') }}" defer></script><script src="{{ asset_url('analysis-controls.js') }}" defer></script><script src="{{ asset_url('research.js') }}" defer></script>
+  <script src="{{ asset_url('charts.js') }}" defer></script><script src="{{ asset_url('library.js') }}" defer></script><script src="{{ asset_url('analysis-controls.js') }}" defer></script><script src="{{ asset_url('analysis-editor.js') }}" defer></script><script src="{{ asset_url('research.js') }}" defer></script>
   {% if page == 'explore' %}<script src="{{ asset_url('explore.js') }}" defer></script>{% endif %}
 </head>
 <body data-page="{{ page }}" data-mode="{{ mode }}" data-exploration-as-of="{{ exploration_as_of }}">

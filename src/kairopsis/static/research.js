@@ -105,7 +105,7 @@ async function loadRows() {
     `<div class="table-region" role="region" aria-label="Analyses table" tabindex="0"><table><thead><tr><th>Analysis</th><th>Current</th><th>Change</th><th>Historical standing</th><th>Observation</th></tr></thead><tbody>${rows
       .map((r) => {
         const e = r.evaluation;
-        return `<tr><td><a href="${analysisLink(r.analysis.id)}">${esc(r.analysis.name)}</a><small>${r.analysis.calculation === "level" ? "Standalone" : esc(r.analysis.calculation)} · ${esc(e?.definition.inputs.map((s) => s.source + " / " + (s.field || s.instrument)).join(" · ") || "Not evaluated")}</small>${e?.reasons.length ? `<small>${esc(e.reasons.join(" · "))}</small>` : ""}${r.failure ? `<small class="warning">Retained result: ${esc(r.failure)}</small>` : ""}${!r.compatible && e ? "<small>Definition changed. Refresh to evaluate; previous result is retained.</small>" : ""}${e && !e.eligible ? `<small>${esc(e.limitations.join(" · "))}</small>` : ""}</td><td>${number(e?.current, e?.unit)}</td><td>${number(e?.change, e?.unit, true)}<small>/ ${esc(r.analysis.settings.horizon)}</small></td><td>${e?.percentile == null ? "Unavailable" : e.percentile.toFixed(1) + "th percentile"}<small>/ ${periodText(r.analysis.settings.history_years)}</small></td><td>${dateText(e?.observation_date)}</td></tr>`;
+        return `<tr><td><a href="${analysisLink(r.analysis.id)}">${esc(r.analysis.name)}</a><small>${r.analysis.calculation === "level" ? "Standalone" : esc(r.analysis.calculation)} · ${esc(e?.definition.inputs.map((s) => s.source + " / " + (s.field || s.instrument)).join(" · ") || "Not evaluated")}</small>${e?.reasons.length ? `<small>${esc(e.reasons.join(" · "))}</small>` : ""}${r.failure ? `<small class="warning">Retained result: ${esc(r.failure)}</small>` : ""}${!r.compatible && e ? "<small>Definition changed. Refresh to evaluate; previous result is retained.</small>" : ""}${e && !e.eligible ? `<small>${esc(e.limitations.join(" · "))}</small>` : ""}</td><td>${number(e?.current, e?.unit)}</td><td>${number(e?.change, e?.unit, true)}<small>/ ${esc(r.analysis.settings.horizon)}</small></td><td>${e?.percentile == null ? "Unavailable" : e.percentile.toFixed(1) + "th percentile"}<small>/ ${referenceText(e?.definition.settings || r.analysis.settings)}</small></td><td>${dateText(e?.observation_date)}</td></tr>`;
       })
       .join(
         "",
@@ -122,10 +122,10 @@ function analysisCaption(e) {
   return calculation + (e.definition.settings.standardization === "zscore" ? " Z-score" : "");
 }
 function chartControls(e, display) {
-  return `<div class="controls"><label>Display range<select data-display="years">${periodChoices(display.years).map(n => `<option value="${n}" ${n === display.years ? "selected" : ""}>${periodText(n)}</option>`).join("")}</select></label><label>Chart view<select data-display="view"><option value="analysis" ${display.view === "analysis" ? "selected" : ""}>Analysis</option>${hasTransformedInputs(e) ? `<option value="changes" ${display.view === "changes" ? "selected" : ""}>Measured / adjusted series</option>` : ""}<option value="underlying" ${display.view === "underlying" ? "selected" : ""}>Underlying series</option>${e.definition.calculation === "regression" ? `<option value="scatter" ${display.view === "scatter" ? "selected" : ""}>Regression scatter</option>` : ""}</select></label>${button("Preview draft", "investigation-preview", 'class="primary"')}</div><p id="investigation-status" class="status" role="status" aria-live="polite">Current chart definition.</p>`;
+  return `<div class="controls"><label>Display range<select data-display="years">${periodChoices(display.years).map(n => `<option value="${n}" ${n === display.years ? "selected" : ""}>${periodText(n)}</option>`).join("")}</select></label><label>Chart view<select data-display="view"><option value="analysis" ${display.view === "analysis" ? "selected" : ""}>Analysis</option>${hasTransformedInputs(e) ? `<option value="changes" ${display.view === "changes" ? "selected" : ""}>Measured / adjusted series</option>` : ""}<option value="underlying" ${display.view === "underlying" ? "selected" : ""}>Underlying series</option>${e.definition.calculation === "regression" ? `<option value="scatter" ${display.view === "scatter" ? "selected" : ""}>Regression scatter</option>` : ""}</select></label>${button("Retry chart", "investigation-preview", "hidden")}</div><p id="investigation-status" class="status" role="status" aria-live="polite">Current chart definition.</p>`;
 }
 function metrics(e) {
-  return `<div class="metric-strip"><div><strong>${number(e.current, e.unit)}</strong><small>Current · ${dateText(e.observation_date)}</small>${e.standardization_estimate ? `<small>Before Z-score: ${number(e.points.at(-1)?.unstandardized_value, e.standardization_estimate.unit)}</small>` : ""}</div><div><strong>${number(e.change, e.unit, true)}</strong><small>${esc(e.definition.settings.horizon)} ${e.definition.settings.measure === "level" ? "result change" : "measured result"} · from ${dateText(e.change_start)}</small></div><div><strong>${e.percentile == null ? "Unavailable" : e.percentile.toFixed(1) + "th"}</strong><small>Percentile · ${periodText(e.definition.settings.history_years)} reference</small></div></div>`;
+  return `<div class="metric-strip"><div><strong>${number(e.current, e.unit)}</strong><small>Current · ${dateText(e.observation_date)}</small>${e.standardization_estimate ? `<small>Before Z-score: ${number(e.points.at(-1)?.unstandardized_value, e.standardization_estimate.unit)}</small>` : ""}</div><div><strong>${number(e.change, e.unit, true)}</strong><small>${esc(e.definition.settings.horizon)} ${e.definition.settings.measure === "level" ? "result change" : "measured result"} · from ${dateText(e.change_start)}</small></div><div><strong>${e.percentile == null ? "Unavailable" : e.percentile.toFixed(1) + "th"}</strong><small>Percentile · ${referenceText(e.definition.settings)}</small></div></div>`;
 }
 const defaultRisk = () => ({method: "none", estimation_measure: null, reference_id: null, lookback_years: 3, weighting: "equal", half_life: 63, confidence: 95, downside: "increase", minimum_samples: 60});
 function riskOptions(settings, count) {
@@ -134,64 +134,14 @@ function riskOptions(settings, count) {
 function riskFields(risk, index, settings, series = librarySeriesChoices()) {
   const select = (label, name, values) => `<label>${label}<select data-risk="${name}" data-leg="${index}">${values.map(([v, text]) => `<option value="${v}" ${String(risk[name] ?? "") === String(v) ? "selected" : ""}>${esc(text)}</option>`).join("")}</select></label>`;
   const numeric = (label, name, min, max) => `<label>${label}<input type="number" data-risk="${name}" data-leg="${index}" value="${risk[name]}" min="${min}" max="${max}" step="any" required></label>`;
-  return `<div class="risk-fields">${select("Method", "method", Object.entries(riskMethodNames))}${risk.method !== "none" ? `${select("Reference series", "reference_id", [["", index === "shared" ? "Each series itself" : "This series itself"], ...series.map(s => [s.id, s.name])])}${select("Estimate risk from", "estimation_measure", [["", "Follow input measure"], ["change", "Absolute changes"], ["return", "Percentage changes"]])}<p class="meta">Resolved basis: ${effectiveRiskMeasure(settings, risk) === "return" ? "Percentage changes" : "Absolute changes"} at the shared Frequency.</p><div class="risk-calibration">${select("Estimation history", "lookback_years", periodChoices(risk.lookback_years).map(n => [n, periodText(n)]))}${risk.method === "volatility" ? select("Weighting", "weighting", [["equal", "Equal"], ["exponential", "Exponential"]]) + (risk.weighting === "exponential" ? numeric("Half-life (weekday sessions)", "half_life", 1, 2520) : "") : ""}${["var", "es"].includes(risk.method) ? numeric("Confidence (%)", "confidence", 50.01, 99.99) + select("Downside", "downside", [["increase", "Increasing values"], ["decrease", "Decreasing values"]]) : ""}</div>` : ""}</div>`;
+  const expanding = risk.lookback_years === "all";
+  const estimationHistory = select(expanding ? "Expanding estimation history" : "Rolling estimation history", "lookback_years", periodChoices(risk.lookback_years).map(n => [n, periodText(n)]));
+  const estimationHelp = `<p class="meta risk-window-help">Re-estimated at every chart date using ${expanding ? "available eligible history up to that date’s cutoff; the sample expands over time" : "the preceding " + esc(periodText(risk.lookback_years)).toLowerCase() + " of eligible moves"}. Excludes the current Frequency interval.</p>`;
+  return `<div class="risk-fields">${select("Method", "method", Object.entries(riskMethodNames))}${risk.method !== "none" ? `${select("Reference series", "reference_id", [["", index === "shared" ? "Each series itself" : "This series itself"], ...series.map(s => [s.id, s.name])])}${select("Estimate risk from", "estimation_measure", [["", "Follow input measure"], ["change", "Changes"], ["return", "Percentage changes"]])}<p class="meta">Resolved basis: ${effectiveRiskMeasure(settings, risk) === "return" ? "Percentage changes" : "Changes"} at the shared Frequency.</p><div class="risk-calibration">${estimationHistory}${estimationHelp}${risk.method === "volatility" ? select("Weighting", "weighting", [["equal", "Equal"], ["exponential", "Exponential"]]) + (risk.weighting === "exponential" ? numeric("Half-life (weekday sessions)", "half_life", 1, 2520) : "") : ""}${["var", "es"].includes(risk.method) ? numeric("Confidence (%)", "confidence", 50.01, 99.99) + select("Downside", "downside", [["increase", "Increasing values"], ["decrease", "Decreasing values"]]) : ""}</div>` : ""}</div>`;
 }
 function riskEditor(settings, inputs, estimates = [], series = librarySeriesChoices()) {
   const customized = !!settings.risk_overrides?.length;
   return `<div class="risk-editor">${inputs.length > 1 ? `<label class="risk-customize"><input type="checkbox" data-risk-customize ${customized ? "checked" : ""}> Customize per series</label>` : ""}${customized ? riskOptions(settings, inputs.length).map((r, i) => `<fieldset><legend>${esc(inputs[i]?.name || "Series " + (i+1))}</legend>${riskFields(r, i, settings, series)}</fieldset>`).join("") : riskFields(settings.risk_adjustment || defaultRisk(), "shared", settings, series)}${estimates.map((r, i) => `<p class="meta risk-estimate"><strong>${esc(inputs[i].name)}</strong><br>${riskOptions(settings, inputs.length)[i].method === "none" ? "Unadjusted" : `Scale: ${number(r.scale)} · ${r.sample_count} observations`}${r.limitation ? `<br>${esc(r.limitation)}` : ""}</p>`).join("")}</div>`;
-}
-function renderRiskPanel() {
-  document.querySelector("#risk-panel").innerHTML = `<h2>Analysis settings</h2><form id="investigation-form">${analysisControls(state.analysisDraft, state.previewCurrent ? state.evaluation.adjustment_estimates || [] : [])}</form>${button("Reset to defaults", "risk-reset", 'class="quiet"')}<p class="settings-label">Exploratory edits save only through Library. <a data-action="edit-defaults" href="/library?edit=${encodeURIComponent(key)}">Edit defaults in Library</a></p>`;
-}
-async function previewSettings(options) {
-  state.analysisDraft.settings = structuredClone(options);
-  const draft = activeAnalysis(state.analysisDraft), sequence = state.previewSequence = (state.previewSequence || 0) + 1;
-  state.previewCurrent = false;
-  document.querySelector("#investigation-status").textContent = "Calculating current draft… Previous chart retained.";
-  const promise = (async () => {
-    try {
-      const evaluation = await api(`/api/analyses/${key}/preview`, "POST", {analysis: draft});
-      if (sequence !== state.previewSequence) return;
-      state.evaluation = evaluation;
-      state.previewCurrent = true;
-      delete state.display.axis_ranges;
-      if (!hasTransformedInputs(evaluation) && state.display.view === "changes" || evaluation.definition.calculation !== "regression" && state.display.view === "scatter") state.display.view = "analysis";
-      document.querySelector(".chart-heading small").textContent = `${analysisCaption(evaluation)} · ${evaluation.unit} · ${dateText(evaluation.observation_date)}`;
-      document.querySelector(".metric-strip").outerHTML = metrics(evaluation);
-      document.querySelector("#investigation-controls").innerHTML = chartControls(evaluation, state.display);
-      document.querySelector("#plot").nextElementSibling.outerHTML = evidenceDetails(evaluation, "", state.display);
-      replaceInvestigationControls();
-      await plotEvidence(document.querySelector("#plot"), evaluation, state.display);
-      if (sequence !== state.previewSequence) return;
-      document.querySelector("#investigation-status").textContent = evaluation.current == null ? `Current definition unavailable. ${evaluation.limitations.join(" ")}` : "Current draft preview. Library defaults unchanged.";
-    } catch (error) {
-      if (sequence === state.previewSequence) document.querySelector("#investigation-status").textContent = `Preview failed: ${error.message}. Chart and details belong to the previous definition.`;
-      throw error;
-    }
-  })();
-  state.previewPromise = promise;
-  try { await promise; } finally { if (state.previewPromise === promise) state.previewPromise = null; }
-}
-async function chart() {
-  state.display = { years: 3, view: "analysis" };
-  state.evaluation = await api(`/api/analyses/${key}/preview`, "POST", {});
-  state.savedSettings = structuredClone(state.evaluation.definition.settings);
-  state.catalogue = await api("/api/library");
-  if (state.evaluation.definition.settings.measure !== "level" && state.evaluation.definition.settings.standardization !== "zscore") state.display.view = "changes";
-  state.analysisDraft = analysisFromEvaluation(state.evaluation);
-  state.savedAnalysis = structuredClone(state.analysisDraft);
-  state.previewCurrent = true;
-  renderChart();
-  await plotEvidence(
-    document.querySelector("#plot"),
-    state.evaluation,
-    state.display,
-  );
-}
-function renderChart() {
-  const e = state.evaluation;
-  main.innerHTML = `<div class="workspace risk-workspace" id="workspace"><section class="paper"><div class="chart-heading"><div><h1>${esc(e.definition.name)}</h1><small>${esc(analysisCaption(e))} · ${esc(e.unit)} · ${dateText(e.observation_date)}</small></div>${actions(button("Save to Idea", "open-save", 'class="primary"') + button("Copy chart", "chart-copy") + button("Download chart", "chart-download"))}</div>${metrics(e)}<div id="investigation-controls">${chartControls(e, state.display)}</div><div class="plot" id="plot" role="img" aria-label="${esc(e.definition.name)} chart"></div>${evidenceDetails(e, "", state.display)}</section><div class="investigation-sidebar"><aside id="risk-panel" class="paper"></aside><aside id="save-panel" class="paper save-panel" hidden></aside></div></div>`;
-  renderRiskPanel();
 }
 async function openSave() {
   await state.previewPromise;
@@ -377,12 +327,6 @@ async function library() {
   state.catalogue = await api("/api/library");
   state.libraryTab = "analyses";
   state.draft = null;
-  const edit = new URLSearchParams(location.search).get("edit");
-  if (edit)
-    state.draft = structuredClone(
-      state.catalogue.analyses.find((a) => a.id === edit),
-    );
-  try { state.exploratory = JSON.parse(sessionStorage.getItem("exploratory-" + edit)); } catch { state.exploratory = null; }
   resetLibraryPreview();
   renderLibrary();
 }
@@ -421,9 +365,13 @@ function newDraft(kind) {
           calculation_contract: "input-pipeline-v2",
           measure: "level",
           standardization: "none",
+          reference_mode: "rolling",
+          reference_start: null,
+          reference_end: null,
           risk_adjustment: defaultRisk(),
           history_years: 3,
           fit_years: 3,
+          fit_mode: "rolling",
           horizon: "week",
           upper_percentile: 95,
           move_threshold: null,
@@ -433,7 +381,7 @@ function newDraft(kind) {
       };
 }
 function readLibraryDraft() {
-  const form = document.querySelector("#library-form");
+  const form = document.querySelector(page === "chart" ? "#investigation-form" : "#library-form");
   if (!form) return;
   if (state.libraryTab === "series") state.draft = readSeriesDraft(form, state.draft);
   else readAnalysisControls(form, state.draft);
@@ -483,7 +431,7 @@ function renderLibrary() {
   main.innerHTML = `<h1>Library</h1><p class="intro">Data series and defined analyses. Saving here changes future evaluations; older evidence keeps its definition.</p><div class="toolbar">${button("Analyses", "library-tab", 'data-tab="analyses" aria-pressed="' + (tab === "analyses") + '"')}${button("Data series", "library-tab", 'data-tab="series" aria-pressed="' + (tab === "series") + '"')}${button(tab === "series" ? "Add data series" : "Add analysis", "library-new", 'class="primary"')}</div>${state.draft ? libraryWorkspace(libraryEditor()) : `<div class="table-region" role="region" aria-label="Library ${tab}" tabindex="0"><table><thead><tr><th>Name</th><th>${tab === "series" ? "Source / symbol" : "Calculation / inputs"}</th><th>${tab === "series" ? "Units / currency" : "Monitoring"}</th><th>Actions</th></tr></thead><tbody>${state.catalogue[tab].map((r) => `<tr><td>${esc(r.name)}</td><td>${tab === "series" ? `${esc(r.source)} / ${esc(r.instrument)}${r.field ? " / " + esc(r.field) : ""}` : `${esc(r.calculation)}<small>${r.series_ids.map((id) => esc(state.catalogue.series.find((s) => s.id === id)?.name)).join(" / ")}</small>`}</td><td>${tab === "series" ? `${esc(r.unit)}<small>${esc(r.currency)}</small>` : monitoringCheckbox(r)}</td><td><div class="library-actions">${button("Edit", "library-edit", `data-id="${r.id}"`)}${button("Delete", "library-delete", `class="quiet" data-id="${r.id}"`)}</div></td></tr>`).join("")}</tbody></table>${state.catalogue[tab].length ? "" : '<p class="empty">No entries. Add a data series, then define an analysis.</p>'}</div>`}`;
 }
 function libraryEditor(d = state.draft, kind = state.libraryTab) {
-  const series = kind === "series", pair = d.calculation !== "level";
+  const series = kind === "series";
   if (series) {
     const providers = [["bloomberg", "Bloomberg"], ["macrobond", "Macrobond"], ["localfile", "Local file"], ["custom", "Other registered source"]];
     const legacy = !d.catalog_name && state.catalogue.series.some(s => s.id === d.id);
@@ -492,7 +440,7 @@ function libraryEditor(d = state.draft, kind = state.libraryTab) {
     const local = provider === "localfile", macro = provider === "macrobond", custom = provider === "custom";
     return `<section class="paper editor"><h2>${state.catalogue.series.some(s => s.id === d.id) ? "Edit" : "Add"} data series</h2><form id="library-form"><div class="fields">${field("Name", "name", d.name)}<label>Source<select name="provider" aria-label="Source">${providers.map(([v, label]) => `<option value="${esc(v)}" ${provider === v ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label>${custom ? field("Registered source name", "custom_source", d.source === "custom" ? "" : d.source) : ""}${field(local ? "Column name" : macro ? "Series symbol" : "Symbol / ticker", "instrument", d.instrument)}${!local && !macro ? field("Field", "field", d.field, "text", !custom) : ""}${local || custom ? field("File path (absolute)", "path", d.path, "text", local) : ""}${field("Units", "unit", d.unit)}${field("Currency", "currency", d.currency === "Not applicable" ? "" : d.currency, "text", false)}</div><details class="series-options"><summary>Catalogue name and additional details</summary><div class="fields">${field("Catalogue name (my_name)", "catalog_name", d.catalog_name, "text", false)}${field("Description", "description", d.description, "text", false)}</div>${custom ? `<label>Query parameters (JSON)<textarea name="query_params" spellcheck="false">${esc(JSON.stringify(d.params || {}, null, 2))}</textarea></label>` : `<input type="hidden" name="query_params" value="${esc(JSON.stringify(d.params || {}))}">`}<p class="meta">Catalogue name defaults to the name with underscores.</p><div class="fields">${field("Research symbol (optional)", "research_symbol", d.research_symbol, "text", false)}${field("Research field (optional)", "research_field", d.research_field, "text", false)}</div><p class="meta">Group multiple columns for the same symbol in Explore. These labels do not change the provider query.</p>${local ? `<label><input name="file_observation_dates" type="checkbox" ${d.localfile_date_role === "observation" ? "checked" : ""}> File dates are actual observation dates</label><p class="meta">Only select this for documented observation dates, never for forward-filled or resampled values. Missing values stay missing.</p>` : ""}</details><p class="meta">${legacy ? "Existing binding. Choose a provider and enter its symbol to move it into the Metapyle catalogue." : "Save writes a Metapyle catalogue entry. Symbols and fields use the provider’s exact identifiers."}${document.body.dataset.mode === "mock" ? " Demo observations remain limited to the existing fixtures." : ""}</p>${actions('<button class="primary" type="submit">Save data series</button>' + button("Cancel", "library-cancel"))}</form></section>`;
   }
-  return `<section class="paper editor"><h2>${state.catalogue.analyses.some(a => a.id === d.id) ? "Edit analysis defaults" : "Add analysis"}</h2><p class="meta">Saved defaults apply to future evaluations. Earlier Idea evidence keeps its captured definition.</p>${state.exploratory && d.id === new URLSearchParams(location.search).get("edit") ? button("Use exploratory settings", "use-exploratory") : ""}<form id="library-form">${field("Name", "name", d.name)}<label>Economic rationale<textarea name="economic_rationale" aria-label="Economic rationale" maxlength="10000" rows="5" aria-describedby="rationale-help">${esc(d.economic_rationale || "")}</textarea></label><p class="meta" id="rationale-help">Optional: what are you investigating, why does it matter, and what else could explain the result?</p>${analysisControls(d)}${librarySeriesActions(d)}<div id="library-save-summary"></div>${actions(`<button class="primary" type="submit">${librarySaveLabel(d)}</button>` + button("Cancel", "library-cancel"))}</form></section>`;
+  throw Error("Open Analyses in the shared Analysis editor.");
 }
 document.addEventListener("change", async (event) => {
   try {
@@ -510,12 +458,11 @@ document.addEventListener("change", async (event) => {
       if (e.dataset.display === "view") state.display.hidden_traces = [];
       state.display[e.dataset.display] =
         e.dataset.display === "years" ? periodValue(e.value) : e.value;
-      await plotEvidence(
-        document.querySelector("#plot"),
-        state.evaluation,
-        state.display,
-      );
-      document.querySelector("#plot").nextElementSibling.outerHTML = evidenceDetails(state.evaluation, "", state.display);
+      if (page === "chart" && e.dataset.display === "years") await previewSettings();
+      else if (state.evaluation) {
+        await plotEvidence(document.querySelector("#plot"), state.evaluation, state.display);
+        document.querySelector("#analysis-evidence").innerHTML = evidenceDetails(state.evaluation, "", state.display);
+      }
 
     }
   } catch (e) {
@@ -529,23 +476,9 @@ document.addEventListener("click", async (event) => {
   try {
     b.disabled = true;
     if (a === "investigation-preview") await previewSettings(state.analysisDraft.settings);
-    else if (a === "risk-reset") {
-      state.analysisDraft = structuredClone(state.savedAnalysis);
-      await previewSettings(structuredClone(state.savedSettings));
-      renderRiskPanel();
-    }
-    else if (a === "edit-defaults") {
-      event.preventDefault();
-      await state.previewPromise;
-      sessionStorage.setItem("exploratory-" + key, JSON.stringify(activeAnalysis(state.analysisDraft)));
-      location.href = b.href;
-    }
-    else if (a === "use-exploratory") {
-      readLibraryDraft();
-      if (state.exploratory.settings) state.draft = {...state.draft, ...structuredClone(state.exploratory), economic_rationale: state.draft.economic_rationale || ""};
-      else state.draft.settings = structuredClone(state.exploratory);
-      renderLibrary();
-    } else if (a === "scope") {
+    else if (a === "analysis-save") await saveAnalysisChanges();
+    else if (a === "analysis-discard") await discardAnalysisChanges();
+    else if (a === "scope") {
       state.list.scope = b.dataset.scope;
       persistContext();
       await loadRows();
@@ -621,9 +554,11 @@ document.addEventListener("click", async (event) => {
       state.returnDraft = null;
       renderLibrary();
     } else if (a === "library-new") {
+      if (state.libraryTab === "analyses") { location.href = "/analyses/new"; return; }
       state.draft = newDraft(state.libraryTab);
       renderLibrary();
     } else if (a === "library-edit") {
+      if (state.libraryTab === "analyses") { location.href = "/analyses/" + encodeURIComponent(b.dataset.id); return; }
       state.draft = structuredClone(
         state.catalogue[state.libraryTab].find((r) => r.id === b.dataset.id),
       );
@@ -640,6 +575,7 @@ document.addEventListener("click", async (event) => {
     notify(e.message);
   } finally {
     b.disabled = false;
+    if (page === "chart" && state.analysisDraft) updateEditorState();
   }
 });
 document.addEventListener("submit", async (event) => {
@@ -647,18 +583,23 @@ document.addEventListener("submit", async (event) => {
   const form = event.target,
     submit = form.querySelector("[type=submit]");
   try {
-    submit.disabled = true;
+    if (submit) submit.disabled = true;
+    if (form.id === "investigation-form") { await saveAnalysisChanges(); return; }
     const data = Object.fromEntries(new FormData(form));
     if (form.id === "save-form") {
       await state.previewPromise;
+      if (!state.previewCurrent) throw Error("Wait for the current chart before saving evidence.");
+      const capturedEvaluation = state.evaluation, capturedDisplay = structuredClone(state.display);
       const image = await chartPNG(document.querySelector("#plot"));
+      if (!state.previewCurrent || state.evaluation.id !== capturedEvaluation.id) throw Error("Chart changed during capture. Save again when it is up to date.");
       const idea = await api("/api/ideas", "POST", {
         ...data,
         idea_id: data.idea_id || null,
-        evaluation_id: state.evaluation.id,
-        display: state.display,
+        evaluation_id: capturedEvaluation.id,
+        display: capturedDisplay,
         image,
       });
+      state.editorLeaving = true;
       location.href = "/ideas/" + idea.id;
     } else if (form.dataset.form === "idea-edit") {
       await api(`/api/ideas/${key}`, "PATCH", data);

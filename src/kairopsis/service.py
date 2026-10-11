@@ -6,7 +6,8 @@ from typing import Protocol
 from zoneinfo import ZoneInfo
 
 from .analytics import evaluate
-from .periods import Period, period_start, retrieval_start
+from .periods import Period, period_start
+from .references import analysis_start
 from .catalogue import Catalogue, resolve_definition
 from .evaluation_comparison import compare
 from .fixtures import MOCK_AS_OF
@@ -48,9 +49,7 @@ class Research:
 
     def retrieve(self, definition: ResolvedDefinition, provider: MarketData, display_period: Period = 5) -> tuple[DataRequest, DataResponse]:
         end = MOCK_AS_OF if self.repository.mode == "mock" else self.clock().astimezone(self.timezone).date()
-        start = retrieval_start(end, (definition.settings.history_years, definition.settings.fit_years, 5, display_period),
-            (r.lookback_years for r in definition.settings.adjustments(len(definition.inputs)) if r.method != "none"),
-            definition.settings.needs_moves(len(definition.inputs)))
+        start = analysis_start(end, definition.settings, len(definition.inputs), (5, display_period), calculation=definition.calculation)
         request = DataRequest(bindings=(*definition.inputs, *definition.references),
             start=start, end=end)
         data = provider.fetch(request)
@@ -204,10 +203,7 @@ class Research:
             if latest.definition.revision == saved.definition.revision and latest.definition.inputs == saved.definition.inputs and latest.definition.references == saved.definition.references:
                 # Apply saved exploratory choices to retained raw inputs, never
                 # silently substitute the catalogue's reference/fit settings.
-                required_start = retrieval_start(latest.request.end,
-                    (saved.definition.settings.history_years, saved.definition.settings.fit_years),
-                    (r.lookback_years for r in saved.definition.settings.adjustments(len(saved.definition.inputs)) if r.method != "none"),
-                    saved.definition.settings.needs_moves(len(saved.definition.inputs)))
+                required_start = analysis_start(latest.request.end, saved.definition.settings, len(saved.definition.inputs), (), calculation=saved.definition.calculation)
                 if latest.request.start > required_start:
                     continue
                 required = {b.id for b in (*saved.definition.inputs, *saved.definition.references)}

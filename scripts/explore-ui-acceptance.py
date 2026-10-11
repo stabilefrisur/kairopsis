@@ -40,16 +40,16 @@ def verify_fork(page, url: str) -> None:
     assert fork["question"] == retained_workspace["question"] and fork["notes"] == retained_workspace["notes"]
     assert page.locator('[data-explore="add-item"][data-kind="analysis"]').count() > 0
     assert page.locator('[name="saved_workspace"] option').count() > 1
-    assert page.locator('#explore-capture-idea option').count() > 1
-    assert not any("/api/explore/preview" in request for request in requests)
     page.locator('[data-explore="add-item"][data-kind="series"][data-id="eur-ig"]').click()
     assert page.evaluate("window.exploreWorkspace.workspace.collection.at(-1).binding.id") == "eur-ig"
     page.locator('[name="new_family"]').select_option("history")
     page.locator('[data-explore="add-view"]').click()
-    page.locator('[data-explore="preview"]').click()
-    page.wait_for_function("window.exploreWorkspace.status !== 'previewing'")
+    page.wait_for_function("window.exploreWorkspace.status === 'current' && !window.exploreWorkspace.previewInFlight", timeout=60000)
     assert page.evaluate("window.exploreWorkspace.status") == "current", page.locator("#message").inner_text()
     assert page.evaluate("window.exploreWorkspace.results.get(window.exploreWorkspace.selected).rows.some(row=>row.symbol==='eur-ig')")
+    page.locator('[data-explore="select-save"]').click()
+    page.locator('[data-explore="capture-dialog"]').click()
+    assert page.locator('#explore-capture-idea option').count() > 1
     page.locator('[data-explore="capture"]').click()
     page.wait_for_url("**/explore/captures/**", timeout=60000)
     page.wait_for_load_state("networkidle")
@@ -79,10 +79,10 @@ def run(url: str, screenshots: Path) -> None:
         page.locator(".explore-research summary").click()
         page.locator("#explore-question").fill("Which credit series moved most?")
         page.locator("#explore-notes").fill("Compare the retained dates; inspect missing observations.")
+        page.locator("#explore-notes").press("Tab")
 
         def preview() -> None:
-            page.locator('[data-explore="preview"]').click()
-            page.wait_for_function("window.exploreWorkspace.status !== 'previewing'")
+            page.wait_for_function("window.exploreWorkspace.status === 'current' && !window.exploreWorkspace.previewInFlight", timeout=60000)
             assert page.evaluate("window.exploreWorkspace.status") == "current", page.locator("#message").inner_text()
             page.wait_for_function("[...document.querySelectorAll('.plot')].filter(p=>p.offsetParent!==null).every(p=>p.data?.length || p.querySelector('.empty'))")
 
@@ -127,7 +127,7 @@ def run(url: str, screenshots: Path) -> None:
         page.wait_for_function(f"document.querySelector('#explore-plot-{distribution_id}')._fullLayout.height > 500")
         assert distribution_geometry()["width"] > 500
         page.screenshot(path=str(screenshots / "distribution-focus.png"), full_page=True)
-        page.locator('[data-explore="layout"]').click()
+        page.get_by_role("button", name="Back to overview", exact=True).click()
         correlation_id = page.evaluate("window.exploreWorkspace.workspace.views.find(v=>v.family==='correlation').id")
         page.locator(f'[data-explore="select"][data-id="{correlation_id}"]').first.click()
         page.wait_for_function(f"document.querySelector('#explore-plot-{correlation_id}')._fullLayout")
@@ -197,6 +197,8 @@ def run(url: str, screenshots: Path) -> None:
         interval_titles = page.locator(f'#explore-plot-{ranking_id}').evaluate("plot=>[plot._fullLayout.yaxis.title.text,plot._fullLayout.yaxis2.title.text]")
         assert "%" in interval_titles[0] and "bp" in interval_titles[1], interval_titles
         print("PASS: shared controls applied on first click; local Analysis evaluated in a view")
+        page.locator('[data-explore="select-save"]').click()
+        page.locator('[data-explore="capture-dialog"]').click()
         page.locator('[data-explore="capture"]').click()
         page.wait_for_url("**/explore/captures/**", timeout=60000)
         page.wait_for_load_state("networkidle")
@@ -227,7 +229,7 @@ def run(url: str, screenshots: Path) -> None:
         page.on("request", lambda request: requests.append(request.url))
         page.reload(wait_until="networkidle")
         assert not any("/api/explore/library" in request or "/api/explore/preview" in request for request in requests)
-        assert page.locator("#explore-status").inner_text().startswith("Captured evidence")
+        assert page.locator("#explore-status").inner_text() == "Saved chart evidence"
         assert not errors, errors
         print("PASS: workspace save, eight-view capture, frozen offline reopen, original PNG links, layouts")
         print("Captured evidence:", page.url)

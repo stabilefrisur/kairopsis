@@ -7,6 +7,22 @@ Verify the built artifacts as well as the source checkout. Source tests establis
 application behavior; installed-package checks establish that the distribution
 contains the code, browser assets and guides needed outside the checkout.
 
+## Explore controls — 11 October 2026
+
+Explore now updates charts automatically after settings changes. Authoring controls
+use plain labels; source definitions are read-only, grouping and classifications
+have separate forms, and chart selection/evidence roles appear in the save/export
+flow. The overview has an explicit return action from an enlarged chart.
+
+The 73 exploration/statistics tests pass. Chromium acceptance covers all six chart
+families, immutable captures, offline reopening and editable copies. The dedicated
+`scripts/explore-usability-acceptance.py` journey verifies automatic series/type
+updates, delayed-response ordering, text-edit preservation, failed-update retry,
+unchanged provider queries after grouping edits, classification entry, calculation
+input dialogs, explicit chart selection and desktop/laptop layout. JavaScript
+syntax and both browser scripts' Python compilation pass. No browser script errors
+were observed. Local evidence: `.scratch/explore-ux-review/`.
+
 ## Explore foundation — 10 October 2026
 
 Milestone 1 (P1–P6) is implemented on `codex/explore-workspace-prototype`.

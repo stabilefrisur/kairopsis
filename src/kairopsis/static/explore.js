@@ -2,11 +2,12 @@
 const explore = {
   workspace: null, selected: null, results: new Map(), status: "dirty", sequence: 0,
   saved: [], capture: null, conflict: null, highlighted: [], libraryQuery: "", checked: new Set(),
+  selectionMode: null, previewTimer: null, previewInFlight: false, previewQueued: false, editingText: false,
 };
 const exploreFamilies = {history: "History", scatter: "Scatter", ranking: "Ranked comparison", distribution: "Distribution", heatmap: "Heatmap", correlation: "Correlation"};
 const exploreID = () => crypto.randomUUID().replaceAll("-", "");
 const exploreButton = (text, action, extra = "") => `<button type="button" data-explore="${action}" ${extra}>${text}</button>`;
-const exploreSelect = (label, name, value, choices) => `<label>${esc(label)}<select name="${name}">${choices.map(([id, text]) => `<option value="${esc(id)}" ${String(id) === String(value) ? "selected" : ""}>${esc(text)}</option>`).join("")}</select></label>`;
+const exploreSelect = (label, name, value, choices) => `<label>${esc(label)}<select name="${name}" aria-label="${esc(label)}">${choices.map(([id, text]) => `<option value="${esc(id)}" ${String(id) === String(value) ? "selected" : ""}>${esc(text)}</option>`).join("")}</select></label>`;
 const exploreInput = (label, name, value, type = "text") => `<label>${esc(label)}<input name="${name}" type="${type}" value="${esc(value || "")}"></label>`;
 function exploreNewWorkspace() {
   return {schema_version: 1, id: exploreID(), version: null, name: "Untitled exploration", collection: [], views: [], as_of: null, question: "", notes: "", attributes: [], layout: "workbench"};
@@ -30,14 +31,32 @@ function exploreAnalysisContext() {
   return {series: [...choices.values()], analyses: state.catalogue.analyses, memory: state.controlMemory,
     monitoring: false, thresholdNotice: "Monitoring is separate from exploration.", notice: text => notify(text)};
 }
-function exploreDirty(message = "Draft changed. Preview to update evidence.") {
+function exploreStatusText() {
+  if (explore.capture) return "Saved chart evidence";
+  if (!explore.workspace.views.length) return "Add data from Library, then add a chart.";
+  return {dirty: "Changes pending · charts update automatically", previewing: "Updating charts…", current: "Charts up to date", failed: "Could not update charts. Check the error below, then retry."}[explore.status];
+}
+function exploreUpdateStatus() {
+  const status = document.querySelector("#explore-status");
+  if (status) { status.textContent = exploreStatusText(); status.className = `explore-status ${explore.status}`; }
+  document.querySelectorAll('[data-explore="capture"], [data-explore="capture-dialog"], [data-explore="export-png"], [data-explore="copy-png"]').forEach(button => button.disabled = explore.status !== "current" || button.dataset.explore !== "copy-png" && !explore.checked.size);
+  document.querySelectorAll('[data-explore="preview"]').forEach(button => { button.disabled = explore.status === "previewing"; button.textContent = explore.status === "failed" ? "Retry update" : "Refresh data"; });
+  document.querySelectorAll('.explore-result-state').forEach(node => {
+    if (!explore.capture) node.textContent = explore.status === "current" ? "" : explore.status === "failed" ? "Previous chart · update failed" : "Updating · previous chart shown";
+  });
+}
+function exploreSchedulePreview() {
+  clearTimeout(explore.previewTimer);
+  if (explore.capture || explore.editingText || !explore.workspace.views.length || !explore.workspace.collection.length) return;
+  explore.previewTimer = setTimeout(() => explorePreview(), 500);
+}
+function exploreDirty(message, schedule = true) {
   explore.sequence++;
   explore.status = "dirty";
   explore.conflict = null;
-  const status = document.querySelector("#explore-status");
-  if (status) { status.textContent = message; status.className = "explore-status"; }
-  document.querySelectorAll('[data-explore="capture"]').forEach(button => button.disabled = true);
-  document.querySelectorAll(".explore-result-state").forEach(node => node.textContent = "Previous preview · draft changed");
+  exploreUpdateStatus();
+  if (message) notify(message);
+  if (schedule) exploreSchedulePreview(); else clearTimeout(explore.previewTimer);
 }
 function exploreAddItem(kind, record, resolved, origin = "library") {
   const definition = kind === "series" ? record : resolved;
@@ -69,32 +88,44 @@ function exploreCollectionHTML() {
   const query = explore.libraryQuery.toLowerCase();
   const records = [...state.catalogue.series.map(record => ["series", record]), ...state.catalogue.analyses.map(record => ["analysis", record])]
     .filter(([, record]) => `${record.name} ${record.instrument || ""} ${record.field || ""}`.toLowerCase().includes(query));
-  return `<aside class="explore-collection" aria-label="Collection"><h2>Collection</h2>
-    <p class="meta">Associate each binding explicitly with a symbol and field.</p>
+  return `<aside class="explore-collection" aria-label="Data and calculations"><h2>Data & calculations</h2>
+    <p class="meta">Choose which series to show in each chart.</p>
     <div class="explore-collection-list">${items.map(item => {
       const definition = item.binding || item.analysis;
       const current = state.catalogue[item.kind === "series" ? "series" : "analyses"].find(record => record.id === definition.id);
-      const revision = explore.capture ? `<small>Retained revision ${definition.revision} · Library not consulted</small>` : current && current.revision !== definition.revision ? `<small class="explore-revisions">Pinned r${definition.revision}; Library r${current.revision} ${exploreButton("Adopt revision", "adopt", `data-id="${item.id}"`)}</small>` : !current ? `<small>${item.origin === "local" ? "Local draft · not published to Library" : "Retained definition · absent from Library"}</small>` : `<small>Pinned revision ${definition.revision}</small>`;
+      const revision = explore.capture ? `Saved definition, version ${definition.revision}.` : current && current.revision !== definition.revision ? `Using version ${definition.revision}; Library has version ${current.revision}. ${exploreButton("Use Library update", "adopt", `data-id="${item.id}"`)}` : !current ? item.origin === "local" ? "Saved with this workspace. Not in Library." : "Saved definition. This entry is no longer in Library." : `Using Library definition version ${definition.revision}. Future Library edits are adopted explicitly.`;
       return `<div class="explore-binding" data-item="${item.id}"><strong>${esc(definition.name)}</strong>
-        <small>${item.kind === "series" ? `${esc(definition.source)} / ${esc(definition.instrument)} · ${esc(definition.unit)}` : `${esc(definition.calculation === "level" ? "Standalone" : "Pair")} Analysis output`}</small>${revision}
-        ${item.origin === "local" && !explore.capture ? '<small>Local Analysis draft · Library defaults untouched</small>' : ""}
-        <div class="fields"><label>Symbol<input data-association="symbol" data-id="${item.id}" value="${esc(item.symbol)}" ${explore.capture ? "disabled" : ""}></label><label>Field<input data-association="field" data-id="${item.id}" value="${esc(item.field)}" ${explore.capture ? "disabled" : ""}></label></div>
-        ${item.kind === "series" && definition.basis ? `<small>${esc(definition.basis.label)}</small>` : ""}
-        ${explore.capture ? "" : `<div class="actions">${item.kind === "analysis" ? exploreButton("Edit local draft", "edit-analysis", `data-id="${item.id}"`) : ""}${exploreButton("Remove", "remove-item", `data-id="${item.id}" class="quiet"`)}</div>`}</div>`;
+        <small>${item.kind === "series" ? `${esc(definition.instrument)} / ${esc(definition.field || definition.name)} · ${esc(definition.unit)}` : esc(exploreCalculationSummary(definition))}</small>
+        ${item.origin === "local" ? '<small>Workspace calculation</small>' : ""}
+        ${current && current.revision !== definition.revision && !explore.capture ? '<small class="explore-revisions">Library update available — see details</small>' : ""}
+        <details class="explore-source" data-details="source-${item.id}"><summary>${item.kind === "series" ? "Source details" : "Calculation details"}</summary>
+          <p class="meta">${item.kind === "series" ? `${esc(definition.source)}<br>${esc(definition.basis?.label || "")}` : esc(definition.inputs.map(input => input.name).join("; "))}</p><p class="meta">${revision}</p>
+          <p class="meta">Chart grouping: ${esc(item.symbol)} / ${esc(item.field)}</p>
+          ${explore.capture ? "" : exploreButton("Change chart grouping…", "mapping", `data-id="${item.id}"`)}</details>
+        ${explore.capture ? "" : `<div class="actions">${item.kind === "analysis" ? exploreButton("Edit calculation", "edit-analysis", `data-id="${item.id}"`) : ""}${exploreButton("Remove", "remove-item", `data-id="${item.id}" class="quiet"`)}</div>`}</div>`;
     }).join("") || '<p class="empty">Select Library entries below to begin.</p>'}</div>
     ${explore.capture ? "" : `<details open><summary>Add from Library</summary><input id="explore-library-search" class="search" placeholder="Find series or Analysis" aria-label="Find Library entries" value="${esc(explore.libraryQuery)}"><div id="explore-library-choices">${records.map(([kind, record]) => `<div class="explore-library-row">${exploreButton(esc(record.name) + `<small>${kind === "series" ? `${esc(record.instrument)} / ${esc(record.field || record.name)} · ${esc(record.unit)}` : "Analysis output"}</small>`, "add-item", `data-kind="${kind}" data-id="${record.id}"`)}</div>`).join("")}</div></details>
-      <div class="actions">${exploreButton("Local Analysis", "new-analysis")}${exploreButton("New series", "new-series")}${exploreButton("Supply attributes", "attributes")}</div><a href="/library">Open Library</a>`}</aside>`;
+      <div class="explore-data-actions">${exploreButton("Add calculation…", "new-analysis")}${exploreButton("Connect new data…", "new-series")}</div>
+      <details data-details="collection-tools"><summary>Grouping & classifications</summary><p class="meta">Supply sourced labels for colour and grouping.</p>${exploreButton("Edit classifications…", "attributes")}</details><a href="/library">Open Library</a>`}</aside>`;
+}
+function exploreCalculationSummary(definition) {
+  const settings = definition.settings, frequency = {day: "Daily", week: "Weekly", month: "Monthly"}[settings.horizon] || settings.horizon;
+  const measure = settings.measure === "level" ? "Level" : `${frequency} ${settings.measure === "return" ? "% change" : "change"}`;
+  const risk = settings.risk_adjustment?.method;
+  const comparison = {ratio: "Ratio", difference: "Difference", regression: "Regression residual"}[definition.calculation];
+  const scaling = settings.risk_overrides?.length ? "Custom input scaling" : risk && risk !== "none" ? `${{volatility: "Volatility", beta: "Beta", var: "VaR", es: "ES"}[risk] || risk} scaled` : "";
+  return `${definition.inputs.map(input => input.name).join(", ")} · ${measure}${scaling ? ` · ${scaling}` : ""}${comparison ? ` · ${comparison}` : ""}${settings.standardization === "zscore" ? " · Z-score" : ""}`;
 }
 function exploreEditorHTML() {
   const view = exploreCurrentView();
-  if (!view) return '<aside class="explore-editor"><h2>View settings</h2><p class="meta">Add a view, then choose its measures and sample.</p></aside>';
+  if (!view) return '<aside class="explore-editor"><h2>Chart settings</h2><p class="meta">Add a chart to choose its series and date range.</p></aside>';
   const choices = exploreFields(view).map(axis => [axis, exploreAxisLabel(axis)]), fields = [...new Set(explore.workspace.collection.map(item => item.field))];
   const members = [...new Set(explore.workspace.collection.map(item => item.symbol))];
   const attributes = [...new Set(explore.workspace.attributes.map(attribute => attribute.name || attribute.field).filter(Boolean))];
-  return `<aside class="explore-editor" aria-label="Selected view settings"><h2>${esc(exploreFamilies[view.family])} settings</h2><form id="explore-view-form"><fieldset ${explore.capture ? "disabled" : ""}>
-    ${exploreInput("View name", "name", view.name)}${exploreSelect("Chart family", "family", view.family, Object.entries(exploreFamilies))}
-    ${exploreSelect("Observations", "shape", view.shape, [["history", "One series / date"], ["cross_section", "One symbol / chosen date"], ["paired_date", "Two series / matched date"], ["panel", "Symbol / date panel"]])}
-    <fieldset><legend>Measures</legend><div class="measure-list">${explore.workspace.collection.map(item => `<label><input name="measures" type="checkbox" value="${item.id}" ${view.measures.includes(item.id) ? "checked" : ""}>${esc(exploreItemLabel(item))}</label>`).join("")}</div></fieldset>
+  return `<aside class="explore-editor" aria-label="Selected chart settings"><h2>${esc(exploreFamilies[view.family])} settings</h2><p class="meta">${explore.capture ? "Saved settings. Make a copy to edit." : "Changes update this chart automatically."}</p><form id="explore-view-form"><fieldset ${explore.capture ? "disabled" : ""}>
+    ${exploreInput("Chart title", "name", view.name)}${exploreSelect("Chart type", "family", view.family, Object.entries(exploreFamilies))}
+    ${exploreSelect("Show", "shape", view.shape, [["history", "Each series over time"], ["cross_section", "Symbols on one date"], ["paired_date", "Two series on matching dates"], ["panel", "Symbols across multiple dates (panel)"]])}
+    <fieldset><legend>Series in this chart</legend><div class="measure-list">${explore.workspace.collection.map(item => `<label><input name="measures" type="checkbox" value="${item.id}" ${view.measures.includes(item.id) ? "checked" : ""}>${esc(exploreItemLabel(item))}</label>`).join("")}</div>${view.shape === "paired_date" ? '<p class="meta">Choose the two series below as X and Y. Each dot represents one matching date.</p>' : ""}</fieldset>
     ${view.family === "scatter" ? `<div class="fields">${exploreSelect("X axis", "x", view.options.x || choices[0]?.[0], choices)}${exploreSelect("Y axis", "y", view.options.y || choices[1]?.[0], choices)}</div>` : ["correlation", "heatmap"].includes(view.family) ? '<p class="meta">Selected measures supply the fields.</p>' : exploreSelect("Field", "axis", view.options.axes?.length > 1 ? "all" : view.options.axes?.[0] || choices[0]?.[0], view.family === "history" ? [["all", "All selected fields"], ...choices] : choices)}
     ${view.family === "history" ? exploreSelect("History layout", "history_layout", view.options.history_layout || "overlay", [["overlay", "Overlay (comparable units)"], ["small_multiples", "Aligned small multiples"]]) : ""}
     ${view.family === "scatter" ? `<label><input name="descriptive_fit" type="checkbox" ${view.options.descriptive_fit ? "checked" : ""}> Descriptive linear fit</label>${view.shape === "panel" ? `<label><input name="allow_pooled_fit" type="checkbox" ${view.options.allow_pooled_fit ? "checked" : ""}> Explicitly pool panel rows for the fit</label>` : ""}<p class="meta">Fit uses this view’s retained observations. It is separate from an Analysis residual.</p>` : ""}
@@ -102,8 +133,8 @@ function exploreEditorHTML() {
     ${view.family === "heatmap" ? exploreSelect("Layout", "heatmap_layout", view.options.heatmap_layout, [["time", "Symbols × dates"], ["fields", "Symbols × fields"]]) : ""}
     ${view.family === "correlation" ? `${exploreSelect("Compare", "correlation_orientation", view.options.correlation_orientation, [["series", "Series across dates"], ["fields", "Fields across symbols"]])}<div class="fields">${exploreSelect("Coefficient", "correlation_method", view.options.correlation_method, [["pearson", "Pearson"], ["spearman", "Spearman"]])}${exploreSelect("Sample", "correlation_sample", view.options.correlation_sample, [["common", "Common complete"], ["pairwise", "Pairwise"]])}</div>` : ""}
     ${view.family === "scatter" ? `${exploreSelect("Size by", "size_by", view.size_by || "", [["", "None"], ...explore.workspace.collection.map(item => [item.id, exploreItemLabel(item)])])}${exploreSelect("Colour by", "color_by", view.color_by || "", [["", "None"], ["symbol", "Symbol"], ...(view.shape === "paired_date" ? explore.workspace.collection.map(item => [item.id, exploreItemLabel(item)]) : fields.map(field => [field, field])), ...attributes.map(name => [name, name])])}${exploreSelect("Facet by", "facet_by", view.facet_by || "", [["", "None"], ...attributes.map(name => [name, name])])}` : ""}
-    <fieldset><legend>Sample</legend><label><input name="pinned" type="checkbox" ${view.pinned ? "checked" : ""}> Pin this view’s as-of date</label>
-      ${exploreInput(view.pinned ? "Pinned as-of date" : "As-of override (optional)", "as_of", view.as_of, "date")}
+    <fieldset><legend>Dates & filters</legend><label><input name="pinned" type="checkbox" ${view.pinned ? "checked" : ""}> Keep a fixed date for this chart</label>
+      ${exploreInput(view.pinned ? "Fixed date" : "Chart date (optional)", "as_of", view.as_of, "date")}
       <div class="fields">${exploreInput("Start", "start", view.sample.start, "date")}${exploreInput("End", "end", view.sample.end, "date")}</div>
       ${exploreSelect("Date matching", "date_policy", view.sample.date_policy, [["exact", "Exact"], ["backward", "Bounded backward"]])}
       ${view.sample.date_policy === "backward" ? exploreInput("Maximum age (days)", "maximum_age_days", view.sample.maximum_age_days, "number") : ""}
@@ -112,8 +143,8 @@ function exploreEditorHTML() {
       ${view.sample.row_ids.length ? `<p class="meta">Restricted to ${view.sample.row_ids.length} drilldown rows.</p>${exploreButton("Release drilldown sample", "release-sample")}` : ""}
       ${view.sample.excluded_row_ids.length ? `<p class="meta">${view.sample.excluded_row_ids.length} observations excluded.</p>${exploreButton("Restore excluded rows", "restore-rows")}` : ""}
     </fieldset>
-    <details><summary>Display crop</summary><p class="meta">Changes visible extent only; analytical history remains fixed.</p><div class="fields">${exploreInput("Show from", "display_start", view.display_start, "date")}${exploreInput("Show through", "display_end", view.display_end, "date")}</div></details>
-    <div class="actions">${exploreButton("Duplicate", "duplicate")}${exploreButton("Move earlier", "earlier")}${exploreButton(view.width === 2 ? "Half width" : "Full width", "width")}${exploreButton("Remove view", "remove-view", 'class="quiet"')}</div></fieldset></form></aside>`;
+    <details><summary>Visible date range</summary><p class="meta">Zoom the display without changing the calculation history.</p><div class="fields">${exploreInput("Show from", "display_start", view.display_start, "date")}${exploreInput("Show through", "display_end", view.display_end, "date")}</div></details>
+    <div class="actions">${exploreButton("Duplicate chart", "duplicate")}${exploreButton("Move earlier", "earlier")}${exploreButton(view.width === 2 ? "Half width" : "Full width", "width")}${exploreButton("Remove chart", "remove-view", 'class="quiet"')}</div></fieldset></form></aside>`;
 }
 function exploreRowsHTML(result) {
   const axes = [...new Set(result.rows.flatMap(row => Object.keys(row.values || {})))];
@@ -123,9 +154,9 @@ function exploreRowsHTML(result) {
 function exploreViewHTML(view) {
   const result = explore.results.get(view.id), retainedView = result?.view || view;
   return `<section class="explore-view ${view.id === explore.selected ? "selected" : ""} ${view.width === 2 ? "wide" : ""}" data-view="${view.id}">
-    <div class="explore-view-title"><h2>${exploreButton(esc(view.name), "select", `data-id="${view.id}" class="quiet"`)}</h2><div class="actions"><label title="Include in capture"><input type="checkbox" data-capture-view="${view.id}" aria-label="Capture ${esc(view.name)}" ${explore.checked.has(view.id) ? "checked" : ""}></label>${exploreButton("Copy PNG", "copy-png", `data-id="${view.id}"`)}${exploreButton("Focus", "focus-view", `data-id="${view.id}"`)}</div></div>
-    <p class="meta explore-result-state">${result ? explore.capture ? `Frozen evidence · <a href="/api/explore/captures/${explore.capture.idea_id}/${explore.capture.id}/images/${result.id}" download>Original PNG</a>` : explore.status === "current" ? "Current preview" : "Previous preview · draft changed" : "Not previewed"}</p>
-    <div id="explore-plot-${view.id}" class="plot" role="img" aria-label="${esc(view.name)}"><p class="empty">${result ? "Rendering retained observations…" : "Preview to resolve this view’s observations."}</p></div>
+    <div class="explore-view-title"><h2>${exploreButton(esc(view.name), "select", `data-id="${view.id}" class="quiet" title="Edit this chart"`)}</h2><div class="actions">${explore.selectionMode ? `<label class="explore-select-chart"><input type="checkbox" data-capture-view="${view.id}" aria-label="Select ${esc(view.name)}" ${explore.checked.has(view.id) ? "checked" : ""}> Select</label>` : ""}${exploreButton("Copy PNG", "copy-png", `data-id="${view.id}" ${explore.status !== "current" ? "disabled" : ""}`)}${exploreButton(explore.workspace.layout === "focus" ? "Back to overview" : "Enlarge", explore.workspace.layout === "focus" ? "layout" : "focus-view", `data-id="${view.id}"`)}</div></div>
+    <p class="meta explore-result-state">${result ? explore.capture ? `Saved evidence · <a href="/api/explore/captures/${explore.capture.idea_id}/${explore.capture.id}/images/${result.id}" download>Original PNG</a>` : explore.status === "current" ? "" : "Updating · previous chart shown" : "Waiting for data…"}</p>
+    <div id="explore-plot-${view.id}" class="plot" role="img" aria-label="${esc(view.name)}"><p class="empty">${result ? "Drawing chart…" : "Updating chart…"}</p></div>
     ${result ? `<p class="meta">${esc(result.sample_meaning || {history: "One observation per series and date", cross_section: "One observation per symbol at the chosen date", paired_date: "Two series, one observation per matched date", panel: "One observation per symbol and date"}[retainedView.shape])} · ${result.rows.length} retained rows</p><p class="meta">${Object.entries(result.measures || {}).filter(([id]) => retainedView.measures.includes(id)).map(([, measure]) => `${esc(measure.symbol)} / ${esc(measure.field)}: ${esc(measure.unit)}${measure.meaning ? " · " + esc(measure.meaning) : ""}`).join("; ")}</p>
       ${result.statistics?.size_legend ? `<div class="explore-size-legend" aria-label="Marker area legend"><strong>${esc(exploreAxisLabel(result.statistics.size_legend.field))}</strong>${result.statistics.size_legend.values.map((value, index) => `<span><i style="width:${result.statistics.size_legend.sizes[index]}px;height:${result.statistics.size_legend.sizes[index]}px"></i>${number(value, result.statistics.size_legend.unit)}</span>`).join("")}</div><p class="meta">Marker area represents the selected field. Missing or negative values use a constant marker and are reported.</p>` : ""}
       ${result.statistics?.fit ? `<p class="meta">Descriptive fit: ${esc(result.statistics.fit.unavailable_reason || result.statistics.fit.equation || "Unavailable")} · ${result.statistics.fit.count} fit rows / ${result.statistics.fit.evaluation_row_ids?.length || 0} evaluation rows. Display cropping does not change the fit.</p>` : ""}
@@ -137,23 +168,41 @@ function exploreRender() {
   const workspace = explore.workspace, visibleViews = exploreVisibleViews();
   const focused = document.activeElement, formID = focused?.form?.id;
   const focusSelector = focused?.id ? `#${CSS.escape(focused.id)}` : formID && focused?.name ? `#${formID} [name="${CSS.escape(focused.name)}"]${focused.type === "checkbox" ? `[value="${CSS.escape(focused.value)}"]` : ""}` : null;
-  const opened = new Set([...main.querySelectorAll("details[open]")].map(details => details.querySelector("summary")?.textContent));
+  const opened = new Set([...main.querySelectorAll("details[open]")].map(details => details.dataset.details || details.querySelector("summary")?.textContent));
   const editorScroll = main.querySelector(".explore-editor")?.scrollTop || 0;
-  main.innerHTML = `<div class="explore-top"><div><h1>${explore.capture ? "Frozen exploration" : "Explore"}</h1><p id="explore-status" class="explore-status ${explore.status}" role="status" aria-live="polite">${explore.capture ? "Captured evidence · available without live data" : {dirty: "Draft changed. Preview to update evidence.", previewing: "Resolving definitions and observations…", current: "Current preview · ready to capture", failed: "Preview failed. Previous evidence retained."}[explore.status]}</p></div><div class="actions">${explore.capture ? exploreButton("Fork investigation", "fork", 'class="primary"') : `${exploreButton("Preview / refresh", "preview", `class="primary" ${explore.status === "previewing" ? "disabled" : ""}`)}${exploreButton("Save workspace", "save")}${exploreButton("New workspace", "new")}`}${exploreButton(workspace.layout === "focus" ? "Workbench" : "Focus", "layout", `aria-pressed="${workspace.layout === "focus"}"`)}</div></div>
+  main.innerHTML = `<div class="explore-top"><div><h1>${explore.capture ? "Saved exploration" : "Explore"}</h1><p id="explore-status" class="explore-status ${explore.status}" role="status" aria-live="polite">${exploreStatusText()}</p></div><div class="actions">${explore.capture ? exploreButton("Make an editable copy", "fork", 'class="primary"') : `${exploreButton("Refresh data", "preview", `${explore.status === "previewing" ? "disabled" : ""}`)}${exploreButton("Save workspace", "save", 'class="primary"')}${exploreButton("New workspace", "new")}`}</div></div>
     ${explore.conflict ? `<div class="explore-conflict" role="alert">${esc(explore.conflict)} Your draft is retained. ${exploreButton("Save as new workspace", "save-copy")}${exploreButton("Open saved version", "open-saved", `data-id="${workspace.id}"`)}</div>` : ""}
-    ${explore.libraryChanges?.length && !explore.capture ? `<p class="explore-revisions">Library definitions changed. Retained queries remain pinned: ${explore.libraryChanges.map(change => `${esc(exploreItemLabel(workspace.collection.find(item => item.id === change.collection_id)))} r${change.retained_revision} / ${change.current_revision == null ? "deleted from Library" : `Library r${change.current_revision}`}`).join("; ")}. Adopt revisions explicitly in the collection.</p>` : ""}
-    <div class="explore-context">${exploreInput("Workspace name", "workspace_name", workspace.name)}${exploreInput("Workspace as-of", "workspace_as_of", workspace.as_of, "date")}${explore.capture ? "" : `${exploreSelect("Add view", "new_family", "history", Object.entries(exploreFamilies))}${exploreButton("Add view", "add-view")}${exploreSelect("Saved workspaces", "saved_workspace", "", [["", "Choose workspace"], ...explore.saved.map(record => [record.id || record.workspace?.id, record.name || record.workspace?.name])])}${exploreButton("Open", "open")}`}</div>
-    <div class="explore-capture-bar">${explore.capture ? `<span>Captured: ${esc(explore.capture.captured_at || explore.capture.created_at || "")}</span><a class="button" href="${explore.capture.export_url || `/api/explore/captures/${explore.capture.idea_id}/${explore.capture.id}/export`}">Export evidence ZIP</a>` : `<input id="explore-capture-title" placeholder="Capture title" aria-label="Capture title" value="${esc(workspace.name)}"><select id="explore-capture-idea" aria-label="Idea destination"><option value="">New Idea</option>${(state.exploreIdeas || []).map(record => `<option value="${record.idea?.id || record.id}">${esc(record.idea?.title || record.title)}</option>`).join("")}</select><select id="explore-capture-role" aria-label="Evidence role"><option value="contextual">Contextual</option><option value="supporting">Supporting</option><option value="challenging">Challenging</option></select>${exploreButton("Capture selected views", "capture", explore.status === "current" ? "" : "disabled")}${exploreButton("Select all views", "check-all")}`}${exploreButton("Export selected PNGs", "export-png")}${exploreButton("Clear highlight", "clear-highlight", 'class="quiet"')}</div>
-    <div class="explore-layout ${workspace.layout}">${exploreCollectionHTML()}<div class="explore-canvas">${workspace.layout === "focus" ? `<div class="explore-filmstrip" aria-label="Views">${visibleViews.map(view => exploreButton(esc(view.name), "select", `data-id="${view.id}" aria-pressed="${view.id === explore.selected}"`)).join("")}</div>` : ""}<div class="explore-grid">${visibleViews.map(exploreViewHTML).join("") || '<section class="explore-view wide"><h2>Build an investigation</h2><p class="empty">Add Library entries to the collection, associate fields with symbols, then add a view.</p></section>'}</div></div>${exploreEditorHTML()}</div>
+    ${explore.libraryChanges?.length && !explore.capture ? `<p class="explore-revisions">Library changes available: ${explore.libraryChanges.map(change => `${esc(exploreItemLabel(workspace.collection.find(item => item.id === change.collection_id)))} (saved version ${change.retained_revision}; ${change.current_revision == null ? "no longer in Library" : `Library version ${change.current_revision}`})`).join("; ")}. Review each series’ details to update its saved definition.</p>` : ""}
+    <div class="explore-context" aria-label="Workspace">${exploreInput("Workspace name", "workspace_name", workspace.name)}${exploreInput("Data through", "workspace_as_of", workspace.as_of, "date")}${explore.capture ? "" : `${exploreSelect("Saved workspaces", "saved_workspace", "", [["", "Choose workspace"], ...explore.saved.map(record => [record.id || record.workspace?.id, record.name || record.workspace?.name])])}${exploreButton("Open", "open")}`}</div>
+    ${explore.capture ? `<p class="meta">Saved ${esc(explore.capture.captured_at || explore.capture.created_at || "")} · <a href="${explore.capture.export_url || `/api/explore/captures/${explore.capture.idea_id}/${explore.capture.id}/export`}">Download evidence ZIP</a></p>` : ""}
+    <div class="explore-layout ${workspace.layout}">${exploreCollectionHTML()}<div class="explore-canvas">${exploreChartToolbar()}
+      ${workspace.layout === "focus" ? `<div class="explore-filmstrip" aria-label="Charts">${visibleViews.map(view => exploreButton(esc(view.name), "select", `data-id="${view.id}" aria-pressed="${view.id === explore.selected}"`)).join("")}</div>` : ""}<div class="explore-grid">${visibleViews.map(exploreViewHTML).join("") || '<section class="explore-view wide"><h2>Explore a relationship</h2><p class="empty">Add series from Library on the left, then choose a chart above.</p></section>'}</div></div>${exploreEditorHTML()}</div>
     <details class="explore-research" ${workspace.question || workspace.notes ? "open" : ""}><summary>Working question and notes</summary><div class="fields"><label>Working question<textarea id="explore-question" maxlength="10000" ${explore.capture ? "readonly" : ""}>${esc(workspace.question)}</textarea></label><label>Notes<textarea id="explore-notes" ${explore.capture ? "readonly" : ""}>${esc(workspace.notes)}</textarea></label></div></details>`;
   if (explore.capture) document.querySelectorAll('.explore-context input').forEach(input => input.disabled = true);
-  main.querySelectorAll("details").forEach(details => { if (opened.has(details.querySelector("summary")?.textContent)) details.open = true; });
+  main.querySelectorAll("details").forEach(details => { if (opened.has(details.dataset.details || details.querySelector("summary")?.textContent)) details.open = true; });
   if (focusSelector) main.querySelector(focusSelector)?.focus({preventScroll: true});
   if (main.querySelector(".explore-editor")) main.querySelector(".explore-editor").scrollTop = editorScroll;
+  exploreUpdateStatus();
   exploreRenderPlots();
 }
+function exploreChartToolbar() {
+  const mode = explore.selectionMode;
+  return `<div class="explore-chart-toolbar" aria-label="Chart actions"><h2>${explore.workspace.layout === "focus" ? "Chart" : "Charts"}</h2>
+    ${explore.capture ? "" : `<div class="explore-add-chart">${exploreSelect("Chart type to add", "new_family", "history", Object.entries(exploreFamilies))}${exploreButton("Add chart", "add-view", explore.workspace.collection.length ? "" : "disabled")}</div>`}
+    <div class="actions">${!explore.capture && explore.workspace.views.length ? exploreButton("Save to Idea…", "select-save") : ""}${explore.workspace.views.length ? exploreButton("Export charts…", "select-export") : ""}</div>
+    ${explore.highlighted.length ? exploreButton("Clear highlight", "clear-highlight", 'class="quiet"') : ""}</div>
+    ${mode ? `<div class="explore-selection-bar" aria-label="Choose charts"><strong>${mode === "save" ? "Choose charts to save to an Idea" : "Choose charts to export"}</strong><span id="explore-selection-count">${explore.checked.size} selected</span><div class="actions">${exploreButton("Select all", "check-all")}${exploreButton("Clear selection", "uncheck-all")}${exploreButton(mode === "save" ? "Continue…" : "Download PNGs", mode === "save" ? "capture-dialog" : "export-png", 'class="primary"')}${exploreButton("Cancel", "cancel-selection")}</div></div>` : ""}`;
+}
+function exploreCaptureDialog() {
+  if (explore.status !== "current" || !explore.checked.size) throw Error("Wait for the charts to update, then select charts to save.");
+  exploreDialog(`<h2>Save charts to an Idea</h2><p>Save ${explore.checked.size} selected ${explore.checked.size === 1 ? "chart" : "charts"} with their data and settings. This evidence stays fixed as you continue exploring.</p>
+    <label>Title<input id="explore-capture-title" value="${esc(explore.workspace.name)}"></label>
+    <label>Idea<select id="explore-capture-idea"><option value="">Create a new Idea</option>${(state.exploreIdeas || []).map(record => `<option value="${record.idea?.id || record.id}">${esc(record.idea?.title || record.title)}</option>`).join("")}</select></label>
+    <label>How does this evidence relate to the Idea?<select id="explore-capture-role" aria-label="How does this evidence relate to the Idea?"><option value="contextual">Background context</option><option value="supporting">Supports the argument</option><option value="challenging">Challenges the argument</option></select></label>
+    <p class="meta">This label organises the evidence. It does not affect calculations.</p><div class="actions">${exploreButton("Save evidence", "capture", 'class="primary"')}${exploreButton("Cancel", "close-dialog")}</div>`);
+}
 async function exploreRenderPlots() {
-  const sequence = explore.sequence;
+  const generation = explore.renderGeneration = (explore.renderGeneration || 0) + 1;
   for (const view of explore.workspace.views) {
     const result = explore.results.get(view.id), plot = document.querySelector(`#explore-plot-${view.id}`);
     if (!result || !plot || explore.workspace.layout === "focus" && view.id !== explore.selected) continue;
@@ -161,7 +210,7 @@ async function exploreRenderPlots() {
     if (!traces.length || !result.rows.length) { plot.innerHTML = '<p class="empty">No available values for this sample. Inspect limitations and excluded rows.</p>'; continue; }
     plot.innerHTML = "";
     await Plotly.newPlot(plot, traces, chart.layout, {responsive: true, displaylogo: false, modeBarButtonsToRemove: ["sendDataToCloud"]});
-    if (sequence !== explore.sequence) return;
+    if (generation !== explore.renderGeneration || !plot.isConnected) return;
     plot.on("plotly_click", event => explorePlotClick(result.view || view, result, event));
   }
 }
@@ -225,7 +274,7 @@ function exploreChartData(view, result) {
 function explorePlotClick(view, result, event) {
   const point = event.points?.[0]; if (!point) return;
   if (view.family === "correlation" && !explore.capture) {
-    if (explore.status !== "current") { notify("Preview the current draft before drilling into a correlation cell."); return; }
+    if (explore.status !== "current") { notify("Wait for the chart to update before opening this comparison."); return; }
     const cells = result.statistics?.cells || [];
     const cell = cells.find(cell => (cell.x === point.x && cell.y === point.y) || (cell.left === point.x && cell.right === point.y));
     const custom = point.customdata;
@@ -243,7 +292,7 @@ function explorePlotClick(view, result, event) {
       duplicate.options.x = left.id; duplicate.options.y = right.id;
     }
     explore.workspace.views.push(duplicate); explore.selected = duplicate.id; explore.checked.add(duplicate.id);
-    exploreDirty("Exact correlation sample retained. Preview the paired scatter."); exploreRender(); return;
+    exploreDirty("Opening a scatter with the observations from this correlation cell."); exploreRender(); return;
   }
   const datum = point.customdata;
   explore.highlighted = [datum?.symbol || datum?.[1] || (typeof datum === "string" ? datum : point.data.name)];
@@ -251,8 +300,16 @@ function explorePlotClick(view, result, event) {
   exploreRenderPlots();
 }
 function exploreReadView(form, changedControl) {
-  const view = exploreCurrentView(), data = new FormData(form), oldShape = view.shape;
+  const view = exploreCurrentView(), data = new FormData(form), oldShape = view.shape, oldFamily = view.family;
   view.name = data.get("name"); view.family = data.get("family"); view.shape = data.get("shape"); view.measures = data.getAll("measures");
+  if (changedControl === "family" && view.family !== oldFamily) {
+    if (view.name === exploreFamilies[oldFamily]) view.name = exploreFamilies[view.family];
+    const fields = new Set(explore.workspace.collection.filter(item => view.measures.includes(item.id)).map(item => item.field));
+    // An explicit drilldown/exclusion sample must survive chart-type changes.
+    if (!view.sample.row_ids.length && !view.sample.excluded_row_ids.length) {
+      view.shape = view.family === "scatter" ? fields.size > 1 ? "cross_section" : "paired_date" : view.family === "ranking" ? "cross_section" : "history";
+    }
+  }
   for (const name of ["as_of", "display_start", "display_end", "size_by", "color_by", "facet_by"]) view[name] = data.get(name) || null;
   view.pinned = data.has("pinned");
   if (view.pinned && !view.as_of) view.as_of = explore.workspace.as_of || explore.results.get(view.id)?.as_of || new Date().toISOString().slice(0, 10);
@@ -263,7 +320,7 @@ function exploreReadView(form, changedControl) {
   view.sample.members = members.length === all.size ? null : members;
   const axes = exploreFields(view), x = data.get("x"), y = data.get("y"), axis = data.get("axis");
   view.options.x = axes.includes(x) ? x : axes[0]; view.options.y = axes.includes(y) && oldShape === view.shape ? y : axes[1];
-  view.options.axes = ["scatter"].includes(view.family) ? [view.options.x, view.options.y].filter(Boolean) : axis && axes.includes(axis) && !["heatmap", "correlation"].includes(view.family) ? [axis] : axes;
+  view.options.axes = view.family === "scatter" ? [view.options.x, view.options.y].filter(Boolean) : ["ranking", "distribution"].includes(view.family) ? [axes.includes(axis) ? axis : axes[0]].filter(Boolean) : axis && axes.includes(axis) && !["heatmap", "correlation"].includes(view.family) ? [axis] : axes;
   for (const name of ["distribution", "heatmap_layout", "correlation_orientation", "correlation_method", "correlation_sample", "group_by", "weight_policy", "history_layout"]) if (data.has(name)) view.options[name] = data.get(name);
   if (view.family === "distribution") {
     view.options.group_by ||= "symbol";
@@ -280,17 +337,29 @@ function exploreReadView(form, changedControl) {
   exploreDirty();
 }
 async function explorePreview() {
+  clearTimeout(explore.previewTimer);
+  if (explore.capture || !explore.workspace.views.length) return;
+  if (explore.previewInFlight) { explore.previewQueued = true; return; }
+  explore.previewInFlight = true; explore.previewQueued = false;
   const sequence = ++explore.sequence;
-  explore.status = "previewing"; exploreRender();
+  explore.status = "previewing"; exploreUpdateStatus();
   try {
     const response = await api("/api/explore/preview", "POST", {workspace: structuredClone(explore.workspace)});
     if (sequence !== explore.sequence) return;
-    explore.workspace = response.workspace || explore.workspace;
+    // Layout and save version may change during a calculation; neither changes its sample.
+    explore.workspace = {...(response.workspace || explore.workspace), layout: explore.workspace.layout, version: explore.workspace.version};
     explore.results = new Map((response.resolved_results || response.results || []).map(result => [result.view_id, result]));
+    const message = document.querySelector('#message');
+    if (explore.previewError && message?.textContent === explore.previewError) message.classList.remove('visible');
+    explore.previewError = null;
     explore.status = "current"; exploreRender();
   } catch (error) {
     if (sequence !== explore.sequence) return;
+    explore.previewError = error.message;
     explore.status = "failed"; exploreRender(); notify(error.message);
+  } finally {
+    explore.previewInFlight = false;
+    if (explore.previewQueued || sequence !== explore.sequence && explore.status === "dirty") exploreSchedulePreview();
   }
 }
 async function exploreSave(copy = false) {
@@ -308,13 +377,14 @@ async function exploreOpen(id) {
   state.catalogue = await api("/api/explore/library");
   explore.libraryChanges = response.library_changes || [];
   explore.workspace = response.workspace || response; explore.capture = null; explore.results.clear(); explore.status = "dirty"; explore.sequence++;
+  explore.selectionMode = null;
   explore.selected = explore.workspace.views[0]?.id; explore.checked = new Set(explore.workspace.views.map(view => view.id));
-  history.replaceState(null, "", `/explore/${id}`); exploreRender();
+  history.replaceState(null, "", `/explore/${id}`); exploreRender(); exploreSchedulePreview();
 }
 async function exploreCapture() {
-  if (explore.status !== "current") throw Error("Preview the current draft before capturing.");
+  if (explore.status !== "current") throw Error("Wait for the charts to update before saving evidence.");
   const sequence = explore.sequence, workspace = structuredClone(explore.workspace), views = workspace.views.filter(view => explore.checked.has(view.id));
-  if (!views.length) throw Error("Select at least one view to capture.");
+  if (!views.length) throw Error("Select at least one chart to save.");
   const resultIDs = [], images = {};
   for (const view of views) {
     const result = explore.results.get(view.id); if (!result) throw Error(`Preview ${view.name} before capturing.`);
@@ -337,6 +407,7 @@ async function exploreCapture() {
   location.href = destination;
 }
 async function exploreExportPNGs() {
+  if (explore.status !== "current") throw Error("Wait for the charts to update before exporting.");
   const views = explore.workspace.views.filter(view => explore.checked.has(view.id));
   if (!views.length) throw Error("Select at least one view to export.");
   for (const view of views) {
@@ -359,6 +430,50 @@ function exploreDialog(content) {
   const dialog = document.createElement("dialog"); dialog.id = "explore-dialog"; dialog.className = "explore-dialog";
   dialog.innerHTML = content; document.body.append(dialog); dialog.showModal(); return dialog;
 }
+function exploreMappingDialog(item) {
+  explore.mappingItem = item.id;
+  exploreDialog(`<h2>Chart grouping</h2><p>Associate this series with a symbol and a comparable field in your charts. For example, group spread and duration under the same symbol.</p><p class="meta">The data provider’s identifiers and query stay unchanged.</p><form id="explore-mapping-form"><div class="fields">${exploreInput("Symbol used in charts", "symbol", item.symbol)}${exploreInput("Field used in charts", "field", item.field)}</div><div class="actions">${exploreButton("Use grouping", "apply-mapping", 'class="primary"')}${exploreButton("Cancel", "close-dialog")}</div></form>`);
+}
+function exploreApplyMapping() {
+  const values = new FormData(document.querySelector('#explore-mapping-form'));
+  const symbol = values.get('symbol').trim(), field = values.get('field').trim();
+  if (!symbol || !field) throw Error("Enter both a symbol and a field for chart grouping.");
+  const item = explore.workspace.collection.find(item => item.id === explore.mappingItem), previousField = item.field;
+  if (explore.workspace.collection.some(other => other.id !== item.id && other.symbol === symbol && other.field === field)) throw Error("Another series already uses this symbol and field. Choose a distinct field.");
+  item.symbol = symbol; item.field = field;
+  for (const view of explore.workspace.views.filter(view => view.measures.includes(item.id) && view.shape !== "paired_date")) {
+    const available = exploreFields(view), replace = axis => axis === previousField && !available.includes(axis) ? field : axis;
+    view.options.axes = (view.options.axes || []).map(replace);
+    for (const axis of ["x", "y"]) if (view.options[axis]) view.options[axis] = replace(view.options[axis]);
+    if (view.family === "history" && !view.options.axes.includes(field)) view.options.axes.push(field);
+  }
+  document.querySelector('#explore-dialog').close(); exploreDirty(); exploreRender();
+}
+function exploreAttributeRow(attribute = {}) {
+  const symbols = [...new Set(explore.workspace.collection.map(item => item.symbol))];
+  if (attribute.symbol && !symbols.includes(attribute.symbol)) symbols.push(attribute.symbol);
+  return `<fieldset class="explore-attribute-row"><legend>Classification</legend><div class="fields">${exploreSelect("Symbol", "symbol", attribute.symbol || symbols[0], symbols.map(symbol => [symbol, symbol]))}${exploreInput("Classification (e.g. sector)", "name", attribute.name)}${exploreInput("Value", "value", attribute.value)}${exploreInput("Source", "source", attribute.source)}${exploreInput("Valid from (optional)", "effective_start", attribute.effective_start, "date")}${exploreInput("Valid through (optional)", "effective_end", attribute.effective_end, "date")}</div>${exploreButton("Remove classification", "remove-attribute", 'class="quiet"')}</fieldset>`;
+}
+function exploreAttributesDialog() {
+  exploreDialog(`<h2>Classifications</h2><p>Supply labels you can use to colour or group symbols, such as a sector from your data source.</p><p class="meta">Record where each label came from. Without dates, a label is treated as a fixed classification throughout history.</p><form id="explore-attributes-form"><div id="explore-attribute-rows">${explore.workspace.attributes.map(exploreAttributeRow).join("")}</div><div class="actions">${exploreButton("Add classification", "add-attribute")}${exploreButton("Save classifications", "apply-attributes", 'class="primary"')}${exploreButton("Cancel", "close-dialog")}</div></form>`);
+}
+function exploreApplyAttributes() {
+  const attributes = [...document.querySelectorAll('.explore-attribute-row')].map(row => {
+    const attribute = Object.fromEntries([...row.querySelectorAll('[name]')].map(input => [input.name, input.value.trim()]));
+    if (!["symbol", "name", "value", "source"].every(key => attribute[key])) throw Error("Each classification needs a symbol, name, value and source.");
+    attribute.effective_start ||= null; attribute.effective_end ||= null;
+    if (attribute.effective_start && attribute.effective_end && attribute.effective_start > attribute.effective_end) throw Error("The end date must be on or after the start date.");
+    return attribute;
+  });
+  const names = new Set(attributes.map(attribute => attribute.name));
+  for (const view of explore.workspace.views) {
+    if (view.facet_by && !names.has(view.facet_by)) view.facet_by = null;
+    if (view.options.group_by && view.options.group_by !== "symbol" && !names.has(view.options.group_by)) view.options.group_by = "symbol";
+    if (explore.workspace.attributes.some(attribute => attribute.name === view.color_by) && !names.has(view.color_by)) view.color_by = "symbol";
+  }
+  explore.workspace.attributes = attributes;
+  document.querySelector('#explore-dialog').close(); exploreDirty(); exploreRender();
+}
 function exploreAnalysisDialog(item = null) {
   const definition = item?.analysis;
   state.stagedSeries = {};
@@ -370,8 +485,8 @@ function exploreAnalysisDialog(item = null) {
 function exploreReplaceAnalysisDialog() {
   const draft = explore.analysisDraft, old = document.querySelector("#explore-dialog"), focused = document.activeElement;
   const selector = focused?.dataset.risk ? `[data-risk="${focused.dataset.risk}"][data-leg="${focused.dataset.leg}"]` : focused?.name ? `[name="${CSS.escape(focused.name)}"]` : null;
-  const content = `<h2>Local Analysis</h2><p class="meta">Inputs → measure → scaling → comparison → historical context. Library save is explicit; monitoring stays disabled.</p><form id="explore-analysis-form">${exploreInput("Name", "name", draft.name)}<label>Economic rationale<textarea name="economic_rationale" maxlength="10000">${esc(draft.economic_rationale)}</textarea></label>${analysisControls(draft, [], exploreAnalysisContext())}<div class="actions">${exploreButton("Apply local Analysis", "apply-analysis", 'class="primary"')}${exploreButton("Stage new series", "stage-series")}${exploreButton("Save to Library", "save-analysis-library")}${exploreButton("Cancel", "close-dialog")}</div></form>`;
-  if (old) old.innerHTML = content; else exploreDialog(content);
+  const content = `<h2>${explore.analysisItem ? "Edit calculation" : "Add a calculation"}</h2><p class="meta">Use the Analysis controls to calculate a series for this workspace. Select the result in a chart to display it.</p><form id="explore-analysis-form">${exploreInput("Name", "name", draft.name)}<label>Economic rationale<textarea name="economic_rationale" maxlength="10000">${esc(draft.economic_rationale)}</textarea></label>${analysisControls(draft, [], exploreAnalysisContext())}<p class="meta">Need an input that is not in Library? Define it below for this calculation.</p><div class="actions">${exploreButton(explore.analysisItem ? "Update calculation" : "Add to workspace", "apply-analysis", 'class="primary"')}${exploreButton("Define new input…", "stage-series")}${exploreButton("Save calculation to Library", "save-analysis-library")}${exploreButton("Cancel", "close-dialog")}</div></form>`;
+  if (old) { old.innerHTML = content; if (!old.open) old.showModal(); } else exploreDialog(content);
   if (selector) document.querySelector("#explore-dialog")?.querySelector(selector)?.focus({preventScroll: true});
 }
 function exploreSeriesDialog(staged = false) {
@@ -382,9 +497,9 @@ function exploreReplaceSeriesDialog() {
   const staged = explore.stagingSeries;
   const previousDraft = state.draft, previousTab = state.libraryTab;
   state.draft = explore.seriesDraft; state.libraryTab = "series";
-  const content = libraryEditor().replace('id="library-form"', 'id="explore-series-form"').replace(/<div class="actions">[\s\S]*?<\/div>(?=<\/form>)/, `<div class="actions">${exploreButton("Preview series", "preview-series")}${exploreButton(staged ? "Stage series" : "Save to Library and add", "apply-series", 'class="primary"')}${exploreButton("Cancel", "close-dialog")}</div>`);
+  const content = libraryEditor().replace('id="library-form"', 'id="explore-series-form"').replace(/<div class="actions">[\s\S]*?<\/div>(?=<\/form>)/, `<div class="actions">${exploreButton("Check data", "preview-series")}${exploreButton(staged ? "Use as calculation input" : "Save to Library and add", "apply-series", 'class="primary"')}${exploreButton("Cancel", "close-dialog")}</div>`);
   state.draft = previousDraft; state.libraryTab = previousTab;
-  exploreDialog(content + '<p id="explore-series-status" role="status"></p>');
+  exploreDialog(`<p class="meta">${staged ? "Define a data source for this calculation. It stays in this workspace until you save it to Library." : "Enter the exact identifiers expected by your data provider. This creates a reusable Library series."}</p>` + content + '<p id="explore-series-status" role="status"></p>');
 }
 async function exploreApplyAnalysis(librarySave = false) {
   const form = document.querySelector("#explore-analysis-form");
@@ -407,7 +522,7 @@ async function exploreApplyAnalysis(librarySave = false) {
   if (item) { item.analysis = resolved; item.origin = librarySave ? "library" : "local"; exploreDirty(); exploreRender(); }
   else exploreAddItem("analysis", draft, resolved, librarySave ? "library" : "local");
   document.querySelector("#explore-dialog")?.close();
-  if (!librarySave) notify("Local Analysis applied. Preview to update views.");
+  if (!librarySave) notify("Calculation added to this workspace. Choose it under Series in this chart.");
 }
 document.addEventListener("input", event => {
   if (page !== "explore" || explore.capture) return;
@@ -416,18 +531,26 @@ document.addEventListener("input", event => {
     explore.libraryQuery = control.value;
     document.querySelectorAll(".explore-library-row").forEach(row => row.hidden = !row.textContent.toLowerCase().includes(control.value.toLowerCase())); return;
   }
-  if (["explore-question", "explore-notes"].includes(control.id)) { explore.workspace[control.id === "explore-question" ? "question" : "notes"] = control.value; exploreDirty(); }
-  if (control.name === "workspace_name") { explore.workspace.name = control.value; exploreDirty(); }
-  if (control.dataset.association) { explore.workspace.collection.find(item => item.id === control.dataset.id)[control.dataset.association] = control.value; exploreDirty(); }
+  if (["explore-question", "explore-notes"].includes(control.id)) { explore.workspace[control.id === "explore-question" ? "question" : "notes"] = control.value; explore.editingText = true; exploreDirty(undefined, false); }
+  if (control.name === "workspace_name") { explore.workspace.name = control.value; explore.editingText = true; exploreDirty(undefined, false); }
+  if (control.name === "workspace_as_of") { explore.editingText = true; exploreDirty(undefined, false); }
+  if (control.closest('#explore-view-form') && ["text", "number", "date"].includes(control.type)) { explore.editingText = true; exploreDirty(undefined, false); }
   if (control.closest("#explore-analysis-form")) readAnalysisControls(control.form, explore.analysisDraft, exploreAnalysisContext());
 });
 document.addEventListener("change", event => {
   if (page !== "explore") return;
   const control = event.target;
-  if (control.dataset.captureView) { control.checked ? explore.checked.add(control.dataset.captureView) : explore.checked.delete(control.dataset.captureView); return; }
+  if (control.dataset.captureView) {
+    control.checked ? explore.checked.add(control.dataset.captureView) : explore.checked.delete(control.dataset.captureView);
+    document.querySelector('#explore-selection-count').textContent = `${explore.checked.size} selected`;
+    exploreUpdateStatus(); return;
+  }
   if (explore.capture) return;
-  if (control.name === "workspace_as_of") { explore.workspace.as_of = control.value || null; exploreDirty(); }
+  if (["explore-question", "explore-notes"].includes(control.id) || control.name === "workspace_name") { explore.editingText = false; exploreSchedulePreview(); }
+  if (control.name === "workspace_as_of") { explore.workspace.as_of = control.value || null; explore.editingText = false; exploreDirty(); }
   if (control.closest("#explore-view-form")) {
+    explore.editingText = false;
+    if (control.name === "measures" && !control.form.querySelector('[name="measures"]:checked')) { control.checked = true; notify("Keep at least one series in this chart, or remove the chart."); return; }
     exploreReadView(control.form, control.name);
     if (control.tagName === "SELECT" || ["measures", "pinned"].includes(control.name)) exploreRender();
   }
@@ -436,6 +559,15 @@ document.addEventListener("change", event => {
     if (control.tagName === "SELECT" || control.hasAttribute("data-risk-customize")) exploreReplaceAnalysisDialog();
   }
   if (control.closest("#explore-series-form") && control.name === "provider") { explore.seriesDraft = readSeriesDraft(control.form, explore.seriesDraft); exploreReplaceSeriesDialog(); }
+});
+
+// Returning an input to its original value may omit `change`; never leave updates paused.
+document.addEventListener("focusout", event => {
+  if (page !== "explore" || explore.capture || !explore.editingText) return;
+  const control = event.target;
+  if (control.closest('#explore-view-form')) { explore.editingText = false; exploreReadView(control.form, control.name); }
+  else if (["explore-question", "explore-notes"].includes(control.id) || control.name === "workspace_name") { explore.editingText = false; exploreSchedulePreview(); }
+  else if (control.name === "workspace_as_of") { explore.editingText = false; explore.workspace.as_of = control.value || null; exploreDirty(); }
 });
 document.addEventListener("submit", event => {
   if (page === "explore") { event.preventDefault(); event.stopImmediatePropagation(); }
@@ -464,29 +596,35 @@ document.addEventListener("click", async event => {
     else if (action === "preview") await explorePreview();
     else if (action === "save" || action === "save-copy") await exploreSave(action === "save-copy");
     else if (action === "open" || action === "open-saved") await exploreOpen(button.dataset.id || document.querySelector('[name="saved_workspace"]').value);
-    else if (action === "new") { explore.workspace = exploreNewWorkspace(); explore.results.clear(); explore.selected = null; exploreDirty(); history.replaceState(null, "", "/explore"); exploreRender(); }
+    else if (action === "new") { explore.workspace = exploreNewWorkspace(); explore.results.clear(); explore.selected = null; explore.selectionMode = null; exploreDirty(); history.replaceState(null, "", "/explore"); exploreRender(); }
+    else if (action === "select-save" || action === "select-export") { explore.selectionMode = action === "select-save" ? "save" : "export"; explore.workspace.layout = "workbench"; exploreRender(); }
+    else if (action === "cancel-selection") { explore.selectionMode = null; exploreRender(); }
+    else if (action === "capture-dialog") exploreCaptureDialog();
     else if (action === "capture") await exploreCapture();
-    else if (action === "export-png") await exploreExportPNGs();
-    else if (action === "copy-png") { const plot = document.querySelector(`#explore-plot-${button.dataset.id}`); if (!plot?.data) throw Error("Preview this chart before copying.");
+    else if (action === "export-png") { await exploreExportPNGs(); explore.selectionMode = null; exploreRender(); }
+    else if (action === "copy-png") { const plot = document.querySelector(`#explore-plot-${button.dataset.id}`); if (!plot?.data) throw Error("Wait for the chart to finish drawing, then copy it.");
       const dataURL = await Plotly.toImage(plot, {format: "png", width: 1400, height: 850}), blob = await (await fetch(dataURL)).blob();
       await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]); notify("Chart PNG copied."); }
     else if (action === "check-all") { explore.checked = new Set(explore.workspace.views.map(view => view.id)); exploreRender(); }
+    else if (action === "uncheck-all") { explore.checked.clear(); exploreRender(); }
     else if (action === "clear-highlight") { explore.highlighted = []; if (!explore.capture) { explore.workspace.views.forEach(view => view.highlight = []); exploreDirty(); } exploreRenderPlots(); }
     else if (action === "fork") {
       const capture = explore.capture, workspace = structuredClone(explore.workspace);
       const context = await exploreAuthoringContext(true);
       if (explore.capture !== capture) return;
       state.catalogue = context.catalogue; explore.saved = context.saved; state.exploreIdeas = context.ideas;
-      workspace.id = exploreID(); workspace.version = null; workspace.name += " (fork)";
-      explore.workspace = workspace; explore.capture = null; explore.libraryChanges = [];
+      workspace.id = exploreID(); workspace.version = null; workspace.name += " (copy)";
+      explore.workspace = workspace; explore.capture = null; explore.libraryChanges = []; explore.selectionMode = null;
       exploreDirty(); history.replaceState(null, "", "/explore"); exploreRender();
     }
     else if (action === "new-analysis" || action === "edit-analysis") exploreAnalysisDialog(explore.workspace.collection.find(item => item.id === button.dataset.id));
     else if (action === "new-series" || action === "stage-series") exploreSeriesDialog(action === "stage-series");
-    else if (action === "attributes") exploreDialog(`<h2>Supplied attributes</h2><p class="meta">Enter explicit symbol assignments with source and optional effective dates. Historical use of undated labels remains current/static.</p><label>Attribute records (JSON)<textarea id="explore-attributes" rows="12" spellcheck="false">${esc(JSON.stringify(explore.workspace.attributes, null, 2))}</textarea></label><p class="meta">Each record: symbol, name, value, source, effective_start, effective_end.</p><div class="actions">${exploreButton("Apply attributes", "apply-attributes", 'class="primary"')}${exploreButton("Cancel", "close-dialog")}</div>`);
-    else if (action === "apply-attributes") { const attributes = JSON.parse(document.querySelector("#explore-attributes").value); if (!Array.isArray(attributes)) throw Error("Supply an array of attribute records.");
-      if (attributes.some(attribute => !attribute.symbol || !attribute.name || !attribute.source || typeof attribute.value !== "string")) throw Error("Each attribute needs symbol, name, string value and source.");
-      explore.workspace.attributes = attributes; document.querySelector("#explore-dialog").close(); exploreDirty(); exploreRender(); }
+    else if (action === "mapping") exploreMappingDialog(explore.workspace.collection.find(item => item.id === button.dataset.id));
+    else if (action === "apply-mapping") exploreApplyMapping();
+    else if (action === "attributes") exploreAttributesDialog();
+    else if (action === "add-attribute") document.querySelector('#explore-attribute-rows').insertAdjacentHTML('beforeend', exploreAttributeRow());
+    else if (action === "remove-attribute") button.closest('.explore-attribute-row').remove();
+    else if (action === "apply-attributes") exploreApplyAttributes();
     else if (action === "apply-analysis" || action === "save-analysis-library") await exploreApplyAnalysis(action === "save-analysis-library");
     else if (action === "close-dialog") { document.querySelector("#explore-dialog").close(); if (explore.stagingSeries) { explore.stagingSeries = false; exploreReplaceAnalysisDialog(); } }
     else if (action === "preview-series" || action === "apply-series") {
@@ -524,6 +662,7 @@ async function exploreStart() {
     if (segments[1]) { const response = await api(`/api/explore/workspaces/${segments[1]}`); explore.workspace = response.workspace || response; explore.libraryChanges = response.library_changes || []; }
   }
   const visible = exploreVisibleViews(); explore.selected = visible[0]?.id; explore.checked = new Set(visible.map(view => view.id)); exploreRender();
+  if (!explore.capture) exploreSchedulePreview();
 }
 window.exploreWorkspace = explore;
 exploreStart().catch(error => { main.innerHTML = `<h1>Unable to load Explore</h1><p class="warning">${esc(error.message)}</p><a href="${esc(location.pathname)}">Retry</a>`; });

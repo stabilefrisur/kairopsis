@@ -1,22 +1,27 @@
 # Explore relative-value relationships
 
 Explore is a saved research workspace with a collection and several related
-views. Add actual Library series or saved Analysis outputs, then explicitly
-associate each item with a symbol and semantic field. Several fields can describe
-one symbol. Different revisions/queries retain distinct collection identities;
-give revised versions distinct field names if they share a symbol.
+charts. Add Library series or saved Analysis outputs, then select the series in
+each chart's settings. Source identifiers are read-only. When different inputs
+need a shared symbol or semantic field, use **Source details → Change chart
+grouping**. This changes their chart associations, not the provider query. Several
+fields can describe one symbol. Different revisions/queries retain distinct
+collection identities; give revised versions distinct fields if they share a symbol.
 
-Use **Local Analysis** for existing Standalone/Pair calculations. The controls
+Use **Add calculation** for existing Standalone/Pair calculations. The controls
 are shared with Library: input measure, Frequency, risk adjustment/references,
 comparison, fitting/reference histories and output standardization. Each scatter
-axis can use its own local Analysis. Staged series remain local until explicitly
-saved to Library. Applying a local calculation or saving a workspace does not
+axis can use its own workspace Analysis. **Define new input** supplies an input
+for that calculation; **Add to workspace** adds its calculated output. Inputs
+remain local until explicitly saved to Library. **Connect new data** instead
+creates a reusable Library series. Adding a calculation or saving a workspace does not
 enable monitoring. Opening Explore never starts screening.
 
 ## Choose observations and views
 
-Workbench shows the collection, ordered view grid and selected-view editor.
-Focus enlarges the selected view. Add, duplicate, reorder and widen views to
+The overview shows data, the ordered chart grid and the selected chart's settings.
+**Enlarge** focuses one chart; **Back to overview** restores the grid. **Add chart**
+sits beside the charts. Add, duplicate, reorder and widen charts to
 compare definitions or samples. The working question and notes are optional;
 they accompany frozen captures.
 
@@ -50,6 +55,8 @@ sizes receive a reported constant fallback. Colour/facets use supplied numeric
 fields or explicitly sourced attributes; provider parameters never become
 classifications. Dated attributes may not overlap; static assignments are labelled
 when applied to history.
+Use **Grouping & classifications → Edit classifications** to enter a symbol,
+classification, value, source and optional effective dates in ordinary form fields.
 
 ## Read the mathematics
 
@@ -87,23 +94,33 @@ proportional repricing. Unknown semantics are labelled rather than inferred.
 On reopen, newer/deleted Library records are reported. Refresh uses retained
 queries; explicitly update revisions to adopt Library edits. Concurrent saves
 return a conflict and preserve your draft.
+The version in source details refers to the saved query definition, not a frozen
+vintage of market data.
 
-Preview creates immutable result IDs, definition/data fingerprints and complete
-input evidence. A changed draft requires a new preview before capture. A failed
-or late response keeps the previous labelled chart; it cannot overwrite a newer
-draft. Unsaved previews expire after 24 hours. A new preview supersedes the older
-bundle for capture, including while that preview is in progress.
+Selecting series or changing chart settings updates charts automatically after
+a short pause; text and date edits apply when the field is completed. **Refresh
+data** requests a fresh update. While updating, the previous chart remains labelled
+and saving/exporting its evidence is disabled. Failed updates offer **Retry update**.
+Late responses cannot replace newer choices, and explicit drilldown samples survive
+chart-type changes.
 
-Select one or several views and **Capture to Idea** as supporting, challenging
-or contextual evidence. Capture copies current result IDs and matching PNGs;
+Each update creates immutable result IDs, definition/data fingerprints and complete
+input evidence. Unsaved results expire after 24 hours. A new update supersedes the
+older bundle for capture, including while that update is in progress.
+
+Choose **Save to Idea**, select charts, then **Continue**. The dialog asks for a
+title, destination Idea and whether the evidence supports the argument, challenges
+it or provides background context. The role organises evidence without changing
+calculations. Chart checkboxes appear only in this selection flow or **Export charts**.
+Saving evidence copies current result IDs and matching PNGs;
 it never retrieves data or recalculates. The capture retains the entire working
 question, notes, definitions, calculation inputs, retained/excluded observations,
 measurement endpoints, algorithms, provenance and hashes.
 
 Frozen evidence reopens and exports offline after Library edits/deletion or an
-application restart. **Export evidence** downloads a ZIP with PNGs, CSVs, full
+application restart. **Download evidence ZIP** includes PNGs, CSVs, full
 JSON definitions/data, readable notes and a hash manifest. Copy/fork its workspace
-definition to investigate again; subsequent previews/captures leave the original
+definition with **Make an editable copy** to investigate again; subsequent updates/captures leave the original
 evidence unchanged. Copying an entire Idea folder to a compatible workspace
 preserves both legacy Analysis charts and Explore evidence.
 

@@ -22,7 +22,9 @@ function readSeriesDraft(form, draft) {
   return {...draft, name: data.name, source, instrument: data.instrument,
     field: ["macrobond", "localfile"].includes(source) ? null : data.field?.trim() || null,
     unit: data.unit, currency: data.currency?.trim() || "Not applicable", catalog_name: legacy ? null : data.catalog_name?.trim() || "",
-    path: data.path?.trim() || null, params: query, description: data.description?.trim() || null};
+    path: data.path?.trim() || null, params: query, description: data.description?.trim() || null,
+    research_symbol: data.research_symbol?.trim() || null, research_field: data.research_field?.trim() || null,
+    localfile_date_role: source === "localfile" && data.file_observation_dates === "on" ? "observation" : "unknown"};
 }
 function seriesForSave(series) {
   return {...series, catalog_name: series.catalog_name === null ? null : series.catalog_name ||

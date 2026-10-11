@@ -7,6 +7,9 @@ need a shared symbol or semantic field, use **Source details → Change chart
 grouping**. This changes their chart associations, not the provider query. Several
 fields can describe one symbol. Different revisions/queries retain distinct
 collection identities; give revised versions distinct fields if they share a symbol.
+Library entries may supply a **Research symbol** and **Research field** under
+additional details. Explore uses these as its initial grouping. CSV column names
+remain the exact Metapyle query identifiers; the grouping never enters that query.
 
 Use **Add calculation** for existing Standalone/Pair calculations. The controls
 are shared with Library: input measure, Frequency, risk adjustment/references,
@@ -87,6 +90,30 @@ Review input source, units, currency, supplied Comparison Basis/description,
 retrieval outcome, actual dates and calculation limitations. A total-return index's
 percentage growth has the meaning of the supplied index; spread growth describes
 proportional repricing. Unknown semantics are labelled rather than inferred.
+
+## Loaded data and refresh
+
+Adding a series loads its observations automatically, even before adding a chart.
+All charts in the workspace reuse the loaded observations. Chart settings and
+calculation changes reuse these data; unchanged statistics and Analysis outputs
+are reused too. A longer history fetches only uncovered dates. Display changes
+never enlarge the analytical history.
+
+**Refresh data** explicitly reloads the current collection through Metapyle.
+Replacement is atomic: a failed refresh keeps the previous data and reports the
+failure. New Library revisions are still adopted explicitly. Retrieval timestamps,
+requests, native dates and outcomes are retained; reuse does not imply freshness.
+
+This cache lives in the application process, with at most eight recently used
+workspaces and 32 recent chart/Analysis calculations per workspace. Restarting
+the app or evicting an inactive workspace causes its next edit/open to reload.
+Saved evidence is independent of the cache and remains immutable.
+
+For local files only, Library can explicitly declare **File dates are actual
+observation dates**. Use this only with documented native dates and no filling or
+resampling. The default remains unknown; missing values stay missing. This
+declaration allows eligible historical calculations but does not certify market
+freshness or enable monitoring.
 
 ## Save and retain evidence
 

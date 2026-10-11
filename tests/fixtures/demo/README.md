@@ -7,7 +7,34 @@ three-year / 500-observation reference profile after risk warm-up.
 
 All values are fabricated. Seed `20261011`, fixed endpoints and eight-decimal CSV
 serialization make regeneration reproducible. This is a source-testing fixture;
-the existing built-in demo and user workspaces are unaffected.
+the existing built-in unit-test fixtures and user workspaces are unaffected.
+
+## Run the CSV-backed application demo
+
+From the repository root:
+
+```sh
+.venv/bin/python scripts/run_csv_demo.py --root /absolute/path/csv-demo --port 8768
+```
+
+Open `/explore/csv-demo` for a starter credit workspace, or `/library` for all
+74 series. This uses the normal Metapyle `localfile` route, not the built-in
+mock generator. The launcher checks the CSV checksum, imports through Library
+validation, preserves manifest research-symbol/field mappings and labels the
+application as synthetic CSV data. It sets new Explore workspaces to the
+dataset's last date, 2026-09-30. Edge-case series are labelled separately.
+
+The dedicated workspace persists edits and Analyses across restarts. Re-running
+the launcher adds missing entries without replacing existing Library edits or
+the saved starter workspace. It refuses to mix in an unrelated data Library.
+Use `--prepare-only` to import without starting the server.
+
+The importer explicitly declares this generated file's dates as observation
+dates, using the documented no-fill convention. Weekly changes, returns, risk
+scaling and fitting therefore use actual supplied dates through the production
+engine. Market freshness remains `unverified`; no monitoring is enabled.
+Explore caches loaded observations and calculations; **Refresh data** reloads
+the source. Restarting the process clears the in-memory cache.
 
 ## Files and regeneration
 
@@ -64,12 +91,11 @@ column as Symbol, the **absolute** `market.csv` path, no Field, and units/curren
 from the manifest. Give it a synthetic label and retain the shaping description.
 Library handles its normal catalogue projection and revisions.
 
-The current regular Metapyle route reports `unverified` freshness and unknown
-native observation dates. Raw levels are inspectable, but changes, fitting, risk
-estimation and eligible findings need native-date evidence the adapter does not
-provide. The integration test asserts this limitation. Separate offline engine
-tests explicitly supply the generator's synthetic dates; that does not establish
-live-provider freshness or change the adapter contract.
+Without an explicit Library file-date declaration, the regular Metapyle route
+reports `unverified` freshness and unknown native observation dates. Raw levels
+are inspectable; date-dependent calculations need that evidence. Integration
+tests cover both the unchanged conservative default and the demo importer's
+explicit declaration. Neither establishes live-provider freshness.
 
 ## Universe
 

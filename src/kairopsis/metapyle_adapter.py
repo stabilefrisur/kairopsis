@@ -37,7 +37,8 @@ def _raw_column(binding: SeriesBinding, mapping: MetapyleMapping | None) -> str:
     raise InvalidResponse("unresolved_field", "This registered source needs an explicit value-column mapping in private metapyle.json configuration")
 
 
-def _observations(frame: Any, value_column: str, request: DataRequest, observed_on_column: str | None = None) -> tuple[Observation, ...]:
+def _observations(frame: Any, value_column: str, request: DataRequest, observed_on_column: str | None = None,
+                  file_observation_dates: bool = False) -> tuple[Observation, ...]:
     if not isinstance(frame, pd.DataFrame) or not isinstance(frame.index, pd.DatetimeIndex):
         raise InvalidResponse("invalid_response", "Metapyle did not return a DataFrame with dated rows")
     if frame.columns.has_duplicates or frame.index.hasnans:
@@ -67,6 +68,8 @@ def _observations(frame: Any, value_column: str, request: DataRequest, observed_
             value = None if pd.isna(value) else float(value)
         except (ValueError, TypeError, OverflowError):
             raise InvalidResponse("invalid_response", "The selected Metapyle field contains a nonnumeric value") from None
+        if file_observation_dates and value is not None:
+            observed = day
         observations.append(Observation(date=day, value=value, observed_on=observed))
     if not observations:
         raise InvalidResponse("no_data", "Metapyle returned no observations in the requested range")
@@ -157,7 +160,8 @@ class MetapyleMarketData:
                         frame = client.get_raw(mapping.metapyle_source, mapping.symbol, request.start.isoformat(), request.end.isoformat(),
                             field=mapping.request_field, path=mapping.path, params=params, use_cache=False)
                         value_column = mapping.value_column
-                    observations = _observations(frame, value_column, request, observed_on_column)
+                    file_dates = binding.source == "localfile" and binding.localfile_date_role == "observation"
+                    observations = _observations(frame, value_column, request, observed_on_column, file_dates)
                 except InvalidResponse as error:
                     failures.append(DataFailure(binding_id=binding.id, code=error.code, message=str(error)))
                     continue
@@ -169,6 +173,8 @@ class MetapyleMarketData:
                     unknown = sum(point.observed_on is None for point in observations)
                     native = ("Configured actual-observation column was absent; all native dates remain unknown." if observed_on_column not in frame.columns
                               else f"Actual dates use the explicitly configured upstream column; {unknown} of {len(observations)} rows have missing or invalid native dates and remain unknown.")
+                if file_dates:
+                    native = "Library explicitly declares this local file's dates as observation dates; missing values remain missing. This does not verify market freshness."
                 series.append(SeriesResult(binding=binding, observations=observations,
                     provenance=("Metapyle ad-hoc raw API" if raw_binding else "Metapyle catalogue API" if direct_binding else "Legacy Metapyle raw API") + "; cache bypass requested. Upstream retrieval freshness is unverified. " + native))
         finally:

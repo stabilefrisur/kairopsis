@@ -7,6 +7,28 @@ Verify the built artifacts as well as the source checkout. Source tests establis
 application behavior; installed-package checks establish that the distribution
 contains the code, browser assets and guides needed outside the checkout.
 
+## CSV demo and Explore data reuse — 11 October 2026
+
+The active review demo now reads all 74 manifest series through Metapyle's
+`localfile` adapter and Library validation. The manifest's credit symbol/field
+associations populate Explore; query fields remain omitted for CSV retrieval.
+The importer explicitly declares the generated no-fill observation dates while
+preserving unverified market freshness. A weekly spread change matches the
+two actual CSV endpoints. No monitoring is enabled.
+
+Explore preloads a selected collection, reuses observation coverage and calculated
+results, fetches only missing dates and explicitly replaces its snapshot on
+Refresh data. Failed replacement preserves the prior snapshot. Cache isolation,
+eviction, capture identity and date/provenance retention are tested.
+
+All **408 tests** pass; mypy checks 25 source files and modified JavaScript passes
+syntax checks. Both the CSV browser acceptance and existing usability journey
+pass, including delayed updates, failure/retry, field grouping and local Analysis
+construction. One measured cached chart-type change took 0.81 seconds including
+debounce and rendering; this is a local example, not a latency guarantee.
+Reproducible launch: `scripts/run_csv_demo.py`; browser check:
+`scripts/csv-demo-acceptance.py`. Local review images: `.scratch/csv-demo/review-final/`.
+
 ## Explore controls — 11 October 2026
 
 Explore now updates charts automatically after settings changes. Authoring controls

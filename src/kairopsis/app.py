@@ -100,6 +100,11 @@ class ExplorationResolveRequest(BaseModel):
     series_drafts: tuple[SeriesBinding, ...] = ()
 
 
+class ExplorationPreviewRequest(BaseModel):
+    workspace: WorkspaceDefinition
+    refresh_data: bool = False
+
+
 class ExplorationCaptureRequest(BaseModel):
     workspace: WorkspaceDefinition
     result_ids: tuple[str, ...]
@@ -134,6 +139,8 @@ def create_app(settings: Settings | None = None, market_data: MarketData | None 
         return f"/static/{name}?v={version}"
 
     templates.env.globals["asset_url"] = asset_url
+    templates.env.globals["data_label"] = settings.data_label
+    templates.env.globals["exploration_as_of"] = settings.exploration_as_of or ""
 
     @app.exception_handler(FileNotFoundError)
     async def missing(request: Request, error: FileNotFoundError):
@@ -213,9 +220,9 @@ def create_app(settings: Settings | None = None, market_data: MarketData | None 
         return catalogue.resolve_draft(body.analysis, body.series_drafts)
 
     @app.post("/api/explore/preview")
-    def exploration_preview(body: WorkspaceRequest):
+    def exploration_preview(body: ExplorationPreviewRequest):
         token = exploration_repository.begin_preview(body.workspace.id)
-        result = exploration.preview(body.workspace)
+        result = exploration.preview(body.workspace, refresh_data=body.refresh_data)
         exploration_repository.retain_results(result["resolved_results"], body.workspace.id, token)
         return result
 

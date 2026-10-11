@@ -41,6 +41,9 @@ class SeriesBinding(Record):
     path: str | None = None
     params: dict[str, JsonValue] = Field(default_factory=dict)
     description: str | None = None
+    research_symbol: str | None = Field(default=None, min_length=1, max_length=200)
+    research_field: str | None = Field(default=None, min_length=1, max_length=200)
+    localfile_date_role: Literal["unknown", "observation"] = "unknown"
 
     @model_validator(mode="after")
     def query_fields(self):
@@ -48,6 +51,12 @@ class SeriesBinding(Record):
             raise ValueError("Provider field must be nonempty or omitted")
         if not self.instrument.strip() or not self.source.strip():
             raise ValueError("Provider source and symbol must be nonempty")
+        if bool(self.research_symbol) != bool(self.research_field):
+            raise ValueError("Supply both the research symbol and research field")
+        if any(value is not None and not value.strip() for value in (self.research_symbol, self.research_field)):
+            raise ValueError("Research symbol and field must be nonempty")
+        if self.localfile_date_role == "observation" and self.source != "localfile":
+            raise ValueError("File observation dates require the localfile source")
         return self
 
 

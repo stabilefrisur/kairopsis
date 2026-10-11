@@ -11,9 +11,10 @@ from typing import Any, Literal, cast
 from .analytics import evaluate
 from .exploration_models import CollectionItem, SampleRow, ViewDefinition, ViewResult, WorkspaceDefinition
 from .fixtures import MOCK_AS_OF
-from .models import DataFailure, DataRequest, DataResponse, SeriesBinding, SeriesResult
+from .models import DataFailure, DataRequest, DataResponse, SeriesBinding, SeriesResult, identity
 from .periods import period_start, retrieval_start
 from .service import Research
+from .exploration_cache import ExplorationCache, WorkspaceCache
 
 
 def fingerprint(value: Any) -> str:
@@ -52,8 +53,13 @@ def meaning(item: CollectionItem) -> str:
 class Exploration:
     def __init__(self, research: Research):
         self.research = research
+        self.cache = ExplorationCache()
 
-    def preview(self, workspace: WorkspaceDefinition) -> dict:
+    def preview(self, workspace: WorkspaceDefinition, refresh_data: bool = False) -> dict:
+        with self.cache.session(workspace.id, refresh_data) as cache:
+            return self._preview(workspace, cache)
+
+    def _preview(self, workspace: WorkspaceDefinition, cache: WorkspaceCache) -> dict:
         from .exploration_statistics import summarize
 
         research = self.research
@@ -82,25 +88,36 @@ class Exploration:
                 key = fingerprint(binding)
                 if key in bundle:
                     continue
-                request = DataRequest(bindings=(binding,), start=start, end=max(ends))
+                request = DataRequest(bindings=(binding,), start=start, end=max(ends),
+                    freshness="require_fresh" if cache.refreshed else "prefer_cache")
                 try:
-                    data = research.preview_provider.fetch(request)
-                    if data.mode != research.repository.mode:
-                        raise ValueError("Provider mode does not match workspace")
-                    if any(s.binding != binding for s in data.series):
-                        raise ValueError("Provider returned a different resolved binding")
-                    for series in data.series:
-                        observation_dates = [o.date for o in series.observations]
-                        if len(set(observation_dates)) != len(observation_dates):
-                            raise ValueError("Duplicate daily observations")
+                    def fetch(query):
+                        data = research.preview_provider.fetch(query)
+                        if data.mode != research.repository.mode:
+                            raise ValueError("Provider mode does not match workspace")
+                        if any(s.binding != binding for s in data.series):
+                            raise ValueError("Provider returned a different resolved binding")
+                        if len(data.series) > 1:
+                            raise ValueError("Provider returned multiple series for one binding")
+                        for series in data.series:
+                            dates = [o.date for o in series.observations]
+                            if len(set(dates)) != len(dates):
+                                raise ValueError("Duplicate daily observations")
+                        return data
+                    data = cache.load(key, request, fetch)
                     bundle[key] = data
                     requests[key] = request
                 except Exception as error:
+                    if cache.refreshed:
+                        raise ValueError("Could not refresh all series. Previous data kept; retry Refresh data.") from error
                     from .models import DataFailure
                     bundle[key] = DataResponse(mode=cast(Literal["mock", "live"], research.repository.mode), requested=(binding.id,), series=(), attempted_at=now,
                         completed_at=now, outcome="failed", failures=(DataFailure(binding_id=binding.id, code="retrieval_failed",
                         message=str(error) if isinstance(error, ValueError) else f"Retrieval failed ({type(error).__name__})"),))
                     requests[key] = request
+                    cache.versions[key] = identity()
+        if not workspace.views and any(data.failures for data in bundle.values()):
+            raise ValueError("Could not load all selected series. Check their source details, then retry Refresh data.")
         results = []
         for view, end in zip(workspace.views, ends):
             axis_items = [i for i in workspace.collection if i.id in view.measures]
@@ -114,6 +131,16 @@ class Exploration:
             # paired-date marks retain explicitly identified item values.
             selected = [i for i in workspace.collection if i.id in view.measures or i.id in (view.size_by, view.color_by) or
                 i.symbol in included_symbols and i.field in encoding_fields]
+            view_key = fingerprint([view.model_dump(mode="json", exclude={"id", "name", "width", "highlight", "display_start", "display_end", "pinned"}),
+                [i.model_dump(mode="json") for i in selected], [a.model_dump(mode="json") for a in workspace.attributes],
+                str(start), str(end), [cache.versions[fingerprint(b)] for i in selected for b in bindings(i)]])
+            cached = cache.views.get(view_key)
+            if cached is not None:
+                display_ids = tuple(r.id for r in cached.rows if (not view.display_start or r.date >= view.display_start) and (not view.display_end or r.date <= view.display_end))
+                results.append(cached.model_copy(update={"id": identity(), "view_id": view.id, "view": view,
+                    "definition_fingerprint": fingerprint(view), "workspace_fingerprint": workspace_fingerprint(workspace),
+                    "created_at": now, "expires_at": now + timedelta(hours=24), "display_row_ids": display_ids}))
+                continue
             values: dict[str, dict[date, dict[str, Any]]] = {}
             metadata: dict[str, dict[str, Any]] = {}
             evidence: dict[str, Any] = {"bindings": {}, "evaluations": {}}
@@ -126,7 +153,8 @@ class Exploration:
                     key = fingerprint(binding)
                     data = bundle[key]
                     filtered = data.model_copy(update={"series": tuple(s.model_copy(update={"observations": tuple(o for o in s.observations if start <= o.date <= end)}) for s in data.series)})
-                    evidence["bindings"][key] = {"request": requests[key].model_copy(update={"end": end}).model_dump(mode="json"), "data": filtered.model_dump(mode="json")}
+                    evidence["bindings"][key] = {"request": requests[key].model_copy(update={"end": end}).model_dump(mode="json"), "data": filtered.model_dump(mode="json"),
+                        "retrievals": cache.retrievals(key)}
                     # Raw source evidence remains untouched above. A known
                     # native observation after the cutoff cannot be consumed by
                     # a historical calculation, even if its row is dated earlier.
@@ -147,7 +175,11 @@ class Exploration:
                         request = DataRequest(bindings=bindings(item), start=start, end=end)
                         data = DataResponse(mode=cast(Literal["mock", "live"], research.repository.mode), requested=tuple(b.id for b in bindings(item)), series=tuple(series_data),
                             attempted_at=now, completed_at=now, outcome="synthetic" if research.repository.mode == "mock" else "unverified")
-                        evaluation = evaluate(item.analysis, data, request, now)
+                        analysis_key = fingerprint([item.analysis.model_dump(mode="json"), str(start), str(end), [cache.versions[fingerprint(b)] for b in bindings(item)]])
+                        evaluation = cache.analyses.get(analysis_key)
+                        if evaluation is None:
+                            evaluation = evaluate(item.analysis, data, request, now)
+                            cache.remember(cache.analyses, analysis_key, evaluation)
                         unit = evaluation.unit
                         evidence["evaluations"][item.id] = evaluation.model_dump(mode="json")
                         limits.extend(f"{item.symbol}/{item.field}: {limitation}" for limitation in evaluation.limitations)
@@ -272,6 +304,7 @@ class Exploration:
                 data_fingerprint=fingerprint(evidence), created_at=now, expires_at=now + timedelta(hours=24), as_of=end, view=view,
                 rows=tuple(accepted), excluded=tuple(excluded), measures=metadata, axes=axes, axis_units=units, statistics=stats,
                 input_evidence=evidence, limitations=tuple(dict.fromkeys(limits)), display_row_ids=display_ids))
+            cache.remember(cache.views, view_key, results[-1])
         return {"workspace": workspace, "resolved_results": results, "fingerprint": workspace_fingerprint(workspace)}
 
 

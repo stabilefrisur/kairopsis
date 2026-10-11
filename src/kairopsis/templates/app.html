@@ -9,11 +9,11 @@
   <script src="{{ asset_url('charts.js') }}" defer></script><script src="{{ asset_url('library.js') }}" defer></script><script src="{{ asset_url('analysis-controls.js') }}" defer></script><script src="{{ asset_url('research.js') }}" defer></script>
   {% if page == 'explore' %}<script src="{{ asset_url('explore.js') }}" defer></script>{% endif %}
 </head>
-<body data-page="{{ page }}" data-mode="{{ mode }}">
+<body data-page="{{ page }}" data-mode="{{ mode }}" data-exploration-as-of="{{ exploration_as_of }}">
   <a class="skip" href="#content">Skip to content</a>
   <header><a class="brand" href="/analyses"><span>K</span> Kairopsis</a>
     <nav aria-label="Main"><a href="/analyses">Analyses</a><a href="/explore">Explore</a><a href="/ideas">Ideas</a><a href="/library">Library</a></nav>
-    <small>{{ 'Demo data · Illustrative flag rules' if mode == 'mock' else 'Live · Observation dates unverified' }}</small>
+    <small>{{ data_label or ('Demo data · Illustrative flag rules' if mode == 'mock' else 'Provider data · See source details') }}</small>
   </header>
   <main id="content" tabindex="-1"><p role="status">Loading research…</p></main>
   <div id="message" role="status" aria-live="polite"></div>

@@ -3,6 +3,7 @@
 import argparse
 import os
 import tomllib
+from datetime import date
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -21,6 +22,8 @@ class Settings:
     host: str = "127.0.0.1"
     port: int = 8765
     timezone: str = "Europe/London"
+    data_label: str | None = None
+    exploration_as_of: str | None = None
 
     def __post_init__(self) -> None:
         package = Path(__file__).resolve().parent
@@ -34,6 +37,8 @@ class Settings:
             object.__setattr__(self, name, path)
         if self.mode not in ("mock", "live"):
             raise ValueError("mode must be mock or live")
+        if self.exploration_as_of is not None:
+            date.fromisoformat(self.exploration_as_of)
         if not 1 <= self.port <= 65535:
             raise ValueError("port must be between 1 and 65535")
         try:

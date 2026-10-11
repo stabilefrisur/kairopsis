@@ -2,12 +2,15 @@
 
 A local workspace for relative-value research.
 
-Explore market series, compare exposures, and develop investment Ideas with
+Explore market series, compare relationships, and develop investment Ideas with
 charts and notes you can revisit. Kairopsis brings investigation and saved
 evidence together in a browser-based dashboard.
 
 - **Investigate:** levels, differences, ratios and regression residuals, with
-  historical context and optional risk adjustment.
+  explicit reference periods and optional risk adjustment. Library and Analyses
+  open the same editor, with automatic previews and explicit Save/Discard.
+- **Explore:** combine Library series and local calculations in several charts,
+  reuse loaded data, and choose each chart's dates and observations.
 - **Retain evidence:** save charts, observations and notes alongside each Idea.
 - **Screen and brief:** retain dated screening results for an agent to review
   against the recorded economic rationale and turn into a concise brief.
@@ -25,6 +28,8 @@ and a standard Metapyle `localfile` catalogue.
 
 - [Human guide](https://github.com/stabilefrisur/kairopsis/blob/main/src/kairopsis/docs/human-guide.md)
   — everyday investigation, Ideas and exports.
+- [Explore guide](https://github.com/stabilefrisur/kairopsis/blob/main/src/kairopsis/docs/explore.md)
+  — collections, chart dates, cached data and frozen evidence.
 - [Agent setup guide](https://github.com/stabilefrisur/kairopsis/blob/main/src/kairopsis/docs/agent-setup.md)
   — Copilot runbook for an upstream source workspace, data connections and handoff.
 - [Analysis configuration skill](https://github.com/stabilefrisur/kairopsis/blob/main/src/kairopsis/skills/kairopsis-analysis/SKILL.md)
@@ -34,7 +39,7 @@ and a standard Metapyle `localfile` catalogue.
   — run a screening or review retained results, investigate significant themes,
   and save a brief with traceable evidence.
 
-Both guides and both self-contained skills are included in the installed
+All three guides and both self-contained skills are included in the installed
 Python package and the source archive.
 Requires Python 3.12 or later. Frontend assets are bundled; no Node.js setup is
 needed.

@@ -1,5 +1,8 @@
 # Analysis controls with explicit calculation order
 
+Historical proposal. The maintained [implementation specification](../specs/analysis-controls-and-calculations.md)
+supersedes its labels and save workflow; this document preserves the original design discussion.
+
 Proposal, 6 October 2026. Allow combinations whose formulas are defined, while
 using examples, contextual guidance and previews to help users choose. Economic
 recommendations belong in the bundled

@@ -1,7 +1,8 @@
 # Relative-value exploration: design
 
-Implementation design, 10 October 2026. Prototype baseline: `615334c`;
-branch: `codex/explore-workspace-prototype`. The P1–P6 foundation is implemented;
+Implementation design, 10 October 2026; updated through `42706f8`, 11 October 2026.
+Prototype baseline: `615334c`; branch: `codex/explore-workspace-prototype`.
+The P1–P6 foundation and subsequent editor/cache/usability refinements are implemented;
 P7 research operations and P8 release acceptance remain planned.
 Read the [implementation plan](relative-value-exploration-implementation-plan.md)
 for sequence, use-case coverage and acceptance gates.
@@ -94,15 +95,24 @@ Keep these purposes separate:
 | Analysis histories | Existing reference, fitting and risk-estimation settings |
 | Display range/zoom | Visible extent only; never recalculates reference or fit estimates |
 
-Workspace context supplies defaults; each view can override and pin its sample
-and as-of date. Historical as-of evaluation uses the actual cutoff, not a cached
+**Workspace date** supplies the default cutoff. A chart chooses **Follow workspace
+date** or **Set chart date**; the latter retains an independent cutoff. The UI
+shows one comparison date for levels, **From/To** for endpoint changes, or a
+history start/end. Missing-date handling, observation filters and display zoom
+are separate disclosures. Invalid or incomplete date choices hold automatic
+preview and identify the missing setting. Older explicit sample ends survive
+unrelated edits; choosing a new chart date replaces that overlapping endpoint.
+
+Historical as-of evaluation uses the actual cutoff, not a cached
 latest fit cropped to an earlier date. Such results still use the retrieved data
 vintage; they are not claimed to be knowledge available at that historical time.
 
-Percentage changes require positive baselines. Analysis Z-score keeps prior-only
-history, sample SD and minimum-history rules. Risk samples, baseline search,
-fit timing and unavailable results retain the existing contract. Remove the
-prototype's alternative Window Z-score from production choices.
+Percentage changes require positive baselines. Analysis reference modes are
+As-of, Rolling and Fixed dates; regression fitting independently selects As-of
+or Rolling. Fixed references can use later information for earlier chart points.
+Risk estimates always roll or expand at each date. Sample SD, baseline search,
+minimum support and unavailable results follow the Analysis contract. The
+prototype's alternative Window Z-score is not a production calculation.
 
 Add only named exploration operations with explicit formulas: common-date
 rebasing, chosen-endpoint comparisons, peer summaries/fixed linear comparators,
@@ -170,6 +180,10 @@ the chart. Reuse the existing visual shell and bundled Plotly.
 | Heatmap | Symbols × dates; symbols × fields at a date; grouped dimensions with explicit aggregation |
 | Correlation | Series across dates or fields across symbols; Pearson/Spearman; exact-sample drilldown |
 
+The table includes P7 target forms: rebasing, event paths, peer comparators and
+grouped operations are still planned. The [shipped guide](../../src/kairopsis/docs/explore.md)
+describes the implemented subset.
+
 Relationship matrices use the Correlation family; they do not require a time axis.
 Mixed-unit field heatmaps use separate column scales or explicit comparable
 standardized outputs. Never imply raw duration and spread share a numeric scale.
@@ -186,6 +200,10 @@ Dates need ticks and hover values, never an axis title. Use “symbol”, “ser
 “relationship”, not “exposure”. The distribution selector says “KDE”. Explanations
 follow each measure's semantics: total-return-index growth is index return;
 spread growth is proportional repricing.
+
+Legends sit below plots for every family. Long labels wrap; cards grow vertically
+to preserve plot space. Rendering and PNG export use the same presentation,
+without changing retained labels, calculations or samples.
 
 ## Module interfaces and persistence
 
@@ -211,12 +229,21 @@ retrieval bundle, projecting the appropriate bindings into each engine evaluatio
 Extract reusable editor context from today's global `state` dependencies. Keep
 retrieval, numerical evaluation and rendering testable with supplied data and a clock.
 
+Adding collection data or changing chart settings triggers preview automatically.
 Preview resolves one consistent data bundle for related views and returns a result
 ID plus definition/data fingerprints. Retrieve sufficient baseline, risk, fit and
 reference history beyond plotted dates; deduplicate identical binding queries.
 Partial retrieval fails dependent calculations with reasons while independent
 views remain usable. Late responses cannot replace newer drafts. Preview/capture
 never updates monitored results, screening runs or Library defaults.
+
+The implemented process-local cache retains observation coverage by resolved
+query/revision and reuses unchanged view/Analysis calculations. It holds eight
+workspaces and separate 32-entry view/Analysis caches within each. Missing
+coverage fetches only uncovered intervals. Explicit Refresh data replaces the
+workspace snapshot atomically; failure keeps the preceding snapshot. Actual
+Metapyle fetches bypass its observation cache. Restart/eviction requires reload;
+frozen evidence is independent of these caches.
 
 The application interface needs four operations: preview a draft workspace;
 save/read a versioned workspace; inspect a resolved result; capture selected
@@ -252,7 +279,7 @@ It follows ADRs [0003](../adr/0003-metapyle-data-access.md),
 [0004](../adr/0004-portable-idea-evidence.md) and
 [0005](../adr/0005-analysis-economic-rationale.md).
 
-Workbench, revision pinning and the separate exploration evidence format are
-recommended decisions for this implementation. Record an ADR when the persistence
-design is finalized; existing ADRs and shipped capability claims remain unchanged
-during planning.
+Workbench, revision pinning and separate exploration evidence are implemented.
+[ADR 0007](../adr/0007-separate-exploration-evidence.md) records the persistence
+decision and schema2-to-schema3 upgrade. P7 operations and P8 release/scale gates
+remain open; foundation verification does not establish their completion.

@@ -1,6 +1,7 @@
 # Analysis controls and calculation contract
 
-Implementation specification, 6 October 2026. Editor/reference update: 11 October 2026.
+Implementation specification, 6 October 2026. Updated through `42706f8`,
+11 October 2026: shared editor, reference modes and rolling regression fitting.
 
 ## Objective
 
@@ -16,34 +17,30 @@ details differently. The [analysis skill](../../src/kairopsis/skills/kairopsis-a
 contains the economic rationale and examples. Implement the controls and engine
 described here; update that guidance to match the implemented capabilities.
 
-## Scope and existing behaviour
+## Scope and compatibility
 
 The existing pipeline measures each input, optionally scales it, calculates a
 standalone result or pair relationship, then optionally standardizes the result.
-Retain that order. The current model restricts adjustment to changes/percentage
-changes and rejects Z-scores for standalone levels and ratios. Remove those
-restrictions for the new calculation contract, with explicit semantics below.
+Retain that order. Legacy `input-pipeline-v1` restricts adjustment to
+changes/percentage changes and rejects Z-scores for standalone levels and ratios.
+Implemented `input-pipeline-v2` permits those combinations under the semantics below.
 
-Preserve the distinction between Library defaults, exploratory Investigation
-settings, and immutable captured evidence. Follow
+Preserve the distinction between saved Library definitions, unsaved editor or
+Explore drafts, and immutable captured evidence. Follow
 [ADR 0004](../adr/0004-portable-idea-evidence.md). Existing saved observations,
 definitions, chart evidence and historical calculations must not be reinterpreted.
-
-The working tree already contains the analysis skill, distribution checks and
-documentation changes from this conversation. Preserve those changes. This task
-authorizes implementation and verification, not publication or unrelated cleanup.
 
 ## User experience
 
 ### Economic Rationale
 
 [ADR 0005](../adr/0005-analysis-economic-rationale.md) adds optional Economic
-Rationale to the Analysis definition and its captured evidence. Library edits
-the text; evidence details show the rationale captured with the displayed
+Rationale to the Analysis definition and its captured evidence. The shared editor
+edits the text; evidence details show the rationale captured with the displayed
 evaluation. Implemented 7 October 2026; the calculation sequence and contract
 versions below remain unchanged.
 
-### One sequence in Library and Investigation
+### Shared Analysis editor
 
 Library creation/editing and monitoring links open one Analysis editor at
 `/analyses/new` or `/analyses/{id}`. Name, rationale, calculation and monitoring
@@ -53,15 +50,15 @@ staged until the atomic Analysis bundle save. Save to Idea captures the current
 draft independently of saving its Library definition. Older Library edit URLs
 redirect to this editor. Data Series retain their query/preview editor.
 
-**Inputs → Measure → Scale inputs → Compare → Historical context**
+**Inputs → Measure → Scale inputs → Compare → Output**
 
 | Section | Controls | Behaviour |
 | --- | --- | --- |
 | Inputs | Type: Standalone / Pair; one or two Data Series | Type controls input count; it is not stored as a second competing calculation field |
 | Measure | Level / Change / Percentage change; Frequency: Daily / Weekly / Monthly | Measure applies to each input before comparison; Frequency remains visible because it also controls risk estimation and reported level-result changes |
 | Scale inputs | Method: None / Volatility / Beta to reference / Value at Risk / Expected Shortfall | Available for every input measure; None hides inactive calibration controls |
-| Compare | Difference / Ratio / Regression residual | Shown for Pair only; regression additionally shows Fitting window |
-| Historical context | Reference history; Output scale: Original units / Z-score | Both output scales available for every calculation and measure; show underlying magnitude with a standardized result |
+| Compare | Difference / Ratio / Regression residual | Shown for Pair only; regression additionally shows Fitting period (As-of / Rolling) and Fitting history |
+| Output | Original units / Z-score; Reference period and history or fixed dates | Original units collapses reference controls under Percentile reference. Z-score shows them beside the scale and retains the unstandardized magnitude |
 | Monitoring | Separate collapsed section with enable state and applicable thresholds | Distinct from the mathematical definition; retain Library versus exploratory persistence semantics |
 
 Chart-only display range and chart-view controls remain with the chart, separate
@@ -86,7 +83,9 @@ Each active scaling definition exposes:
   changes. Follow input measure resolves to changes for Level and
   otherwise follows the selected measure. Display that resolved meaning beside
   the control. This preserves automatic defaults while allowing explicit choices.
-- Estimation history, using the existing period options.
+- Rolling estimation history, or Estimation sample for Longest available history.
+  Finite risk windows roll at every date; all-history samples expand. There is no
+  As-of/fixed risk-scale mode.
 - Volatility only: Equal / Exponential weighting; half-life in weekday sessions
   only when exponential.
 - VaR/ES only: Confidence (%) and Downside: Increasing / Decreasing values.

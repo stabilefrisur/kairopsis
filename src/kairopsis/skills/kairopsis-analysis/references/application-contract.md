@@ -40,6 +40,16 @@ on conflict, reread the affected definitions and reconcile the intended changes.
 Previewing may retrieve market data but does not authorize saving defaults,
 enabling monitoring or changing unrelated records.
 
+Library creation/editing and Analyses links open the shared editor at
+`/analyses/new` or `/analyses/{id}`. Automatic previews use the full draft and
+staged series, with `retain: true` for Idea capture. **Save Analysis** / **Save
+changes** publish the definition; **Discard changes** restores its saved state.
+Save to Idea captures the draft independently. Explore's **Add calculation** uses
+the same settings but keeps the output local. **Save calculation to Library**
+saves its definition and staged inputs explicitly, preserving existing monitoring
+or leaving it disabled for a new Analysis. Saving a workspace does not save a
+Library Analysis or enable monitoring.
+
 Preserve captured mode, provenance and provider outcomes: `synthetic` is fabricated
 demonstration data, while `unverified` is a distinct retrieval outcome. Cache,
 partial and failed outcomes retain their own meanings. Missing evidence may leave
@@ -128,6 +138,11 @@ Check the definition being returned, including drafts made without a live app:
    [event-sample rules](analysis-design.md#event-samples) to the emitted measure
    and comparison history. Verify [monitoring capability](#monitoring-rules)
    separately from a valid calculation.
+5. Resolve reference and regression-fitting timing independently. Preserve existing
+   choices; when a new definition requires a particular timing, emit explicit
+   `reference_mode` and `fit_mode` rather than relying on omitted API fields.
+   Omission keeps legacy `current`; new UI drafts use `rolling`. Check fixed-date
+   bounds and early rolling warmup against the requested interpretation.
 
 Done: every input is accounted for, and IDs, transformations, settings and example
 agree. Label the outcome as a conceptual proposal, a structurally checked draft
@@ -187,8 +202,10 @@ Zero denominators are excluded; signed/small finite nonzero denominators remain
 inspectable. Plain OLS remains descriptive, without a new causal/hedged/portfolio
 interpretation.
 
-Library and Investigation share Inputs → Measure → Scale inputs → Compare →
-Historical context. Monitoring is a separate collapsed section. Meaningful
+The shared Analysis editor and Explore calculations use Inputs → Measure →
+Scale inputs → Compare → Output. In Original units, reference settings sit under
+Percentile reference; they affect ranking/eligibility, not plotted values.
+Monitoring is a separate collapsed section in the saved Analysis editor. Meaningful
 formula changes clear optional move/materiality rules and retain monitoring
 enable state and extreme-rule parameters. Draft edits require an explicit save
 to change Library defaults. A failed/delayed preview retains a labelled previous
@@ -257,7 +274,7 @@ cannot establish the sample, report the count as unknown. Historical rank is not
 a probability of reversal or a promised alert rate.
 
 The current regression additionally requires its newest prior sample within
-seven days of the previous session, and fixed-window fitting requires a sample
+seven days of the previous session, and finite-window fitting requires a sample
 near the window start. Monthly-only return observations can therefore be
 economically suitable inputs but unavailable for this implementation's fit.
 Supplying those returns as Measure Level avoids a second transformation; it does

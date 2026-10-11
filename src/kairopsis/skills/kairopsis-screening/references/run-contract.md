@@ -91,7 +91,12 @@ Full Evaluation contains `definition` (settings, captured rationale and resolved
 inputs), `request`, `data` (observations, provenance, outcomes/failures/times),
 `points`, `fit`, `adjustment_estimates`, `standardization_estimate`, metrics and
 finding fields. Points retain actual input dates, change endpoints, transformed
-inputs and risk scales. Failed attempt files contain `definition`, `request`,
+inputs and risk scales. Rolling points also retain `fit_estimate` and/or
+`reference_estimate`; top-level `fit` and `standardization_estimate` describe the
+latest point. Read captured `fit_mode` and `reference_mode` before interpreting
+historical values. Older definitions without these fields use As-of (`current`);
+rolling Z-scores alone do not make an As-of regression history prior-only.
+Failed attempt files contain `definition`, `request`,
 `data` and `failure`; a failed attempt may have no Evaluation. Refer to full
 evidence only as needed for selected themes and challenges, rather than loading
 every full history into the summary review.

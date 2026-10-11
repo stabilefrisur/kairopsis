@@ -14,7 +14,7 @@ Use Copilot Agent mode in the IDE running in the target Windows session. Paste:
 Read and execute this runbook:
 https://github.com/stabilefrisur/kairopsis/blob/main/src/kairopsis/docs/agent-setup.md
 
-Set up Kairopsis 0.1.2 as an extracted upstream source workspace on this Windows
+Set up Kairopsis 0.2.0 as an extracted upstream source workspace on this Windows
 machine. You own archive acquisition, extraction, local dependency adaptation,
 installation, configuration, verification and launcher creation. Use the existing
 package mirror and working private Metapyle setup. Preserve existing research.
@@ -70,7 +70,7 @@ existing directory only when its record proves it belongs to this installation.
 Preserve modified source and environments. Run through your terminal tool:
 
 ```powershell
-$KairopsisVersion = '0.1.2'
+$KairopsisVersion = '0.2.0'
 New-Item -ItemType Directory -Force -Path $KairopsisDownloads | Out-Null
 uv venv $KairopsisBootstrap --python $KairopsisPython --no-python-downloads --seed --default-index $KairopsisMirror
 if ($LASTEXITCODE -ne 0) { throw 'Bootstrap environment failed' }
@@ -182,7 +182,7 @@ Verify the provider import:
 Match it to the expected installed distribution and immutable private artifact
 or revision. An import path/version alone does not establish that identity.
 Record exact resolved dependencies and metadata changes privately. Verify
-templates, bundled JS/CSS/vendor assets and both guides under the installed
+templates, bundled JS/CSS/vendor assets and all three guides (human, Explore and setup) under the installed
 `kairopsis` resources. Also verify the complete `skills/kairopsis-analysis` and
 `skills/kairopsis-screening` folders, including references and scripts. No frontend
 compilation is needed.
@@ -224,7 +224,7 @@ in an agent-managed process so your tools remain available:
 & $KairopsisCommand --config $KairopsisConfig
 ```
 
-Use Chrome/browser tools and HTTP checks for Analyses, Ideas, Library, charts
+Use Chrome/browser tools and HTTP checks for Analyses, Explore, Ideas, Library, charts
 and local assets. All frontend resources load from localhost without external
 fonts, CDNs, runtime package installation or Node.js/npm. Start background Windows
 processes hidden. Record the process you own and stop only it.
@@ -262,6 +262,13 @@ precise access/API/data limitation is recorded. Demo success alone is not live s
 In the isolated demo, then authorized live workspace where available:
 
 - Open an Analysis; save a verification Idea/chart; add and reopen a note.
+- Where supported by the target checkout, verify Library and Analyses open the
+  same editor. Preview a draft automatically, save/read back a deliberate change,
+  and discard a second draft without changing the saved definition.
+- Verify Explore separately: add Library series, confirm automatic charts, select
+  chart dates, save/reopen a workspace and capture/reopen frozen evidence. Check
+  cached edits and explicit Refresh data without enabling monitoring. Use the
+  [Explore guide](explore.md) for controls and scope; older releases may lack them.
 - Export an image and spreadsheet-ready observations. Check clipboard reuse or
   its explicit download fallback through available Chrome tools.
 - Stop/restart with the same configuration; verify retained evidence, note contents

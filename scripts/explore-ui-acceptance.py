@@ -149,7 +149,7 @@ def run(url: str, screenshots: Path) -> None:
         preview()
         old_count = page.evaluate("window.exploreWorkspace.results.get(window.exploreWorkspace.selected).rows.length")
         selected = page.locator(".explore-view.selected")
-        selected.locator("details").filter(has=page.locator('summary')).first.locator("summary").click()
+        selected.locator("summary").filter(has_text="Observations ·").click()
         selected.locator('[data-explore="exclude-row"]').first.click()
         preview()
         assert page.evaluate("window.exploreWorkspace.results.get(window.exploreWorkspace.selected).rows.length") == old_count - 1
@@ -158,7 +158,7 @@ def run(url: str, screenshots: Path) -> None:
         assert page.evaluate("window.exploreWorkspace.results.get(window.exploreWorkspace.selected).rows.length") == old_count - 1
 
         # Empty member selection stays empty across preview.
-        page.locator('#explore-view-form summary').filter(has_text="Filter symbols").click()
+        page.locator('#explore-view-form summary').filter(has_text="Filter observations").click()
         while page.locator('#explore-view-form [name="members"]:checked').count():
             page.locator('#explore-view-form [name="members"]:checked').first.uncheck()
         assert page.evaluate("window.exploreWorkspace.workspace.views.at(-1).sample.members") == []

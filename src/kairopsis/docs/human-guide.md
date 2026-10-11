@@ -38,6 +38,11 @@ shows its last refresh results unless the daily refresh is due. Data is not
 continuously streamed; a new request may return the same observations. Check
 observation dates and source limitations before treating values as current.
 
+Explore loads a selected series automatically and reuses its observations across
+charts. Extending the requested period loads missing dates; **Refresh data**
+reloads the collection. Restarting the app clears this in-memory cache. See
+[loaded data and refresh](explore.md#loaded-data-and-refresh) for its scope.
+
 ## Ask for a screening brief
 
 Ask your agent: **“Screen my monitored analyses and brief me.”** The bundled
@@ -82,6 +87,10 @@ then Level, Change or Percentage change and its Frequency. **Change** means
 current minus previous value, in the series' units; decreases stay negative. Pair
 comparison is Difference, Ratio or Regression residual. Display range and chart
 view stay beside the chart, separately from estimation/reference histories.
+
+For a new definition, choose **Save Analysis**. New or edited Data Series opened
+inside this editor stay staged until that save; the editor lists them before
+saving. Updating a shared Data Series also affects other Analyses using it.
 
 Scale inputs offers None, Volatility, Beta to reference, VaR or Expected Shortfall
 for every measure. **Estimate risk from** follows the input automatically, using
@@ -180,6 +189,8 @@ start uses all loaded history. The chart caption states the dates used.
 the maximum number of calendar days to look back. The observations table retains
 the actual dates. **Filter observations** restricts the calculation sample;
 **Zoom chart** changes only the displayed range.
+See the [Explore guide](explore.md#choose-chart-dates) for missing dates,
+chart-specific dates and the distinction from Analysis estimation histories.
 
 ## Save evidence to an Idea
 

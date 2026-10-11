@@ -1,12 +1,30 @@
 # Relative-value exploration: implementation plan
 
-Updated 10 October 2026. Branch: `codex/explore-workspace-prototype`;
+Updated 11 October 2026 through `42706f8`. Branch: `codex/explore-workspace-prototype`;
 implementation baseline: `a2b6daa`. **Milestone 1 (P1–P6) is implemented.**
-P7 and P8 remain planned; the release/scale gates below are not yet satisfied.
+P7 remains planned; P8's full research, scale and target-deployment gates remain open.
 See the [implemented guide](../../src/kairopsis/docs/explore.md) and
 [verification record](../verification.md#explore-foundation--10-october-2026).
 Implement against the [design](relative-value-exploration-workspace.md) and
 [Analysis contract](../../src/kairopsis/skills/kairopsis-analysis/SKILL.md).
+
+## Implemented refinements after P6
+
+- Automatic data loading and chart updates; process-local observation and
+  calculation reuse; explicit atomic Refresh data.
+- Persisted CSV demo with all 74 series imported through Metapyle/Library.
+- One saved Analysis editor with Save/Discard, also supplying the controls for
+  workspace-local calculations. Explicit As-of/Rolling/Fixed reference periods
+  and As-of/Rolling Analysis regression fits, with per-point evidence.
+- Chart-specific date controls, signed Change labels, separate filters/zoom,
+  bottom legends and wrapping long labels.
+
+[Verification](../verification.md) records numerical/browser checks and their
+limits. P1–P6 below describe the implemented foundation; P7–P8 remain the delivery
+plan. Rolling Analysis residuals do not complete P7's rolling correlation,
+descriptive slope, regime or event operations. The 0.2.0 foundation candidate
+passes Linux packaging and installed mock/local-CSV checks; P8's larger scale
+fixture, remaining research cases and target/live-provider acceptance remain open.
 
 ## Delivery approach
 

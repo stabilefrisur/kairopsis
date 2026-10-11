@@ -78,7 +78,11 @@ A dated review of a defined set of Analyses, retaining which were monitored, the
 A concise interpretation of a Screening Run, grouping significant developments, examining supporting and challenging evidence, and identifying follow-up investigations. Its conclusions are qualified by the run's coverage and data quality.
 
 **Risk Adjustment**:
-Scaling of input levels, changes or percentage changes using a risk measure or sensitivity estimated from explicitly selected absolute or percentage changes, to support comparison between exposures.
+Scaling of input levels, changes or percentage changes using a risk measure or sensitivity estimated from explicitly selected changes in original units or percentage changes, to support comparison between series.
+
+**Change**:
+The signed difference between a value and its earlier baseline, expressed in the series' original units. A decrease is negative.
+_Avoid_: Absolute change when the sign is retained
 
 **Frequency**:
 The daily, weekly or monthly interval over which an Analysis measures changes or returns. Risk Adjustment estimates use the same interval.

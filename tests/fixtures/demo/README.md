@@ -36,6 +36,17 @@ engine. Market freshness remains `unverified`; no monitoring is enabled.
 Explore caches loaded observations and calculations; **Refresh data** reloads
 the source. Restarting the process clears the in-memory cache.
 
+Create or edit Analyses from Library in the shared Analysis editor. Its charts
+update automatically; **Save Analysis** or **Save changes** publishes the
+definition. Explore can select saved Analyses or add workspace-local calculations.
+New UI drafts use rolling fitting/reference periods; saved definitions preserve
+their choices. Finite CSV history can leave early rolling results unavailable.
+
+Use `scripts/explore-dates-acceptance.py` against this demo for date-control
+checks. `scripts/csv-demo-acceptance.py` expects the initial 74-entry Library with
+no added Analyses; run it against a separate freshly prepared demo root, not a
+populated research workspace. Both scripts accept `--url`.
+
 ## Files and regeneration
 
 - `market.csv`: ISO date first, one numeric column per Metapyle symbol. Empty cells

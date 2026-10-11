@@ -14,9 +14,24 @@ Mock fixtures are deterministic, explicitly fabricated native-market observation
 
 The first request to the Analyses list (`GET /api/analyses`) on a configured local day starts a background refresh if no refresh attempt has been recorded for that day. Process startup alone does not trigger retrieval. The **Refresh** button (`POST /api/refresh`) runs another attempt every time, including on the same day. Both refresh paths fetch and evaluate every saved Analysis and publish the list's dated results. Failed analyses retain their prior result and lose fresh finding eligibility. There is no timed background polling of the provider.
 
-Opening an Analysis, previewing its settings, previewing a Library Data Series or Analysis, and selecting **Latest data** on an Idea chart each make a separate provider request. These evaluations do not replace the Analyses list's refresh results. Latest uses the chart's captured definition. Reading the Library catalogue, opening or saving an entry without Preview, and viewing Saved evidence do not fetch observations.
+Opening or changing a draft in the shared Analysis editor, previewing a Library
+Data Series, and selecting **Latest data** on an Idea chart make separate provider
+requests. These evaluations do not replace the Analyses list's refresh results.
+Latest uses the chart's captured definition. Reading the Library catalogue,
+saving a Data Series without Preview, and viewing Saved evidence do not fetch
+observations. The Analysis editor automatically previews; it saves definitions
+only through **Save Analysis** or **Save changes**.
 
 A browser reload follows the page's normal behavior: an Analysis chart requests data again; the Analyses list uses its dated refresh results unless the daily trigger applies. Live requests bypass Metapyle's observation cache, but a new request does not guarantee newer observations or verified source freshness. Check the returned observation dates and limitations. Saved Snapshots remain unchanged.
+
+Explore has a separate process-local cache. Adding a series loads observations;
+chart edits reuse coverage and unchanged calculations. A longer period fetches
+only missing intervals. **Refresh data** replaces the workspace's data atomically;
+a failed refresh preserves the previous snapshot. At most eight workspace caches
+are retained, each with 32 recent view results and 32 Analysis calculations.
+Restart/eviction clears this cache; reopening then reloads. Actual source fetches
+still bypass Metapyle's cache. The shared Analysis editor and screening do not
+reuse Explore's cache. [Explore refresh contract](../src/kairopsis/docs/explore.md#loaded-data-and-refresh).
 
 ## Retained screening runs
 
@@ -120,7 +135,14 @@ Metapyle validates source-specific attributes and registered sources before publ
 
 Retrieval uses `Client(catalog=..., cache_enabled=False)` → `get([my_name], ..., use_cache=False)` → `close()`. A new client loads a temporary catalogue containing each request's captured bindings. Concurrent Library edits cannot change an in-flight request, and frozen definitions remain usable after active entries change or disappear. No frequency alignment is requested from Metapyle; analytical Frequency remains in Kairopsis.
 
-Public adapter responses remain freshness **unverified** and native observation dates unknown. They support inspectable charts and saved evidence but cannot establish eligible findings. Observation cache bypass remains deliberate; catalogue files are definitions, not an observation cache. Installed adapter capabilities, upstream freshness, calendars and dependency routing require verification in the target environment.
+Public adapter responses remain freshness **unverified**; native observation dates
+are unknown by default. For local files, an explicit Library declaration can
+establish that file dates are actual observation dates when no filling/resampling
+occurred. This enables eligible historical calculations without certifying market
+freshness or findings. Metapyle cache bypass applies when retrieving from the
+source; Explore can reuse its retained workspace observations before that step.
+Catalogue files are definitions. Installed adapter capabilities, upstream
+freshness, calendars and dependency routing require target-environment verification.
 
 Existing demo fixtures and old snapshots without `catalog_name` keep their previous binding contract. Old live bindings alone may use private `config-dir/metapyle.json` mappings and `get_raw()` for compatibility, including explicitly configured observation-date columns. Edit an old live series, select its real provider and supply its actual symbol/field/path to move future evaluations to the catalogue API. Prior snapshots keep their captured definitions. No automatic translation or guessed migration is performed.
 
@@ -130,17 +152,26 @@ Public Metapyle 0.1.6 has no add/update/remove API or CLI. Kairopsis uses `Catal
 
 | Item | Applied rule |
 | --- | --- |
-| Standing | Current-excluded eligible history; `100 × (below + 0.5 × equal) / N`; application defaults use a 3-calendar-year reference and `minimum_history: 60`. Each Analysis can set its own minimum. Counts include only eligible prior results inside the reference window. |
+| Standing | Latest unstandardized result ranked against its current-excluded eligible reference: `100 × (below + 0.5 × equal) / N`. Reference mode selects trailing history or fixed dates. Default duration is 3 calendar years and `minimum_history: 60`; each Analysis can choose its own. |
 | Alignment | Exact supplied row dates, no fill/interpolation. Findings require finite inputs and known native dates equal to the row; weekdays only. Union rows remain inspectable with missing arithmetic. Provider holiday calendars are not verified. |
 | Day move | Exact previous weekday session; never skip a missing baseline. |
 | Week/month move | Seven calendar days / previous calendar month (day clamped); backward-only baseline within three calendar days. Missing baseline yields unavailable, never zero. |
 | Pair | Ordered first minus second, first divided by second (zero denominator unavailable), or first dependent on second explanatory. Difference requires same units; different bases remain explicitly labelled. |
-| OLS | Intercept fit over selected full trailing calendar window excluding current. At least 20 eligible pairs; seven-day endpoint tolerance; constant x unavailable. Residual history uses current fit retrospectively. Fit and display/reference windows are independent. |
+| OLS | As-of fitting applies one latest prior fit retrospectively; rolling fitting estimates a prior fit for each date. At least 20 eligible pairs by default; finite windows require coverage and seven-day endpoint tolerance; constant x unavailable. All-history rolling fits expand. Fit, reference and display periods are independent. |
+| Z-score | Sample mean/SD of eligible completed results. As-of uses one latest prior reference; rolling uses each date's prior window; fixed uses inclusive chosen dates ending before the latest observation. Earlier fixed-reference scores can use later information. Insufficient or constant references are unavailable. |
 | Sensitivity | Compare 1y/5y fits where full history permits; indicate a residual direction reversal. Unavailable checks are explicit; no invented stability score. |
 | Finding | Original output uses configured symmetric percentile tails; Z-score output uses an absolute Z threshold instead. Optional move/material-change thresholds use completed-result units. Compatible new native observations establish threshold entry or material movement; same evidence stays quiet. Corrections/definition/method changes suppress market novelty. Comparisons hold earlier fit/Z-score references fixed where applicable. |
 | Ordering | New, materially changed, first-observed condition; then case-folded name and stable ID. One row per analysis, no composite score/quota. |
 
-Risk adjustment is available in the Investigation side panel and as saved Analysis defaults in Library. Supported methods: volatility, beta, historical VaR and Expected Shortfall (CVaR), with common or per-input references/settings. [Calculation conventions](risk-adjustment.md) specify Frequency, prior-only estimation, half-life, downside, units and unavailable cases. Snapshots preserve raw/reference data and adjustment choices; Latest uses the captured definition. Estimator suitability and risk-adjusted monitoring thresholds require target-environment validation.
+Risk adjustment is available in the shared Analysis editor and Explore's local
+calculations: volatility, beta, historical VaR and Expected Shortfall (CVaR), with
+common or per-input settings. Risk estimates always roll at each date, or expand
+for all-history samples. New UI definitions start with rolling regression and
+reference modes; older definitions and omitted API fields keep As-of (`current`).
+[Calculation conventions](risk-adjustment.md) specify Frequency, prior-only
+estimation, units and unavailable cases. Snapshots preserve raw/reference data
+and choices, including per-point rolling fits/references. Latest uses the captured
+definition. Estimator suitability and monitoring thresholds need target validation.
 
 ## Systematic monitoring setup
 

@@ -50,7 +50,7 @@ def inspect(wheel: Path, require_assets: bool, source: Path | None = None) -> di
         if require_assets and not vendor_checks:
             missing.append('pinned vendor manifest')
         if require_assets:
-            for guide in ('human-guide.md', 'agent-setup.md'):
+            for guide in ('human-guide.md', 'explore.md', 'agent-setup.md'):
                 if f'kairopsis/docs/{guide}' not in names:
                     missing.append(f'installed guide: {guide}')
             for skill in ('kairopsis-analysis', 'kairopsis-screening'):

@@ -223,9 +223,9 @@ by purpose rather than copying one number into all four.
 | Setting | Purpose | Selection considerations |
 | --- | --- | --- |
 | Frequency | Interval of each change/return and its risk estimate | Match the decision horizon and data cadence; use native same-frequency estimates rather than automatic annualization |
-| Risk-estimation history | Estimate the scale available before each measured move | Recency versus stability; market regime, missing data, beta noise and tail evidence |
-| Fitting window | Estimate the pair relationship | Relevant regime, sample coverage, structural breaks, residual stability and out-of-range explanatory inputs |
-| Reference history | Describe percentile or Z-score of the completed result | The historical comparison the user actually means: recent regime, full cycle, or longest comparable history |
+| Risk-estimation history | Estimate the scale before each date's measured interval; finite windows roll and all-history expands | Recency versus stability; market regime, missing data, beta noise and tail evidence |
+| Fitting period and history | Estimate the pair relationship with one As-of fit or a Rolling fit at each date | Relevant regime, sample coverage, structural breaks, residual stability and out-of-range explanatory inputs |
+| Reference period and history/dates | Describe percentile or Z-score of the completed result using As-of, Rolling or Fixed dates | The historical comparison the user means: recent regime, full cycle, or a chosen calendar sample |
 | Display range | Select what is visible | Readability and context; it does not change estimation |
 
 Longer histories improve sample size but may mix incompatible regimes. Shorter
@@ -258,6 +258,9 @@ relationship, or Rolling fitting for residuals against each date's prior
 relationship. Fitting history is independent of Z-score reference history.
 Rolling all-history fits expand; finite histories roll. Verify early sample
 coverage and the retained per-point fit before interpreting historical signals.
+Risk estimation has no As-of/fixed-scale mode: it already rolls or expands before
+each date's Frequency interval. A duration alone does not identify the timing of
+the separate fit or reference sample.
 
 ## Choose result standardization
 

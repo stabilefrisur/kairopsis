@@ -1,16 +1,28 @@
 # Risk adjustment
 
-Library and Investigation share Inputs → Measure → Scale inputs → Compare → Historical context, with a separate collapsed Monitoring section. Changes there are exploratory; **Edit defaults in Library → Use exploratory settings → Save defaults** explicitly adopts them for that Analysis. Opening and monitoring use saved defaults. Idea Snapshots preserve the resolved references, settings, raw observations, transformed inputs and historical scales. Latest uses the captured definition even after catalogue edits/deletion.
+Library and Analyses open one editor: Inputs → Measure → Scale inputs → Compare
+→ Output, with a separate collapsed Monitoring section. Charts update from the
+draft automatically. **Save changes** updates the Library definition; **Discard
+changes** restores it. **Save to Idea** captures the draft independently. Explore
+uses the same calculation controls for workspace-local Analyses. Idea Snapshots
+preserve resolved references, settings, raw observations, transformed inputs and
+historical scales. Latest uses the captured definition after Library edits/deletion.
 
 ## Controls and evidence
 
 Reference series can be each input itself, a common named series or an external catalogue series. Customize per series exposes independent references/methods/calibration. Each estimator has a lookback; volatility adds equal/exponential weights and half-life, while VaR/CVaR add confidence and downside direction. Frequency belongs to the Analysis and is daily, weekly or monthly. Self-beta is allowed, so both inputs can be adjusted to the first input.
 
-Reference history, regression fitting and risk-estimation periods offer 3 and 6 months; 1, 2, 3, 5, 7, 10, 15, 20 and 30 years; and Longest available history in Library and Investigation. Defaults remain three years. Calendar month windows clamp month-end dates. Existing numeric year settings remain compatible; the same fields accept `0.25`, `0.5`, whole years 1–30 or `"all"`.
+Reference history, regression fitting and risk-estimation periods offer 3 and 6 months; 1, 2, 3, 5, 7, 10, 15, 20 and 30 years; and Longest available history. Default durations remain three years. Calendar month windows clamp month-end dates. Existing numeric year settings remain compatible; the same fields accept `0.25`, `0.5`, whole years 1–30 or `"all"`.
 
-Longest available uses all eligible observations returned by the source, before the current observation (or before the measured interval for risk estimation). Pairs use exact-date common native observations; all-history leg risk estimates also require common eligible numerator dates (native level dates for v2 Level). External references must have valid observations on those dates. Missing/carried observations remain excluded. Fixed regression windows require full-window coverage; longest-history fits require sufficient samples and recent observations, without demanding an arbitrary inception date. Minimum sample requirements still apply to short windows.
+Risk estimates always use history available before each chart date's measured
+interval. **Rolling estimation history** controls the trailing duration;
+**Estimation sample → Longest available history** uses an expanding sample.
+There is no single fixed risk scale applied across the historical chart.
+Regression fitting and output reference modes are separate choices.
 
-Metapyle requires an explicit retrieval start, so longest-history requests begin at 22 September 1677, the first full date inside pandas' nanosecond range. Earlier data is outside the supported retrieval range; source retention and access permissions determine returned history. Fixed windows request analysis history plus risk-estimation warm-up. Synthetic demo history starts on 1 January 1960; it is generated only within that finite fixture range.
+Longest available uses all eligible observations returned by the source, before the relevant evaluation observation (or measured interval for risk estimation). Pairs use exact-date common native observations; all-history leg risk estimates also require common eligible numerator dates (native level dates for v2 Level). External references must have valid observations on those dates. Missing/carried observations remain excluded. Finite regression windows require full-window coverage; longest-history fits require sufficient samples and recent observations, without demanding an arbitrary inception date. Minimum sample requirements still apply to short windows.
+
+Metapyle requires an explicit retrieval start, so longest-history requests begin at 22 September 1677, the first full date inside pandas' nanosecond range. Earlier data is outside the supported retrieval range; source retention and access permissions determine returned history. Retrieval includes reference, regression-fit and risk-estimation warmup in calculation order. Built-in mock history starts on 1 January 1960; the separate persisted CSV fixture starts on 4 January 2010. Neither supplies history before its own inception.
 
 Legend click toggles a trace; double-click isolates it. Axes stay fixed and hidden labels remain dimmed. Visibility changes presentation only. Save to Idea and image exports preserve the selected visibility and scales; older Snapshots remain readable. Shared source metadata and adjustment summaries appear once in the footnote, with full calibration and estimates under Source and chart details.
 
@@ -40,7 +52,7 @@ VaR/ES describe downside moves of the selected Data Series, not portfolio P&L or
 
 ## Defaults, thresholds and continuity
 
-None preserves existing level behavior and older stored evidence remains readable. Selecting an adjustment preserves Measure. Estimate risk from defaults to Follow input measure: changes for Level, otherwise the numerator measure. Explicit Changes/Percentage changes choices persist when Measure changes. Changing risk configuration or Measure clears exploratory move/materiality thresholds, preventing old measurement-unit rules from being reused silently. Library exposes explicit thresholds in the resulting Analysis units; production threshold calibration remains separate.
+None preserves existing level behavior and older stored evidence remains readable. Selecting an adjustment preserves Measure. Estimate risk from defaults to Follow input measure: changes for Level, otherwise the numerator measure. Explicit Changes/Percentage changes choices persist when Measure changes. Changing risk configuration or Measure clears draft move/materiality thresholds, preventing old measurement-unit rules from being reused silently. The shared Analysis editor exposes explicit thresholds in the resulting Analysis units; production threshold calibration remains separate.
 
 References are resolved and fetched through Metapyle alongside the inputs. Reference edits advance dependent Analysis revisions; deletion is prevented while an active Analysis uses that reference. Captured definitions retain the binding needed for Latest evaluation independently of active catalogue entries. Snapshots contain raw reference data in JSON; CSV/clipboard exports include transformed inputs, scales and measurement starts even for scaled levels. V2 CSV additionally retains contract, numerator measure, Frequency, references and resolved risk bases. JSON retains risk cutoff/sample dates/counts and unstandardized results.
 
@@ -52,18 +64,43 @@ Mock tests establish numerical and persistence behavior. Provider calendars, act
 
 The [verification guide](verification.md) describes source and installed-package checks. A source test result does not establish acceptance for a different operating system or data provider.
 
+## Regression fitting periods
+
+**Fitting period → As-of window** estimates one prior-only intercept OLS fit at
+the latest observation and applies it retrospectively across the chart.
+**Rolling window** estimates a separate fit from earlier observations before
+each date. **Fitting history** sets the trailing duration; Longest available
+history expands in rolling mode. New UI Analyses use rolling fitting; omitted
+`fit_mode` and older definitions keep `current` (As-of window).
+
+Each fit must satisfy the sample, coverage, freshness and nonconstant-input
+rules. An unavailable fit leaves that residual unavailable. The top-level fit
+and scatter line describe the latest relationship; rolling points retain their
+own coefficients, R², sample count and dates in JSON and CSV evidence.
+
 ## Z-score standardization
 
 Standardization is separate from input Measure and Risk Adjustment. It applies
 to every completed v2 calculation, including standalone levels and ratios.
 All 120 basic combinations are available subject to mathematical and data constraints. Pair inputs are never standardized separately.
 
-`z = (analysis value − reference mean) / sample standard deviation`. Use eligible
-native observations in Reference history, excluding the latest observation.
-Pairs use common dates. The current reference mean and SD apply throughout the
-chart, giving one consistent scale; historical plotted scores are retrospective,
-not a rolling backtest. Regression residuals retain the current prior-only fit.
-Minimum history still applies. Zero/near-zero SD makes the score unavailable.
+`z = (analysis value − reference mean) / sample standard deviation`. Pairs use
+eligible common native dates. **Reference period** determines the sample:
+
+- **As-of window** (`current`): one prior reference at the latest observation
+  supplies the mean/SD throughout the chart. Older definitions retain this mode.
+- **Rolling window** (`rolling`): each date uses its own preceding reference,
+  excluding that date. New UI Analyses start here; all-history samples expand.
+- **Fixed dates** (`fixed`): one inclusive calendar period applies throughout.
+  Its end must precede the latest observation; an unfinished reference is
+  unavailable. Earlier chart points can use information from later dates.
+
+Minimum history still applies; zero/near-zero SD makes a score unavailable.
+Reference and regression-fitting modes are independent. Rolling Z-scores do not
+remove later information from an As-of regression fit, or establish a backtest.
+In **Original units**, these settings are collapsed under **Percentile reference**:
+they affect rank and monitoring, while plotted values stay unchanged. Percentile
+compares the latest unstandardized result with its eligible reference sample.
 
 The Analysis view uses standard-deviation units (σ) and dashed lines at the
 configured ±Z-score threshold (default 2). Monitoring uses this direct threshold
@@ -76,4 +113,5 @@ Comparisons hold the previous Z-score reference and, for regression, the
 previous fit fixed when checking threshold crossings and material moves.
 Reference recalibration alone therefore does not establish a new market flag.
 Snapshots retain the reference mean, SD, dates, sample count and unstandardized
-analysis values; CSV/clipboard exports include those original analysis values.
+analysis values. Rolling points also retain their own reference estimates;
+CSV/clipboard exports include those estimates and original analysis values.

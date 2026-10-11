@@ -7,6 +7,32 @@ Verify the built artifacts as well as the source checkout. Source tests establis
 application behavior; installed-package checks establish that the distribution
 contains the code, browser assets and guides needed outside the checkout.
 
+## 0.2.0 release candidate — 11 October 2026
+
+The source suite passes 427 tests; mypy checks 27 source files and bundled
+application JavaScript passes syntax checks. The source-archive suite against
+the separately installed wheel passes 426 tests; one historical Git-baseline
+check is intentionally unavailable outside the checkout. The existing upstream
+Starlette/httpx deprecation warning remains.
+
+Fresh wheel/source inventories, vendor hashes, portable skill references,
+packaged documentation links and strict Twine metadata checks pass. All three
+guides are bundled. The public-source and artifact audit found no branding or
+private material requiring removal. Numerical variables, third-party identifiers
+and the required `gs-quant` dependency name remain legitimate matches.
+
+Installed Chromium checks cover the shared editor, automatic previews,
+save/discard, chart/Idea notes, exports and clipboard fallback, CSV Library/data
+reuse, chart dates and responsive layouts. The general browser journey now uses
+the shared editor and explicitly saves/reopens a fractional monitoring threshold;
+Explore acceptance targets the current observation disclosures. CSV research
+bytes survive restart and a trial restore into a separate directory.
+
+These checks use isolated Linux environments with mock/local CSV data. They do
+not establish corporate Windows launcher behavior, private mirror coverage,
+live-provider freshness or P8's larger scale fixture. Private records and
+artifact hashes are retained in `.scratch/release-0.2.0/`, outside distributions.
+
 ## Explore date controls — 11 October 2026
 
 Single-date comparisons show a date; changes add a From date; histories show a
@@ -269,12 +295,12 @@ uv sync --locked
 uv run pytest -q
 uv run mypy src/kairopsis
 uv build
-uv run python scripts/acceptance/inspect_wheel.py dist/kairopsis-0.1.2-py3-none-any.whl --require-assets --source-directory . --output /absolute/output/wheel-inventory.json
+uv run python scripts/acceptance/inspect_wheel.py dist/kairopsis-0.2.0-py3-none-any.whl --require-assets --source-directory . --output /absolute/output/wheel-inventory.json
 uvx --from twine twine check --strict dist/*
 ```
 
 Hatchling builds the wheel and source archive; uv remains the build frontend and
-dependency manager. The inventory requires both installed guides and both skills,
+dependency manager. The inventory requires all three installed guides and both skills,
 checks that each skill's local Markdown links resolve within its own
 folder, checks source completeness and vendor checksums, and rejects accidental
 private runtime material. Source archives include docs, tests, acceptance scripts,
@@ -285,9 +311,9 @@ storage. Keep scratch records and credentials outside published artifacts.
 ## Installed application
 
 Install the wheel into a separate environment with approved dependencies. Launch
-from outside the checkout using fresh writable directories. Verify all three
-navigation destinations, local assets, an Analysis, saved Idea evidence, notes,
-exports and restart persistence. Verify both guides through
+from outside the checkout using fresh writable directories. Verify Analyses,
+Explore, Ideas and Library, local assets, an Analysis, saved Idea evidence, notes,
+exports and restart persistence. Verify all three guides through
 `importlib.resources.files('kairopsis').joinpath('docs')`.
 
 Check both skills through `importlib.resources.files('kairopsis').joinpath('skills')`:

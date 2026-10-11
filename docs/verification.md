@@ -7,6 +7,15 @@ Verify the built artifacts as well as the source checkout. Source tests establis
 application behavior; installed-package checks establish that the distribution
 contains the code, browser assets and guides needed outside the checkout.
 
+## 0.2.1 publication link correction — 11 October 2026
+
+Post-publication checks found that PyPI resolved the README's relative CSV-demo
+link against its own project page. Version 0.2.1 uses the absolute public
+repository URL and aligns package, lock and setup-guide versions. Application
+code and browser assets are unchanged from the tested 0.2.0 release. Repeat
+artifact inventories, metadata, source rebuild and released-install checks for
+the patch; retain the 0.2.0 numerical/browser evidence below.
+
 ## 0.2.0 release candidate — 11 October 2026
 
 The source suite passes 427 tests; mypy checks 27 source files and bundled
@@ -295,7 +304,7 @@ uv sync --locked
 uv run pytest -q
 uv run mypy src/kairopsis
 uv build
-uv run python scripts/acceptance/inspect_wheel.py dist/kairopsis-0.2.0-py3-none-any.whl --require-assets --source-directory . --output /absolute/output/wheel-inventory.json
+uv run python scripts/acceptance/inspect_wheel.py dist/kairopsis-0.2.1-py3-none-any.whl --require-assets --source-directory . --output /absolute/output/wheel-inventory.json
 uvx --from twine twine check --strict dist/*
 ```
 

@@ -17,6 +17,9 @@ evidence together in a browser-based dashboard.
 A built-in demo lets you explore without market-data credentials. Your research
 stays in a local workspace. Live data access uses Metapyle.
 
+For repeatable development tests, the [persisted CSV demo dataset](tests/fixtures/demo/README.md)
+provides 42 synthetic series and a standard Metapyle `localfile` catalogue.
+
 ## Guides
 
 - [Human guide](https://github.com/stabilefrisur/kairopsis/blob/main/src/kairopsis/docs/human-guide.md)

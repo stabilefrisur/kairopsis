@@ -1,0 +1,3 @@
+market.csv text eol=lf
+manifest.json text eol=lf
+catalog.yaml text eol=lf

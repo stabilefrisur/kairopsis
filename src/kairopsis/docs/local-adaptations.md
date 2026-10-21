@@ -13,6 +13,14 @@ modified source, project metadata, lockfile and launchers. Summaries identify
 intent but cannot establish the complete change. Back up these inputs and record
 the old interpreter, provider revision and dependency versions.
 
+For a workspace wrapping vendored source, distinguish the durable workspace from
+the replaceable version directory. Preserve the outer tooling project/environment
+and its launch/configuration/backup automation. Treat private patch files as the
+authored changes: re-derive them for the new pristine snapshot, verify clean
+application to a separate copy, and retain versioned old/new patches for rollback.
+Record actual source and import paths; a source tarball and a non-editable app
+wheel can coexist without making the app a dependency of the outer project.
+
 For every adaptation, record its purpose, affected files, expected behavior,
 replacement disposition and verification result. Classify it as already upstream,
 still required, obsolete with evidence, or unresolved. Include dependency/build
@@ -31,6 +39,9 @@ Keep the extracted source snapshot pristine in a private backup. Make the smalle
 necessary changes in the replacement source, preserving new upstream behavior.
 Check context even when an old patch applies cleanly. Copying an old module or
 entire project configuration over its replacement can discard unrelated fixes.
+Apply patches before the non-editable install. If a patch changes afterward,
+rebuild/reinstall as described in setup step 5 and compare installed bytes before
+testing; editing vendored source alone does not update the running wheel.
 
 Retain validated package constraints and private routing as described in setup
 step 4. A renamed provider's distribution metadata and its import namespace both

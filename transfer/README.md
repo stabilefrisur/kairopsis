@@ -7,6 +7,12 @@ inside the code, then press **Ctrl+A**, **Ctrl+C**. Paste into a local file name
 numbers are excluded. Expand collapsed code if needed. Save as UTF-8 and
 preserve the `.py` extension. Raw access is unnecessary.
 
+Save it outside the old version's replaceable source directory. If an existing
+outer workspace contains versioned application source, use its transfer/download
+area; keep that workspace open in the IDE. Otherwise create a writable transfer
+folder, for example under Documents. Give the agent the file path and the existing
+workspace path. The agent chooses the new version's source location after inspection.
+
 The file is under 500 KB. Give your agent its path rather than its contents.
 Checksum verification detects a partial copy. If the Code tab cannot expose
 the complete file, report that limitation instead of running a partial copy.
@@ -17,13 +23,17 @@ In your local IDE's agent mode, paste this task and replace the file path:
 Install Kairopsis from the local transfer file:
 <absolute path to kairopsis-0.2.2.py>
 
-Use the existing Kairopsis installation's Python 3.12 and approved package
-tooling. Inspect only the first 200 lines of the transfer file, run it with
---check, then --extract into a fresh
-per-user source directory. Read src/kairopsis/docs/agent-setup.md inside that
-directory and execute every applicable step, starting at step 1. If using
-another Python, locate the old kairopsis package and pass --reuse-from with
-that package directory on both transfer commands.
+Inspect the existing workspace, setup records and launchers first. Distinguish
+the application source/environment from any outer tooling project/environment;
+preserve that outer workspace. Inspect only the first 200 lines of the transfer
+file. Use approved Python 3.12 and pass --reuse-from with the old kairopsis
+package directory (including src/kairopsis in vendored source when appropriate).
+Run --check, then --extract with an explicit fresh version directory alongside
+the old source. Read src/kairopsis/docs/agent-setup.md inside the extracted
+directory and execute every applicable step, starting at step 1.
+
+Install the patched replacement non-editably in its own application environment.
+Preserve existing per-mode configuration, launcher safeguards and automation.
 
 An existing 0.1.0 installation may already work. Inspect its local change notes,
 patches and upgrade automation, package routing, compatibility constraints,

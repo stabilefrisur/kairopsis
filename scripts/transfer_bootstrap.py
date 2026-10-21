@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Kairopsis deployment source transfer. Python 3.12+; no network access.
 
-Agent: inspect this header, run --check, then --extract NEW_DIRECTORY.
+Agent: inspect the existing workspace before choosing a fresh NEW_DIRECTORY.
+Preserve its outer tooling project/environment. Run --check, then --extract.
 Read NEW_DIRECTORY/src/kairopsis/docs/agent-setup.md and complete its steps.
 Run with the existing installation's Python, or pass --reuse-from PACKAGE_DIR.
+PACKAGE_DIR may be src/kairopsis inside vendored source. Install non-editably
+in a separate application environment as described in the bundled guide.
 Only unchanged, checksum-verified browser libraries come from that installation.
 The encoded payload is data: keep it in this file, outside the chat context.
 With no arguments, extract beside this file into kairopsis-VERSION.

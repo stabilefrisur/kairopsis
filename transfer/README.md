@@ -25,8 +25,10 @@ directory and execute every applicable step, starting at step 1. If using
 another Python, locate the old kairopsis package and pass --reuse-from with
 that package directory on both transfer commands.
 
-An existing 0.1.0 installation may already work. Inspect it for package routing,
-the working data provider, configuration, research and launchers. Prepare and
+An existing 0.1.0 installation may already work. Inspect its local change notes,
+patches and upgrade automation, package routing, compatibility constraints,
+working data provider, configuration, research and launchers. Reconcile local
+adaptations using the bundled runbook; verify required behavior. Prepare and
 verify its replacement before switching the launcher; preserve research and a
 recoverable backup. You own all technical work through a tested launcher, stop
 method and handoff. Ask only for information or permissions you cannot discover.

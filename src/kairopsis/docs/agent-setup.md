@@ -23,8 +23,10 @@ Use the existing Kairopsis installation's Python 3.12 to run --check, then
 locate the existing kairopsis package and pass --reuse-from PACKAGE_DIRECTORY.
 Read the extracted src/kairopsis/docs/agent-setup.md and execute it from step 1.
 
-An existing 0.1.0 installation may work: inspect it and reuse its approved
-package routing and private data provider. Prepare and verify the replacement
+An existing 0.1.0 installation may work: inspect its local change notes, patches
+and upgrade automation. Reconcile local adaptations using this runbook; retain
+validated compatibility constraints, package routing and private data provider.
+Prepare and verify required behavior in the replacement
 before switching launchers. Preserve research and a recoverable backup.
 You own installation, configuration, verification and launcher creation.
 Keep all target-specific information and adaptations private; never submit them
@@ -57,6 +59,9 @@ data-access project. Establish these inputs locally:
 - Existing Kairopsis executable/interpreter, version, installed dependencies,
   local source adaptations, configuration, research, launcher and owned process.
   Inspect the interpreter behind the launcher, not whichever Python is on PATH.
+- Local change notes, patch files and upgrade automation. If adaptations exist,
+  follow [preserving local adaptations](local-adaptations.md) alongside this
+  runbook. Retain the actual modified source as well as any patch descriptions.
 
 Set `$KairopsisPython`, `$KairopsisUv` and `$KairopsisMirror` from these findings.
 Use the old application's Python for transfer when possible. Otherwise find its
@@ -96,7 +101,7 @@ Test the new version against a separate backup copy; it must not write the
 original research yet.
 
 **Done:** tools, approved sources, provider identity and installation paths are
-known; a verified research backup and private setup record exist.
+known; research and local adaptations have verified backups and a private record.
 
 ## 2. Verify the local transfer file
 
@@ -157,7 +162,12 @@ domain pointers before changing project files.
 **Done:** complete application source, browser assets, guides and skills are
 local; original installation and research remain recoverable.
 
-## 4. Adapt private dependency routing locally
+## 4. Reconcile local adaptations and dependency routing
+
+If the old setup has local adaptations, reconcile every one using
+[preserving local adaptations](local-adaptations.md) before installing. The
+current source already uses Hatchling; confirm required package resources in the
+resulting installation instead of replacing the new build metadata wholesale.
 
 The published project declares `metapyle>=0.1.6`. Reuse the existing working
 private distribution's established installation source and immutable revision;
@@ -170,6 +180,9 @@ retain its `metapyle` import namespace. Edit only the extracted local project:
 - Copy the applicable private uv source/index definitions from the working setup.
   Make the approved mirror the default index; retain approved package-specific
   routing and existing authentication, with credential values outside metadata.
+- Carry forward validated dependency constraints and their reasons, including
+  applicable `[tool.uv].constraint-dependencies`. Check compatibility with the
+  new requirements; report conflicts locally instead of dropping constraints.
 
 Keep these adaptations and the resulting lockfile private. The published
 `uv.lock` contains an upstream dependency set and public artifact URLs; it is a
@@ -184,8 +197,10 @@ Changing a distribution name alone does not establish compatible imports. If
 the selected artifact fails to import without the public package beside it,
 record that packaging mismatch instead of installing overlapping providers.
 
-**Done:** local metadata and routing explicitly select the established private
-distribution, with no unintended public Metapyle dependency.
+**Done:** every local adaptation has a recorded disposition; required changes are
+re-derived against the new source. Metadata and routing select the established
+private distribution and compatible constraints, with no unintended public
+Metapyle dependency. Behavior checks remain mandatory before cutover.
 
 ## 5. Resolve and install the local project with uv
 
@@ -298,6 +313,10 @@ native-date provenance and monitoring calibration remain unverified unless the
 implementation and actual data establish them. A chart alone does not establish
 fresh monitoring or calibrated thresholds.
 
+If migrating runtime adaptations, complete the behavior comparisons and failure
+checks in [preserving local adaptations](local-adaptations.md). A successful
+import or rendered chart does not validate a migrated runtime patch.
+
 **Done:** the live workflow is checked with the existing private provider, or its
 precise access/API/data limitation is recorded. Demo success alone is not live setup.
 
@@ -337,9 +356,10 @@ errors and keep the original usable; do not reset or delete research to pass.
 
 ## 9. Switch and test the user's launcher
 
-Switch only after replacement dependency, demo, live-provider and copied-research
-checks pass. If live access is unavailable, keep the existing working live
-launcher and report the prepared replacement's limitation.
+Switch only after replacement dependency, demo, live-provider, migrated-behavior
+and copied-research checks pass. If a required adaptation remains unresolved or
+live access is unavailable, keep the existing working live launcher and report
+the prepared replacement's limitation.
 
 Stop the old owned process for final cutover. If research changed during setup,
 make and verify a fresh backup, copy it to the replacement's permanent research
@@ -375,7 +395,7 @@ terminal commands to open the prepared workspace.
 
 Save `setup-record.md` outside source/package directories with the transfer and
 payload hashes, reused-library verification, old/new package versions,
-local metadata adaptations, tool/dependency versions, private provider identity,
+local adaptation dispositions and verification, tool/dependency versions, private provider identity,
 source/environment/configuration/research/backup paths, mirror outcome, launcher
 and stop paths, check results and exact unresolved blockers. Redact credentials;
 internal setup records and research remain private.

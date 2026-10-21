@@ -1,9 +1,10 @@
 # Install from a text file
 
 Keep the existing 0.1.0 installation until the upgrade is verified.
-Open [kairopsis-0.2.2.py](kairopsis-0.2.2.py) in GitHub's **Code** tab and copy
-the complete code into a local file named `kairopsis-0.2.2.py`. Expand collapsed
-code if needed; exclude line numbers and page navigation. Save as UTF-8 and
+Open [kairopsis-0.2.2.py](kairopsis-0.2.2.py) in GitHub's **Code** tab. Click
+inside the code, then press **Ctrl+A**, **Ctrl+C**. Paste into a local file named
+`kairopsis-0.2.2.py`. Keep focus inside the code so page navigation and line
+numbers are excluded. Expand collapsed code if needed. Save as UTF-8 and
 preserve the `.py` extension. Raw access is unnecessary.
 
 The file is under 500 KB. Give your agent its path rather than its contents.

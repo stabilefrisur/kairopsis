@@ -31,7 +31,9 @@ and a standard Metapyle `localfile` catalogue.
 - [Explore guide](https://github.com/stabilefrisur/kairopsis/blob/main/src/kairopsis/docs/explore.md)
   — collections, chart dates, cached data and frozen evidence.
 - [Agent setup guide](https://github.com/stabilefrisur/kairopsis/blob/main/src/kairopsis/docs/agent-setup.md)
-  — Copilot runbook for an upstream source workspace, data connections and handoff.
+  — agent runbook for text-bundle installation, upgrades and data connections.
+- [Copyable installation bundle](https://github.com/stabilefrisur/kairopsis/tree/main/transfer)
+  — transfer an upgrade through GitHub's Code tab when a mirror lacks the release.
 - [Analysis configuration skill](https://github.com/stabilefrisur/kairopsis/blob/main/src/kairopsis/skills/kairopsis-analysis/SKILL.md)
   — agent guidance for economic questions, data shaping and analytical settings,
   with a complete combination map and worked examples.

@@ -34,6 +34,9 @@ directory and execute every applicable step, starting at step 1.
 
 Install the patched replacement non-editably in its own application environment.
 Preserve existing per-mode configuration, launcher safeguards and automation.
+Register both bundled skills in the outer workspace's supported skills folder;
+verify the IDE agent discovers them. Follow the bundled setup guide and preserve
+existing customized skills when refreshing the version-matched copies.
 
 An existing 0.1.0 installation may already work. Inspect its local change notes,
 patches and upgrade automation, package routing, compatibility constraints,

@@ -63,8 +63,10 @@ remain blockers to switching the working installation.
 Use separate copies of the research workspace for old and new versions. Compare
 equivalent requests with fixed inputs or retained observations where possible;
 changing live data is not itself a regression. Keep test code and evidence private.
-The transfer omits the upstream developer test suite, so create focused local
-checks and exercise the application's API/UI rather than assuming tests shipped.
+Run the bundled installed-package self-check in setup step 6 after rebuilding
+local patches. It checks mock application behavior without the upstream developer
+suite. Add focused local checks for each patch and exercise the live API/UI;
+a passing mock check does not validate adapter changes or provider semantics.
 
 For an adapter or findings change, check returned values, observation dates,
 provenance, eligibility and affected findings, including Current, Change and

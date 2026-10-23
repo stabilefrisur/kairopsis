@@ -7,6 +7,30 @@ Verify the built artifacts as well as the source checkout. Source tests establis
 application behavior; installed-package checks establish that the distribution
 contains the code, browser assets and guides needed outside the checkout.
 
+## Installer feedback follow-up — unreleased
+
+The compact transfer builder omits the upstream lockfile while the full source
+distribution retains it. Dependency resolution uses the target's approved
+sources after local metadata adaptation. The runbook also handles earlier
+transfers that still carry the upstream lock.
+
+The bundled `kairopsis --self-check` (or `python -I -m kairopsis.self_check`)
+checks mock routes, page assets, calculations, evidence save/reopen and image
+export. It uses temporary state and in-process requests without opening a port,
+reading user configuration or requiring extra test dependencies. JSON reports
+include the imported package path, version and completed checks; failures return
+a nonzero exit status.
+Live provider behavior, local adapter patches, browser rendering and launchers
+still require the runbook's target acceptance checks.
+
+All 30 focused self-check, transfer and HTTP tests pass, including inherited
+live settings, temporary-state cleanup and injected asset/persistence failures.
+Mypy passes for the three changed application modules. A separately installed
+wheel passes from outside the checkout with conflicting inherited launch settings;
+its resource, vendor and source-byte inventory checks pass. This is local Linux
+verification, not target Windows/live acceptance. The checked-in 0.2.2 transfer
+has not been regenerated for these unreleased changes.
+
 ## Code-view transfer preparation — 21 October 2026
 
 The 0.2.2 candidate adds a compact text transfer and an agent upgrade runbook.

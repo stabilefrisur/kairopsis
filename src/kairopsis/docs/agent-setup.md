@@ -26,6 +26,8 @@ PACKAGE_DIRECTORY may be src/kairopsis in the existing vendored source.
 Read the extracted src/kairopsis/docs/agent-setup.md and execute it from step 1.
 Install non-editably in a separate application environment; preserve existing
 per-mode configuration, launcher safeguards and automation.
+Register both bundled skills in the outer workspace's supported skills folder
+and verify the IDE agent discovers them, as described in step 5.
 
 An existing 0.1.0 installation may work: inspect its local change notes, patches
 and upgrade automation. Reconcile local adaptations using this runbook; retain
@@ -171,11 +173,12 @@ fresh revision-suffixed directory and record its path. Keep the old source and
 environment until cutover and rollback checks pass. Replacing a versioned source
 snapshot does not mean replacing the surrounding workspace.
 
-Confirm `pyproject.toml`, `src`, `docs`, `uv.lock`, `AGENTS.md`, `CONTEXT.md`
+Confirm `pyproject.toml`, `src`, `docs`, `AGENTS.md`, `CONTEXT.md`
 and `transfer-manifest.json` exist, and project/manifest versions agree. This
-deployment workspace omits developer tests, scripts and sample datasets to keep
-the Code-view transfer small. Those remain in the full source distribution;
-installation and the built-in mock mode do not require them. Packaging another
+deployment workspace omits the upstream `uv.lock`, developer tests, scripts and
+sample datasets to keep the Code-view transfer small. Those remain in the full
+source distribution. Resolve a local lock after adapting dependency routing;
+the bundled self-check needs no developer tools. Packaging another
 public release from this adapted deployment workspace is outside this runbook.
 
 Retain the transfer file and pristine dependency metadata privately before
@@ -207,12 +210,13 @@ retain its `metapyle` import namespace. Edit only the extracted local project:
   applicable `[tool.uv].constraint-dependencies`. Check compatibility with the
   new requirements; report conflicts locally instead of dropping constraints.
 
-Keep these adaptations and the resulting lockfile private. The published
-`uv.lock` contains an upstream dependency set and public artifact URLs; it is a
-reference, not a lock to force onto this environment. Resolve a local lock against
-the mirror and selected private sources next. Move the upstream `uv.lock` to the
-private backup record before resolving, so its public artifact URLs cannot
-be reused for installation. Preserve the working provider
+Keep these adaptations and the resulting lockfile private. Current compact
+transfers omit `uv.lock`; the full source distribution and older transfers may
+include it. Before the first `uv sync`, move any upstream `uv.lock` from the fresh
+application source to the private backup record. Its public artifact URLs must
+not select installation sources. Preserve existing locally resolved locks and
+the outer tooling project's lock. Resolve a new application lock against the
+mirror and selected private sources next. Preserve the working provider
 project; its code/configuration is not part of the public Kairopsis distribution.
 
 Reuse the working provider artifact, including its import/version metadata.
@@ -300,20 +304,77 @@ Locate both bundled skills through the installed interpreter:
 & $KairopsisAppPython -c "from importlib.resources import files; print(files('kairopsis').joinpath('skills', 'kairopsis-screening', 'SKILL.md'))"
 ```
 
-Use the analysis skill to define calculations and record their economic rationale.
-Use the screening skill to run and retain a screening, or review an existing run,
-then interpret its evidence and save a brief. In the extracted source workspace,
-`AGENTS.md` points to both skills under `src/kairopsis/skills`. For an agent using
-a separate workspace, load the relevant entry point directly or copy each **whole**
-skill folder into that agent's supported skill directory (for
-example, `.agents/skills` for an agent supporting that convention). Preserve any
-existing customized copy; record the package version and refresh the copy when
-upgrading. Package inclusion alone does not register a skill with every agent.
+### Register the skills in the agent's workspace
+
+Package inclusion distributes the skills; it does not register them with the IDE
+agent. The `AGENTS.md` inside extracted source is not sufficient when the agent
+works from the outer wrapper workspace. Complete registration there:
+
+1. Inspect the active agent, its supported skill locations and existing workspace
+   conventions. For Copilot in VS Code, use the wrapper's `.github/skills/` by
+   default; `.agents/skills/` also works in current VS Code and is native to Codex.
+   Reuse one supported location already established in the wrapper. Confirm support
+   in the installed IDE version; avoid duplicate skill names across locations.
+   See [VS Code skill locations](https://code.visualstudio.com/docs/agent-customization/agent-skills).
+2. Copy the **whole** `kairopsis-analysis` and `kairopsis-screening` directories
+   from the verified application's installed `kairopsis/skills` resources into
+   that location. Preserve `SKILL.md`, references, scripts and relative paths.
+   Keep the packaged originals. Ordinary directory copies need no symlinks,
+   administrator access, package downloads or additional extraction.
+3. Before replacing existing copies, back them up outside discovered skill
+   locations. Compare any local edits against the previous packaged version and
+   reconcile them explicitly. Refresh these two skills together on each upgrade;
+   account for removed upstream files as well as additions. Preserve unrelated
+   wrapper skills. Record the application version, source/destination paths,
+   copied-file hashes and retained local changes in the private setup record.
+4. Merge short routing instructions into the wrapper's existing agent instruction
+   file, using the chosen paths: read `kairopsis-analysis/SKILL.md` before defining
+   or interpreting an Analysis; read `kairopsis-screening/SKILL.md` before running
+   or reviewing a Screening Run. Preserve existing instructions. The application
+   interpreter and approved localhost URL belong in private wrapper instructions,
+   so the screening helper targets the intended installation.
+5. Verify both names appear in the active agent's discovered skills. Reload the
+   IDE or start a fresh agent session if discovery needs it. Explicitly invoke
+   each skill to read its instructions and a relative reference; this discovery
+   check requires no live screening. If native discovery is unavailable, record
+   the limitation and verify the wrapper instructions can direct the agent to
+   read both entry points and their resources. File existence alone is not proof
+   of registration.
+
+Expected Copilot layout, relative to the outer workspace:
+
+```text
+.github/skills/
+  kairopsis-analysis/SKILL.md
+  kairopsis-analysis/references/...
+  kairopsis-screening/SKILL.md
+  kairopsis-screening/references/...
+  kairopsis-screening/scripts/...
+```
 
 **Done:** resolution, dependencies, console command, private provider identity
-and complete local assets are checked.
+and complete local assets are checked. Both version-matched skills are available
+from the wrapper workspace; native discovery or the verified direct-read fallback
+is recorded.
 
 ## 6. Configure and verify an isolated demo
+
+Run the bundled self-check with the replacement application's interpreter from
+outside its source directory:
+
+```powershell
+& $KairopsisAppPython -I -m kairopsis.self_check
+if ($LASTEXITCODE -ne 0) { throw 'Installed application self-check failed' }
+```
+
+`kairopsis --self-check` runs the same checks. It creates temporary mock state,
+ignores `KAIROPSIS_*` settings and user configuration, and checks routes, local
+assets, calculations, evidence save/reopen and image export through in-process
+HTTP requests. It opens no port and needs no extra test packages. Save its JSON
+report privately; confirm its package path is the replacement installation.
+Rerun it after rebuilding any local patch. It does not check browser rendering,
+launcher behavior, live access or the correctness of adapter patches; complete
+the following demo and live acceptance steps as well.
 
 Copy an existing mock configuration into a private verification TOML and use a
 fresh mock workspace outside the source tree. If none exists, create one.
@@ -459,6 +520,7 @@ Save `setup-record.md` outside source/package directories with the transfer and
 payload hashes, reused-library verification, old/new package versions,
 local adaptation dispositions and verification, tool/dependency versions, private
 provider identity, separate application/tooling environments,
+skill registration paths/version/hashes, discovery checks and retained skill edits,
 source/environment/configuration/research/backup paths, mirror outcome, launcher
 and stop paths, check results and exact unresolved blockers. Redact credentials;
 internal setup records and research remain private.

@@ -135,14 +135,24 @@ Metapyle validates source-specific attributes and registered sources before publ
 
 Retrieval uses `Client(catalog=..., cache_enabled=False)` → `get([my_name], ..., use_cache=False)` → `close()`. A new client loads a temporary catalogue containing each request's captured bindings. Concurrent Library edits cannot change an in-flight request, and frozen definitions remain usable after active entries change or disappear. No frequency alignment is requested from Metapyle; analytical Frequency remains in Kairopsis.
 
-Public adapter responses remain freshness **unverified**; native observation dates
-are unknown by default. For local files, an explicit Library declaration can
-establish that file dates are actual observation dates when no filling/resampling
-occurred. This enables eligible historical calculations without certifying market
-freshness or findings. Metapyle cache bypass applies when retrieving from the
-source; Explore can reuse its retained workspace observations before that step.
-Catalogue files are definitions. Installed adapter capabilities, upstream
-freshness, calendars and dependency routing require target-environment verification.
+For market-data catalogue retrievals and supported ad-hoc market queries, each
+nonmissing value uses its unaligned Metapyle row date as `observed_on`. No extra
+provider provenance column is required. A successful request containing only
+these retrievals reports **fresh**: the source was queried with cache bypass.
+Observation age is checked separately; stale rows, missing values, insufficient
+history and other analytical limitations still prevent findings. Kairopsis does
+not fill gaps or relabel carried values as new observations. Where a legacy
+mapping explicitly configures a date column, that column takes precedence;
+absent or invalid dates stay unknown.
+
+Legacy mappings retain **unverified** retrieval outcomes. Local files also remain
+**unverified**: an explicit Library declaration can establish file dates as
+observation dates for historical calculations when no filling/resampling occurred,
+without certifying market freshness or findings. Mixed requests retain the
+conservative outcome; failures remain partial or failed. Explore can reuse its
+retained workspace observations before calling Metapyle. Catalogue files are
+definitions. Installed adapter capabilities, source date conventions, calendars
+and dependency routing require target-environment verification.
 
 Existing demo fixtures and old snapshots without `catalog_name` keep their previous binding contract. Old live bindings alone may use private `config-dir/metapyle.json` mappings and `get_raw()` for compatibility, including explicitly configured observation-date columns. Edit an old live series, select its real provider and supply its actual symbol/field/path to move future evaluations to the catalogue API. Prior snapshots keep their captured definitions. No automatic translation or guessed migration is performed.
 

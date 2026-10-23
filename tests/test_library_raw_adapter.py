@@ -38,8 +38,11 @@ def test_unsaved_binding_uses_raw_query_without_catalogue_or_cache_files(tmp_pat
         unit="bp", currency="EUR", params={"option": "value"})
     result = MetapyleMarketData(settings, lambda: datetime(2026, 9, 30, tzinfo=timezone.utc), ad_hoc=True).fetch(
         DataRequest(bindings=(binding,), start=date(2026, 9, 1), end=date(2026, 9, 30)))
-    assert result.outcome == "unverified" and result.series[0].observations[-1].value == 11
-    assert result.series[0].observations[-1].observed_on is None
+    assert result.series[0].observations[-1].value == 11
+    if source == "localfile":
+        assert result.outcome == "unverified" and result.series[0].observations[-1].observed_on is None
+    else:
+        assert result.outcome == "fresh" and result.series[0].observations[-1].observed_on == date(2026, 9, 30)
     assert calls == [{"source": source, "symbol": "EUR_TEST", "field": field, "path": None,
         "params": {"option": "value"}, "start": "2026-09-01", "end": "2026-09-30", "use_cache": False}]
     assert not settings.workspace.exists() and not settings.cache_dir.exists()
@@ -90,4 +93,7 @@ def test_saved_legacy_alias_uses_mapping_but_new_and_edited_queries_use_draft_id
     drafts = (saved, saved.model_copy(update={"id": "new"}), saved.model_copy(update={"params": {"draft": True}}))
     result = provider.fetch(DataRequest(bindings=drafts, start=date(2026, 9, 1), end=date(2026, 9, 30)))
     assert len(result.series) == 3 and not result.failures
+    assert result.outcome == "unverified"  # A mixed legacy request remains conservative.
+    assert result.series[0].observations[0].observed_on is None
+    assert all(series.observations[0].observed_on == date(2026, 9, 30) for series in result.series[1:])
     assert calls == [("REAL_SYMBOL", {"mapped": True}), ("ALIAS", {}), ("ALIAS", {"draft": True})]

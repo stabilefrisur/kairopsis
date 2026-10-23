@@ -32,7 +32,9 @@ def build(archive_path: Path, output: Path) -> dict:
             raise ValueError("Expected a Kairopsis release version")
         selected = {}
         reused = {}
-        root_files = {"README.md", "pyproject.toml", "uv.lock", "CONTEXT.md", "AGENTS.md", ".python-version"}
+        # Deployment resolves against the target's approved sources. Keep the
+        # upstream lock in the full sdist, never in the compact transfer.
+        root_files = {"README.md", "pyproject.toml", "CONTEXT.md", "AGENTS.md", ".python-version"}
         for member in archive.getmembers():
             name = member.name.partition("/")[2]
             if not member.isfile():
@@ -59,7 +61,7 @@ def build(archive_path: Path, output: Path) -> dict:
             archive.addfile(info, io.BytesIO(data))
     payload = lzma.compress(buffer.getvalue(), preset=9)
     manifest = {"format": 1, "version": version, "file_count": len(selected),
-                "contents": "deployment source; developer tests, scripts and datasets omitted",
+                "contents": "deployment source; upstream lock, developer tests, scripts and datasets omitted",
                 "reused_vendor_sha256": reused,
                 "sdist_sha256": hashlib.sha256(archive_bytes).hexdigest(),
                 "payload_sha256": hashlib.sha256(payload).hexdigest()}

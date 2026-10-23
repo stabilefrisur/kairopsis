@@ -70,7 +70,7 @@ def source_files(payload: bytes, manifest: dict) -> dict[str, bytes]:
     for name in file_names:
         if any(str(parent) in file_names for parent in PurePosixPath(name).parents):
             raise ValueError("Source archive file/directory collision")
-    required = {"pyproject.toml", "uv.lock", "AGENTS.md", "CONTEXT.md",
+    required = {"pyproject.toml", "AGENTS.md", "CONTEXT.md",
                 "src/kairopsis/docs/agent-setup.md"}
     if not required <= files.keys():
         raise ValueError("Incomplete source workspace")
@@ -141,6 +141,7 @@ def main() -> int:
         print(f"Source extracted: {destination}")
         print(f"Agent: read {destination / 'src/kairopsis/docs/agent-setup.md'}")
         print("Continue at step 1. Existing installations and research were not changed.")
+        print("Resolve dependencies locally; the upstream lockfile is omitted.")
         print("Developer tests and sample datasets are available separately in the full source distribution.")
         return 0
     except (OSError, ValueError, KeyError, lzma.LZMAError, tarfile.TarError) as exc:

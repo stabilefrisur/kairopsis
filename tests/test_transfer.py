@@ -66,6 +66,7 @@ def test_copy_extract_preserves_old_installation_and_exact_application_bytes(bun
         if name.startswith("src/"):
             assert (destination / name).read_bytes() == data
     assert not (destination / "tests").exists()
+    assert not (destination / "uv.lock").exists()
     assert not (destination / ".scratch").exists()
     assert (package / "__init__.py").read_bytes() == b"# old application\n"
     assert (destination / "transfer-manifest.json").is_file()

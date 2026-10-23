@@ -1,130 +1,199 @@
 # Agent setup: Windows source workspace
 
-This is the single installation runbook: obtain the published source archive
-through the configured mirror, extract a local source workspace, and adapt its
-dependencies to the existing private data-access setup. The agent performs every
-technical step and hands the user a working launcher. The [human guide](human-guide.md)
+This is the single installation runbook for replacing an existing version,
+including 0.1.0, from a local text file. The transfer contains all current
+application code, guides and skills; unchanged browser libraries are copied from
+the existing package only after checksum verification. The agent owns every
+technical step through a tested launcher. The [human guide](human-guide.md)
 covers everyday use.
 
-## Give this task to GitHub Copilot
+## Give this task to a local agent
 
-Use Copilot Agent mode in the IDE running in the target Windows session. Paste:
+Open the release file linked on the
+[transfer page](https://github.com/stabilefrisur/kairopsis/tree/main/transfer)
+in GitHub's **Code** tab. Copy its complete contents into a local UTF-8 file
+named `kairopsis-0.2.3.py`. Raw access is unnecessary. Give the local IDE agent
+its absolute path with this task:
 
 ```text
-Read and execute this runbook:
-https://github.com/stabilefrisur/kairopsis/blob/main/src/kairopsis/docs/agent-setup.md
+Install Kairopsis from <absolute path to kairopsis-0.2.3.py>.
+Inspect its first 200 lines; keep the encoded payload out of chat.
+Inspect the existing workspace, setup records and launchers first. Preserve its
+outer tooling project/environment and distinguish the application source/venv.
+Use approved Python 3.12 and --reuse-from PACKAGE_DIRECTORY to run --check, then
+--extract with an explicit fresh version directory alongside the old source.
+PACKAGE_DIRECTORY may be src/kairopsis in the existing vendored source.
+Read the extracted src/kairopsis/docs/agent-setup.md and execute it from step 1.
+Install non-editably in a separate application environment; preserve existing
+per-mode configuration, launcher safeguards and automation.
+Register both bundled skills in the outer workspace's supported skills folder
+and verify the IDE agent discovers them, as described in step 5.
 
-Set up Kairopsis 0.2.1 as an extracted upstream source workspace on this Windows
-machine. You own archive acquisition, extraction, local dependency adaptation,
-installation, configuration, verification and launcher creation. Use the existing
-package mirror and working private Metapyle setup. Preserve existing research.
-Hand me a tested launcher, stop method and human guide. Ask only for missing
-private setup information or required tool permissions; report exact blockers
-instead of giving me technical steps to carry out.
+An existing 0.1.0 installation may work: inspect its local change notes, patches
+and upgrade automation. Reconcile local adaptations using this runbook; retain
+validated compatibility constraints, package routing and private data provider.
+Prepare and verify required behavior in the replacement
+before switching launchers. Preserve research and a recoverable backup.
+You own installation, configuration, verification and launcher creation.
+Keep all target-specific information and adaptations private; never submit them
+to web searches, public repositories, issues or uploads. Hand me a tested
+launcher, stop method and human guide. Ask only for missing information or
+required tool permissions; report exact blockers locally.
 ```
 
-Use the guide bundled with the selected release; GitHub main may describe a
-newer version. GitHub pages are documentation references. Archive
-and package acquisition use the existing mirror, not GitHub asset downloads.
+Use the bundled guide; GitHub main may describe a newer version. If source is
+already extracted, continue below without extracting again. Preserve 0.1.0
+until its browser libraries have been copied and the replacement verified.
 
-## 1. Inspect the existing Windows setup
+## 1. Inspect and preserve the existing setup
 
-Work under the ordinary user account in its active session. The target provides
-Windows, Python 3.12, Chrome, uv and virtual environments, without administrator
-rights or Node.js/npm. Public package-index access and GitHub cloning are not
-installation routes. The application serves this user on `127.0.0.1`.
+Work under the ordinary user account in its active Windows session. Use the
+existing Python 3.12, uv, Chrome and virtual environments. No administrator
+rights or Node.js are required. Public package-index access, GitHub cloning and
+Raw downloads are not installation routes. Extraction needs no network. The
+application serves this user on `127.0.0.1`.
 
-Inspect the current IDE workspace, working data-access project and configured
-package tools. Establish these private inputs before installation:
+Inspect the IDE workspace, existing launcher, package tools and working
+data-access project. Establish these inputs locally:
 
 - Absolute paths to Python 3.12, uv and Chrome.
-- The existing mirror, authentication, proxy and certificate configuration.
+- The approved mirror, authentication, proxy and certificate configuration.
   Keep credential values out of transcripts and setup records.
-- The working renamed data-access project's actual distribution name, immutable
-  version/revision, source routing and provider environment. Its import namespace
-  remains `metapyle`; read package metadata rather than inferring the distribution
-  identity from the project directory's name.
-- Existing Kairopsis installations, research workspaces and launchers to preserve.
+- The working data-access distribution's actual name, immutable version/revision,
+  source routing and provider environment. A renamed distribution may still
+  import as `metapyle`; inspect metadata rather than guessing from a folder name.
+- Existing Kairopsis executable/interpreter, version, installed dependencies,
+  local source adaptations, configuration, research, launcher and owned process.
+  Inspect the interpreter behind the launcher, not whichever Python is on PATH.
+- Local change notes, patch files and upgrade automation. If adaptations exist,
+  follow [preserving local adaptations](local-adaptations.md) alongside this
+  runbook. Retain the actual modified source as well as any patch descriptions.
+- The outer workspace root and any separate tooling project/environment, distinct
+  from versioned application source and its application environment. Read existing
+  setup/deviation records. Record per-mode ports, timezone, state paths, launcher
+  safeguards and scheduled automation; preserve them through the upgrade.
 
-Set `$KairopsisPython` and `$KairopsisMirror` from these findings. Set
-`$KairopsisRoot` to an approved writable per-user directory; inspect
-`Join-Path $env:LOCALAPPDATA 'Kairopsis'` as the default. Establish separate
-directories for downloads, source, bootstrap tools, configuration, research,
-cache, logs, launchers, private evidence and backups. Keep mutable state outside
-the source tree and environments.
-
-uv does not read pip configuration. Verify the mirror is explicit for both tools
-and every active index is approved; preserve existing authentication and trust.
-Internal URLs, package identities and credentials stay in private configuration.
-Missing access is a specific blocker, not permission to install a substitute
-provider or a new toolchain.
-
-**Done:** tools, mirror, private provider route, preserved research and absolute
-paths are identified; a private setup record is established.
-
-## 2. Obtain the upstream source archive from the mirror
-
-Define `$KairopsisDownloads`, `$KairopsisBootstrap` and `$KairopsisSourceParent`
-under the chosen root, using fresh version-specific directories. Reuse an
-existing directory only when its record proves it belongs to this installation.
-Preserve modified source and environments. Run through your terminal tool:
+Set `$KairopsisPython`, `$KairopsisUv` and `$KairopsisMirror` from these findings.
+Set `$KairopsisOldPython` from the old launcher. If the workspace has extracted
+source, set `$KairopsisOldSource` to its version directory and use
+`Join-Path $KairopsisOldSource 'src\kairopsis'` as `$KairopsisPackage`. Otherwise
+find the installed package with the application's interpreter, without importing it:
 
 ```powershell
-$KairopsisVersion = '0.2.1'
-New-Item -ItemType Directory -Force -Path $KairopsisDownloads | Out-Null
-uv venv $KairopsisBootstrap --python $KairopsisPython --no-python-downloads --seed --default-index $KairopsisMirror
-if ($LASTEXITCODE -ne 0) { throw 'Bootstrap environment failed' }
-$KairopsisBootstrapPython = Join-Path $KairopsisBootstrap 'Scripts\python.exe'
-& $KairopsisBootstrapPython -m pip download --index-url $KairopsisMirror --no-deps --no-binary=kairopsis --dest $KairopsisDownloads "kairopsis==$KairopsisVersion"
-if ($LASTEXITCODE -ne 0) { throw 'Upstream source download failed' }
+& $KairopsisOldPython -I -c "import importlib.util; from pathlib import Path; s=importlib.util.find_spec('kairopsis'); print(Path(s.origin).parent if s and s.origin else '')"
 ```
 
-Seeding pip and obtaining source metadata may require build packages, including
-`hatchling`, from that mirror. Confirm it supplies this version's source `.tar.gz`.
-If only a wheel is available, or the release/backend has not reached the mirror,
-record the exact missing artifact/package and stop this step. Retain the source
-workspace route. No manual download or extraction is assigned to the human.
+Use an explicit `$KairopsisPackage` on both transfer commands below. It contains
+`__init__.py` and `static`, not the source root or environment root. An empty
+lookup in the tooling environment does not mean the app is missing; inspect its
+launcher and vendored source. Record the actual import location separately from
+the source used for browser-library reuse; the transfer validates the latter.
+If the old package is absent or its browser hashes differ, recover the approved
+0.1.0 artifact through the established mirror/cache into an isolated temporary
+installation. Keep its dependencies/provider separate from the replacement.
+Never substitute CDN downloads or bypass checksum checks.
 
-Obtain the selected archive's expected SHA-256 from trusted index/mirror metadata
-or an external release manifest. Set `$KairopsisExpectedArchiveHash` to that
-digest; stop if it is unavailable. Verify the downloaded source archive:
+Reuse the existing writable outer workspace and directory conventions. Store the
+transfer outside replaceable version directories; extract a new version alongside
+the old application source. Keep the outer project metadata/lockfile, tooling
+environment, patches, configuration, research, launchers and records in place.
+Do not add Kairopsis as a dependency of the outer tooling project. Preserve its
+ignore rules for generated source, environments and local data.
+
+Only when no workspace exists, choose and create a writable per-user root, such
+as `Join-Path $env:LOCALAPPDATA 'Kairopsis'`; it need not already exist. Separate
+transfer files, source, configuration, research, cache, logs, launchers, private
+records and backups. Keep mutable state outside replaceable source/environments.
+
+uv does not read pip configuration. Verify approved sources explicitly and
+preserve existing authentication and trust. An earlier successful installation
+establishes working routes, not availability of every new dependency version.
+
+Keep organization/person names, internal addresses, private package identities,
+local paths, credentials, logs, research and adapted source local. Never include
+these in web searches, public issues, repositories or diagnostic uploads. The
+public runbook describes generic steps; discovered values stay private.
+
+Retain the old environment and launcher during preparation. Stop only the
+identified application process before copying the entire research workspace.
+Verify backup file inventory and hashes; preserve external configuration needed
+for recovery privately. Restart the old app if needed during preparation.
+Test the new version against a separate backup copy; it must not write the
+original research yet.
+
+**Done:** tools, approved sources, provider identity and installation paths are
+known; research and local adaptations have verified backups and a private record.
+
+## 2. Verify the local transfer file
+
+Set `$KairopsisTransfer` to the user-supplied file and `$KairopsisSourceParent`
+under the chosen root. Run through your terminal tool:
 
 ```powershell
-$KairopsisArchive = Join-Path $KairopsisDownloads "kairopsis-$KairopsisVersion.tar.gz"
-if ($KairopsisExpectedArchiveHash -notmatch '^[0-9a-fA-F]{64}$') {
-    throw 'Trusted source checksum required'
-}
-$KairopsisArchiveHash = (Get-FileHash -LiteralPath $KairopsisArchive -Algorithm SHA256).Hash.ToLowerInvariant()
-if ($KairopsisArchiveHash -ne $KairopsisExpectedArchiveHash.ToLowerInvariant()) {
-    throw 'Upstream source checksum mismatch'
-}
+$KairopsisVersion = '0.2.3'
+& $KairopsisPython $KairopsisTransfer --check --reuse-from $KairopsisPackage
+if ($LASTEXITCODE -ne 0) { throw 'Transfer verification failed; inspect the reported cause' }
 ```
 
-**Done:** the mirror-supplied source archive matches the published SHA-256;
-version, hash and private acquisition route are recorded.
+Confirm the reported version matches the release. Verification covers both the
+text payload and every reused browser library before writing any files.
+
+The embedded SHA-256 detects damaged/truncated payloads; it does not authenticate
+the executable wrapper. Use the intended repository revision and compare an
+external release manifest if supplied. Preserve the original transfer file and
+its hashes. LF/CRLF line endings in correctly saved UTF-8 files are supported.
+Syntax errors or payload mismatches require a complete copy from the Code tab,
+not disabling verification. Expand any collapsed code; exclude line numbers,
+page navigation and Markdown fences. If the page cannot expose the complete
+text, report that precise transfer limitation.
+
+**Done:** payload and reused libraries pass verification without downloads;
+version and hashes are recorded privately.
 
 ## 3. Extract and preserve the source snapshot
 
-Ensure the destination does not contain modified source. Extract with the
-discovered interpreter:
+Choose a fresh directory. If this exact transfer was already extracted
+successfully, reuse that directory and skip the extraction command:
 
 ```powershell
-New-Item -ItemType Directory -Force -Path $KairopsisSourceParent | Out-Null
-& $KairopsisPython -m tarfile --extract $KairopsisArchive $KairopsisSourceParent --filter data
-if ($LASTEXITCODE -ne 0) { throw 'Source extraction failed' }
 $KairopsisSource = Join-Path $KairopsisSourceParent "kairopsis-$KairopsisVersion"
+& $KairopsisPython $KairopsisTransfer --extract $KairopsisSource --reuse-from $KairopsisPackage
+if ($LASTEXITCODE -ne 0) { throw 'Source extraction failed' }
 Set-Location -LiteralPath $KairopsisSource
 ```
 
-Confirm `pyproject.toml`, `src`, `tests`, `docs`, `scripts` and `uv.lock` exist.
-Retain the archive and pristine dependency metadata before local adaptation.
-This source tree has no upstream Git history or remote. Read its `AGENTS.md`
-and domain pointers before changing project files.
+The extractor rejects existing destinations, including empty directories.
+After an interrupted extraction,
+retain that directory for inspection and retry to a fresh path. It copies only
+verified vendor files from the old package; all application code comes from
+the new payload.
 
-**Done:** complete local source and recoverable upstream metadata exist without
-overwriting research.
+If the nominal version directory already holds a different candidate, choose a
+fresh revision-suffixed directory and record its path. Keep the old source and
+environment until cutover and rollback checks pass. Replacing a versioned source
+snapshot does not mean replacing the surrounding workspace.
 
-## 4. Adapt private dependency routing locally
+Confirm `pyproject.toml`, `src`, `docs`, `AGENTS.md`, `CONTEXT.md`
+and `transfer-manifest.json` exist, and project/manifest versions agree. This
+deployment workspace omits the upstream `uv.lock`, developer tests, scripts and
+sample datasets to keep the Code-view transfer small. Those remain in the full
+source distribution. Resolve a local lock after adapting dependency routing;
+the bundled self-check needs no developer tools. Packaging another
+public release from this adapted deployment workspace is outside this runbook.
+
+Retain the transfer file and pristine dependency metadata privately before
+adaptation. This source has no Git history or remote. Read its `AGENTS.md` and
+domain pointers before changing project files.
+
+**Done:** complete application source, browser assets, guides and skills are
+local; original installation and research remain recoverable.
+
+## 4. Reconcile local adaptations and dependency routing
+
+If the old setup has local adaptations, reconcile every one using
+[preserving local adaptations](local-adaptations.md) before installing. The
+current source already uses Hatchling; confirm required package resources in the
+resulting installation instead of replacing the new build metadata wholesale.
 
 The published project declares `metapyle>=0.1.6`. Reuse the existing working
 private distribution's established installation source and immutable revision;
@@ -137,11 +206,17 @@ retain its `metapyle` import namespace. Edit only the extracted local project:
 - Copy the applicable private uv source/index definitions from the working setup.
   Make the approved mirror the default index; retain approved package-specific
   routing and existing authentication, with credential values outside metadata.
+- Carry forward validated dependency constraints and their reasons, including
+  applicable `[tool.uv].constraint-dependencies`. Check compatibility with the
+  new requirements; report conflicts locally instead of dropping constraints.
 
-Keep these adaptations and the resulting lockfile private. The published
-`uv.lock` contains an upstream dependency set and public artifact URLs; it is a
-reference, not a lock to force onto this environment. Resolve a local lock against
-the mirror and selected private sources next. Preserve the working provider
+Keep these adaptations and the resulting lockfile private. Current compact
+transfers omit `uv.lock`; the full source distribution and older transfers may
+include it. Before the first `uv sync`, move any upstream `uv.lock` from the fresh
+application source to the private backup record. Its public artifact URLs must
+not select installation sources. Preserve existing locally resolved locks and
+the outer tooling project's lock. Resolve a new application lock against the
+mirror and selected private sources next. Preserve the working provider
 project; its code/configuration is not part of the public Kairopsis distribution.
 
 Reuse the working provider artifact, including its import/version metadata.
@@ -149,31 +224,66 @@ Changing a distribution name alone does not establish compatible imports. If
 the selected artifact fails to import without the public package beside it,
 record that packaging mismatch instead of installing overlapping providers.
 
-**Done:** local metadata and routing explicitly select the established private
-distribution, with no unintended public Metapyle dependency.
+**Done:** every local adaptation has a recorded disposition; required changes are
+re-derived against the new source. Metadata and routing select the established
+private distribution and compatible constraints, with no unintended public
+Metapyle dependency. Behavior checks remain mandatory before cutover.
 
 ## 5. Resolve and install the local project with uv
 
-Run from the extracted source directory:
+Run from the extracted application source directory, never the outer tooling
+project. Inspect uv workspace membership and inherited `UV_*` configuration:
+ensure the new application remains a separate project, using the established
+workspace exclusions where needed. Set its environment explicitly so an inherited
+`UV_PROJECT_ENVIRONMENT` cannot redirect installation into the tooling/old venv.
+Use neither `--active` nor `--all-packages`. First try the existing cache without
+network access; if packages/build requirements are missing, retry through only
+the approved mirror/private sources. Preserve complete diagnostics locally:
 
 ```powershell
-uv sync --no-dev --python $KairopsisPython --no-python-downloads --default-index $KairopsisMirror
-if ($LASTEXITCODE -ne 0) { throw 'Local resolution or installation failed' }
 $KairopsisEnvironment = Join-Path $KairopsisSource '.venv'
+$KairopsisPreviousEnvironment = $env:UV_PROJECT_ENVIRONMENT
+try {
+    $env:UV_PROJECT_ENVIRONMENT = $KairopsisEnvironment
+    & $KairopsisUv sync --project $KairopsisSource --no-editable --offline --no-dev --python $KairopsisPython --no-python-downloads --default-index $KairopsisMirror
+    if ($LASTEXITCODE -ne 0) {
+        & $KairopsisUv sync --project $KairopsisSource --no-editable --no-dev --python $KairopsisPython --no-python-downloads --default-index $KairopsisMirror
+    }
+    if ($LASTEXITCODE -ne 0) { throw 'Local resolution or installation failed' }
+} finally {
+    $env:UV_PROJECT_ENVIRONMENT = $KairopsisPreviousEnvironment
+}
 $KairopsisAppPython = Join-Path $KairopsisEnvironment 'Scripts\python.exe'
 $KairopsisCommand = Join-Path $KairopsisEnvironment 'Scripts\kairopsis.exe'
-uv pip check --python $KairopsisAppPython
+& $KairopsisUv pip check --python $KairopsisAppPython
 if ($LASTEXITCODE -ne 0) { throw 'Installed dependency check failed' }
 & $KairopsisCommand --help
 ```
 
-uv installs the project in editable form. Retain its source, `.venv` and local
-lockfile. Mirror coverage may be incomplete: report exact missing versions.
+uv builds and installs a non-editable wheel into the application's own environment.
+Retain patched source, private patches, `.venv` and local lockfile. Source edits
+are not live: after any later patch, repeat the sync above with
+`--reinstall-package kairopsis` on both attempts, then verify installed files and
+restart only the replacement app. Keep `--no-editable` on every sync, including
+local upgrade automation. This is a separate environment: do not copy an old
+`.venv`, use global site-packages, or uninstall the working provider to make
+resolution pass.
+The mirror/cache must also supply build requirements such as Hatchling.
+Mirror coverage may be incomplete: report exact missing versions locally.
 Use an alternative set only when an existing validated setup or explicit owner
 decision supplies it; record changes and rerun relevant checks. Never silently
 relax pins. Startup uses the installed environment without dependency resolution.
 
-Verify the provider import:
+Verify the app's installed origin from outside the source directory:
+
+```powershell
+& $KairopsisAppPython -I -c "import json, sys, importlib.metadata as m, kairopsis; from pathlib import Path; p=Path(kairopsis.__file__).resolve(); d=m.distribution('kairopsis'); u=json.loads(d.read_text('direct_url.json') or '{}'); print(json.dumps({'python': sys.executable, 'version': d.version, 'import': str(p), 'editable': u.get('dir_info', {}).get('editable', False)}, indent=2)); assert p.is_relative_to(Path(sys.prefix).resolve()); assert not u.get('dir_info', {}).get('editable', False)"
+if ($LASTEXITCODE -ne 0) { throw 'Application installation origin check failed' }
+```
+
+Confirm the reported version matches the transfer. Compare installed runtime files
+with the final patched source, excluding bytecode, so a cached wheel or earlier
+patch cannot silently pass. Preserve these results privately. Verify the provider import:
 
 ```powershell
 & $KairopsisAppPython -c "import json, importlib.metadata as m, metapyle; print(json.dumps({'kairopsis_version': m.version('kairopsis'), 'metapyle_import': metapyle.__file__, 'metapyle_distributions': m.packages_distributions().get('metapyle', [])}, indent=2))"
@@ -194,23 +304,82 @@ Locate both bundled skills through the installed interpreter:
 & $KairopsisAppPython -c "from importlib.resources import files; print(files('kairopsis').joinpath('skills', 'kairopsis-screening', 'SKILL.md'))"
 ```
 
-Use the analysis skill to define calculations and record their economic rationale.
-Use the screening skill to run and retain a screening, or review an existing run,
-then interpret its evidence and save a brief. In the extracted source workspace,
-`AGENTS.md` points to both skills under `src/kairopsis/skills`. For an agent using
-a separate workspace, load the relevant entry point directly or copy each **whole**
-skill folder into that agent's supported skill directory (for
-example, `.agents/skills` for an agent supporting that convention). Preserve any
-existing customized copy; record the package version and refresh the copy when
-upgrading. Package inclusion alone does not register a skill with every agent.
+### Register the skills in the agent's workspace
+
+Package inclusion distributes the skills; it does not register them with the IDE
+agent. The `AGENTS.md` inside extracted source is not sufficient when the agent
+works from the outer wrapper workspace. Complete registration there:
+
+1. Inspect the active agent, its supported skill locations and existing workspace
+   conventions. For Copilot in VS Code, use the wrapper's `.github/skills/` by
+   default; `.agents/skills/` also works in current VS Code and is native to Codex.
+   Reuse one supported location already established in the wrapper. Confirm support
+   in the installed IDE version; avoid duplicate skill names across locations.
+   See [VS Code skill locations](https://code.visualstudio.com/docs/agent-customization/agent-skills).
+2. Copy the **whole** `kairopsis-analysis` and `kairopsis-screening` directories
+   from the verified application's installed `kairopsis/skills` resources into
+   that location. Preserve `SKILL.md`, references, scripts and relative paths.
+   Keep the packaged originals. Ordinary directory copies need no symlinks,
+   administrator access, package downloads or additional extraction.
+3. Before replacing existing copies, back them up outside discovered skill
+   locations. Compare any local edits against the previous packaged version and
+   reconcile them explicitly. Refresh these two skills together on each upgrade;
+   account for removed upstream files as well as additions. Preserve unrelated
+   wrapper skills. Record the application version, source/destination paths,
+   copied-file hashes and retained local changes in the private setup record.
+4. Merge short routing instructions into the wrapper's existing agent instruction
+   file, using the chosen paths: read `kairopsis-analysis/SKILL.md` before defining
+   or interpreting an Analysis; read `kairopsis-screening/SKILL.md` before running
+   or reviewing a Screening Run. Preserve existing instructions. The application
+   interpreter and approved localhost URL belong in private wrapper instructions,
+   so the screening helper targets the intended installation.
+5. Verify both names appear in the active agent's discovered skills. Reload the
+   IDE or start a fresh agent session if discovery needs it. Explicitly invoke
+   each skill to read its instructions and a relative reference; this discovery
+   check requires no live screening. If native discovery is unavailable, record
+   the limitation and verify the wrapper instructions can direct the agent to
+   read both entry points and their resources. File existence alone is not proof
+   of registration.
+
+Expected Copilot layout, relative to the outer workspace:
+
+```text
+.github/skills/
+  kairopsis-analysis/SKILL.md
+  kairopsis-analysis/references/...
+  kairopsis-screening/SKILL.md
+  kairopsis-screening/references/...
+  kairopsis-screening/scripts/...
+```
 
 **Done:** resolution, dependencies, console command, private provider identity
-and complete local assets are checked.
+and complete local assets are checked. Both version-matched skills are available
+from the wrapper workspace; native discovery or the verified direct-read fallback
+is recorded.
 
 ## 6. Configure and verify an isolated demo
 
-Create a private verification TOML and fresh mock workspace outside the source
-tree. Use the CLI's actual `--help` options and `[kairopsis]` keys: `mode`, `host`,
+Run the bundled self-check with the replacement application's interpreter from
+outside its source directory:
+
+```powershell
+& $KairopsisAppPython -I -m kairopsis.self_check
+if ($LASTEXITCODE -ne 0) { throw 'Installed application self-check failed' }
+```
+
+`kairopsis --self-check` runs the same checks. It creates temporary mock state,
+ignores `KAIROPSIS_*` settings and user configuration, and checks routes, local
+assets, calculations, evidence save/reopen and image export through in-process
+HTTP requests. It opens no port and needs no extra test packages. Save its JSON
+report privately; confirm its package path is the replacement installation.
+Rerun it after rebuilding any local patch. It does not check browser rendering,
+launcher behavior, live access or the correctness of adapter patches; complete
+the following demo and live acceptance steps as well.
+
+Copy an existing mock configuration into a private verification TOML and use a
+fresh mock workspace outside the source tree. If none exists, create one.
+Preserve the configured timezone and mode separation. Use the CLI's actual
+`--help` options and `[kairopsis]` keys: `mode`, `host`,
 `port`, `timezone`, `workspace`, `config_dir`, `cache_dir`, `log_dir`. Set `mock`,
 `127.0.0.1`, an unused permitted port, the user's IANA timezone and absolute
 writable paths. Preserve existing live research separately. Resolve inherited
@@ -235,7 +404,10 @@ pages/assets without external frontend requests.
 ## 7. Configure the existing live-data access
 
 Create a separate live configuration/workspace using the working data-access
-project's provider runtime setup. Authentication, private endpoints and environment
+project's provider runtime setup. For an upgrade, point verification at the
+backup copy and use a distinct permitted verification port. Preserve the existing
+mock/live port assignments for cutover and their separate state paths; do not
+replace them with CLI defaults. Authentication, private endpoints and environment
 requirements remain private. Launch the installed command with that configuration
 under the active user session, without installing/upgrading packages at startup.
 
@@ -253,6 +425,10 @@ failures remain explicit; never substitute demo observations. API freshness,
 native-date provenance and monitoring calibration remain unverified unless the
 implementation and actual data establish them. A chart alone does not establish
 fresh monitoring or calibrated thresholds.
+
+If migrating runtime adaptations, complete the behavior comparisons and failure
+checks in [preserving local adaptations](local-adaptations.md). A successful
+import or rendered chart does not validate a migrated runtime patch.
 
 **Done:** the live workflow is checked with the existing private provider, or its
 precise access/API/data limitation is recorded. Demo success alone is not live setup.
@@ -286,10 +462,30 @@ Preserve existing files on schema/corruption errors rather than deleting researc
 **Done:** save/export/restart and trial restore pass; all untested behaviors and
 live-data limitations are explicit in the private record.
 
-## 9. Create and test the user's launcher
+For an upgrade, also open existing Ideas, charts, notes, Library entries and
+retained screening evidence in the copied workspace. Compare file inventories
+and representative records with the backup. Stop on schema or compatibility
+errors and keep the original usable; do not reset or delete research to pass.
 
-Create a start/open shortcut and stop method in the user's writable launcher
-directory, using absolute installed-executable/configuration paths. Start hidden,
+## 9. Switch and test the user's launcher
+
+Switch only after replacement dependency, demo, live-provider, migrated-behavior
+and copied-research checks pass. If a required adaptation remains unresolved or
+live access is unavailable, keep the existing working live launcher and report
+the prepared replacement's limitation.
+
+Stop the old owned process for final cutover. If research changed during setup,
+make and verify a fresh backup, copy it to the replacement's permanent research
+directory, and repeat the existing-record checks there. Point the replacement
+configuration at that directory. Preserve the old launcher/environment and
+original workspace for rollback; never run both versions against one workspace.
+
+Adapt existing launchers with the smallest path/configuration changes and retain
+their required local review process. Preserve host/port restrictions, process
+identity validation, script-signing/execution-policy requirements and per-mode
+state separation. Do not relax safeguards to make a new path work. Create a new
+launcher only when none exists. Use absolute installed-executable/configuration
+paths. Start hidden,
 wait for the expected localhost page, then open it in Chrome. Track the owned
 process; repeated starts reuse the correct instance and stopping affects only it.
 Report failures with local logs rather than opening an unrelated service on an
@@ -301,13 +497,30 @@ shared hosting and operation after logout are outside this setup. Automatic
 session launch is optional only if requested, through the existing user-level
 scheduling mechanism.
 
+Inspect existing version-check automation without recreating or rescheduling it.
+Keep its settings and notification preferences. If it needs installed-version or
+path updates, make those locally through its established review process. Record
+the transferred version independently of the mirror's latest version so a stale
+mirror result cannot trigger a downgrade or imply the transfer was not installed.
+
+Retire the old active shortcut after the replacement starts correctly. Rollback
+means stopping the replacement and restoring the old launcher with its original
+workspace, never pointing 0.1.0 at files the new version changed. Research
+created after cutover belongs to the replacement and must be preserved before
+rollback. Retain the verified backup. If removing the old installation, first
+prove its environment/directory is dedicated to Kairopsis; remove only that
+installation, never a shared provider environment, configuration or research.
+
 **Done:** start/open, duplicate launch, stop and restart work; the user needs no
 terminal commands to open the prepared workspace.
 
 ## 10. Hand off and retain private evidence
 
-Save `setup-record.md` outside source/package directories with the archive hash,
-local metadata adaptations, tool/dependency versions, private provider identity,
+Save `setup-record.md` outside source/package directories with the transfer and
+payload hashes, reused-library verification, old/new package versions,
+local adaptation dispositions and verification, tool/dependency versions, private
+provider identity, separate application/tooling environments,
+skill registration paths/version/hashes, discovery checks and retained skill edits,
 source/environment/configuration/research/backup paths, mirror outcome, launcher
 and stop paths, check results and exact unresolved blockers. Redact credentials;
 internal setup records and research remain private.
@@ -316,7 +529,7 @@ Give the user the launcher, stop method, local browser address, backup location,
 verified demo/live status and local [human guide](human-guide.md). Explain remaining
 limitations briefly. The human manages research, not archive extraction or setup.
 
-**Done:** the source workspace uses the mirror and intended private provider;
+**Done:** the transferred source workspace uses approved dependency routes and the intended private provider;
 the tested launcher/handoff work and target-only checks are accurately recorded.
 This guide specifies the recorded target; mock checks elsewhere cannot establish
 its actual mirror or live-data availability.

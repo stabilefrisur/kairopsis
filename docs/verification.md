@@ -7,6 +7,78 @@ Verify the built artifacts as well as the source checkout. Source tests establis
 application behavior; installed-package checks establish that the distribution
 contains the code, browser assets and guides needed outside the checkout.
 
+## 0.2.3 installation candidate — 23 October 2026
+
+The compact transfer builder omits the upstream lockfile while the full source
+distribution retains it. Dependency resolution uses the target's approved
+sources after local metadata adaptation. The runbook also handles earlier
+transfers that still carry the upstream lock.
+
+The bundled `kairopsis --self-check` (or `python -I -m kairopsis.self_check`)
+checks mock routes, page assets, calculations, evidence save/reopen and image
+export. It uses temporary state and in-process requests without opening a port,
+reading user configuration or requiring extra test dependencies. JSON reports
+include the imported package path, version and completed checks; failures return
+a nonzero exit status.
+Live provider behavior, local adapter patches, browser rendering and launchers
+still require the runbook's target acceptance checks.
+
+All 447 source tests pass, including inherited
+live settings, temporary-state cleanup and injected asset/persistence failures.
+Mypy passes for all 28 application modules. A separately installed
+wheel passes from outside the checkout with conflicting inherited launch settings;
+its resource, vendor and source-byte inventory checks pass. This is local Linux
+verification, not target Windows/live acceptance. Version 0.2.3 carries these
+changes and requires copying both bundled skills to the outer agent workspace
+and verifying discovery. The original 0.2.2 transfer remains available unchanged.
+Standards and specification reviews found no outstanding installation issues.
+
+## Code-view transfer preparation — 21 October 2026
+
+The 0.2.2 candidate adds a compact text transfer and an agent upgrade runbook.
+It carries deployment source and reuses seven browser-library files from the
+0.1.0 wheel only after SHA-256 verification. Developer tests, scripts and sample
+datasets remain in the full source distribution. Application behavior is unchanged.
+
+The full source suite passes 440 tests; three further transfer cases also pass.
+All 16 transfer cases cover copied text, UTF-8 BOM/CRLF, paths with spaces,
+old-package discovery without importing its code, missing/changed libraries,
+payload corruption, existing destinations, directory links and archive paths.
+Mypy checks 27 application files. Wheel inventory/vendor hashes and strict
+metadata checks pass. Public artifact scans found no private target material.
+
+Actual Windows Python 3.12 extraction reuses the 0.1.0 wheel's libraries and
+reconstructs every application file byte-for-byte. Re-extraction rejects the
+existing directory. A separate Linux editable installation resolves offline
+from cached dependencies and serves all main pages and vendor assets in mock
+mode. Rebuilding a wheel from the transferred source produces identical wheel
+contents. These checks do not establish target mirror coverage, live-provider
+access, research migration or target launcher behavior; the runbook checks those.
+
+### Rebuild the copyable file
+
+Build and audit wheel/source artifacts first, then run:
+
+```sh
+python scripts/build_transfer.py /path/to/kairopsis-VERSION.tar.gz /fresh/output/kairopsis-VERSION.py
+python /fresh/output/kairopsis-VERSION.py --check --reuse-from /path/to/old/kairopsis
+python /fresh/output/kairopsis-VERSION.py --extract /fresh/deployment --reuse-from /path/to/old/kairopsis
+```
+
+Use the approved baseline wheel's package directory for the reuse check. Compare
+every reconstructed runtime file against the candidate wheel, test Windows
+extraction and build/install from the deployment source. Review the readable
+bootstrap, decoded payload and reused-file manifest for public suitability.
+The builder selects deployment files only from the audited sdist, normalizes
+archive metadata and rejects output over 500 KB. Verify the complete generated
+file is available in GitHub's Code tab before handing out its pinned link.
+
+Replace the versioned file under `transfer/` only with the verified candidate.
+The generated transfer is excluded from wheel/sdist inputs, avoiding recursive
+bundles. Regenerate it after any packaged change; retain artifact hashes and
+detailed checks in private maintainer records. Do not bundle a locally adapted
+installation, environments, credentials or research.
+
 ## 0.2.1 publication link correction — 11 October 2026
 
 Post-publication checks found that PyPI resolved the README's relative CSV-demo
@@ -304,7 +376,7 @@ uv sync --locked
 uv run pytest -q
 uv run mypy src/kairopsis
 uv build
-uv run python scripts/acceptance/inspect_wheel.py dist/kairopsis-0.2.1-py3-none-any.whl --require-assets --source-directory . --output /absolute/output/wheel-inventory.json
+uv run python scripts/acceptance/inspect_wheel.py dist/kairopsis-VERSION-py3-none-any.whl --require-assets --source-directory . --output /absolute/output/wheel-inventory.json
 uvx --from twine twine check --strict dist/*
 ```
 

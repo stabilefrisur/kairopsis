@@ -6,12 +6,13 @@ def main() -> None:
     import logging
     from logging.handlers import RotatingFileHandler
 
-    import uvicorn
-
-    from .app import create_app
     from .config import load_settings
 
     settings = load_settings()
+    import uvicorn
+
+    from .app import create_app
+
     for path in (settings.config_dir, settings.cache_dir, settings.log_dir):
         path.mkdir(parents=True, exist_ok=True)
     logging.getLogger("kairopsis").addHandler(RotatingFileHandler(

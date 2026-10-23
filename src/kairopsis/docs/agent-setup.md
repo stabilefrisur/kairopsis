@@ -12,11 +12,11 @@ covers everyday use.
 Open the release file linked on the
 [transfer page](https://github.com/stabilefrisur/kairopsis/tree/main/transfer)
 in GitHub's **Code** tab. Copy its complete contents into a local UTF-8 file
-named `kairopsis-0.2.2.py`. Raw access is unnecessary. Give the local IDE agent
+named `kairopsis-0.2.3.py`. Raw access is unnecessary. Give the local IDE agent
 its absolute path with this task:
 
 ```text
-Install Kairopsis from <absolute path to kairopsis-0.2.2.py>.
+Install Kairopsis from <absolute path to kairopsis-0.2.3.py>.
 Inspect its first 200 lines; keep the encoded payload out of chat.
 Inspect the existing workspace, setup records and launchers first. Preserve its
 outer tooling project/environment and distinguish the application source/venv.
@@ -130,7 +130,7 @@ Set `$KairopsisTransfer` to the user-supplied file and `$KairopsisSourceParent`
 under the chosen root. Run through your terminal tool:
 
 ```powershell
-$KairopsisVersion = '0.2.2'
+$KairopsisVersion = '0.2.3'
 & $KairopsisPython $KairopsisTransfer --check --reuse-from $KairopsisPackage
 if ($LASTEXITCODE -ne 0) { throw 'Transfer verification failed; inspect the reported cause' }
 ```

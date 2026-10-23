@@ -7,7 +7,7 @@ Verify the built artifacts as well as the source checkout. Source tests establis
 application behavior; installed-package checks establish that the distribution
 contains the code, browser assets and guides needed outside the checkout.
 
-## Installer feedback follow-up — unreleased
+## 0.2.3 installation candidate — 23 October 2026
 
 The compact transfer builder omits the upstream lockfile while the full source
 distribution retains it. Dependency resolution uses the target's approved
@@ -23,13 +23,15 @@ a nonzero exit status.
 Live provider behavior, local adapter patches, browser rendering and launchers
 still require the runbook's target acceptance checks.
 
-All 30 focused self-check, transfer and HTTP tests pass, including inherited
+All 447 source tests pass, including inherited
 live settings, temporary-state cleanup and injected asset/persistence failures.
-Mypy passes for the three changed application modules. A separately installed
+Mypy passes for all 28 application modules. A separately installed
 wheel passes from outside the checkout with conflicting inherited launch settings;
 its resource, vendor and source-byte inventory checks pass. This is local Linux
-verification, not target Windows/live acceptance. The checked-in 0.2.2 transfer
-has not been regenerated for these unreleased changes.
+verification, not target Windows/live acceptance. Version 0.2.3 carries these
+changes and requires copying both bundled skills to the outer agent workspace
+and verifying discovery. The original 0.2.2 transfer remains available unchanged.
+Standards and specification reviews found no outstanding installation issues.
 
 ## Code-view transfer preparation — 21 October 2026
 
@@ -58,9 +60,9 @@ access, research migration or target launcher behavior; the runbook checks those
 Build and audit wheel/source artifacts first, then run:
 
 ```sh
-python scripts/build_transfer.py /path/to/kairopsis-0.2.2.tar.gz /fresh/output/kairopsis-0.2.2.py
-python /fresh/output/kairopsis-0.2.2.py --check --reuse-from /path/to/old/kairopsis
-python /fresh/output/kairopsis-0.2.2.py --extract /fresh/deployment --reuse-from /path/to/old/kairopsis
+python scripts/build_transfer.py /path/to/kairopsis-VERSION.tar.gz /fresh/output/kairopsis-VERSION.py
+python /fresh/output/kairopsis-VERSION.py --check --reuse-from /path/to/old/kairopsis
+python /fresh/output/kairopsis-VERSION.py --extract /fresh/deployment --reuse-from /path/to/old/kairopsis
 ```
 
 Use the approved baseline wheel's package directory for the reuse check. Compare
@@ -374,7 +376,7 @@ uv sync --locked
 uv run pytest -q
 uv run mypy src/kairopsis
 uv build
-uv run python scripts/acceptance/inspect_wheel.py dist/kairopsis-0.2.2-py3-none-any.whl --require-assets --source-directory . --output /absolute/output/wheel-inventory.json
+uv run python scripts/acceptance/inspect_wheel.py dist/kairopsis-VERSION-py3-none-any.whl --require-assets --source-directory . --output /absolute/output/wheel-inventory.json
 uvx --from twine twine check --strict dist/*
 ```
 

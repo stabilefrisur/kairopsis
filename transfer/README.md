@@ -1,9 +1,9 @@
 # Install from a text file
 
-Keep the existing 0.1.0 installation until the upgrade is verified.
-Open [kairopsis-0.2.2.py](kairopsis-0.2.2.py) in GitHub's **Code** tab. Click
+Keep the existing installation until the upgrade is verified.
+Open [kairopsis-0.2.3.py](kairopsis-0.2.3.py) in GitHub's **Code** tab. Click
 inside the code, then press **Ctrl+A**, **Ctrl+C**. Paste into a local file named
-`kairopsis-0.2.2.py`. Keep focus inside the code so page navigation and line
+`kairopsis-0.2.3.py`. Keep focus inside the code so page navigation and line
 numbers are excluded. Expand collapsed code if needed. Save as UTF-8 and
 preserve the `.py` extension. Raw access is unnecessary.
 
@@ -21,7 +21,7 @@ In your local IDE's agent mode, paste this task and replace the file path:
 
 ```text
 Install Kairopsis from the local transfer file:
-<absolute path to kairopsis-0.2.2.py>
+<absolute path to kairopsis-0.2.3.py>
 
 Inspect the existing workspace, setup records and launchers first. Distinguish
 the application source/environment from any outer tooling project/environment;
@@ -55,8 +55,9 @@ exact blockers locally; do not silently change dependency pins or providers.
 The bundle carries all current application code, guides, skills and build
 metadata. It reuses only unchanged browser libraries from the old installation,
 after checking every file's SHA-256. It copies no old application code,
-configuration or research. Developer tests, scripts and sample datasets remain
-in the full source distribution. It contains no interpreter or Python
+configuration or research. The upstream lockfile, developer tests, scripts and
+sample datasets remain in the full source distribution. The transfer includes
+the installed application's self-check. It contains no interpreter or Python
 dependencies. Extraction makes no network requests.
 The embedded checksum detects payload corruption; it is not a digital signature.
 Obtain the file from the intended repository revision.

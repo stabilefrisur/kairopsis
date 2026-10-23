@@ -49,6 +49,8 @@ class Settings:
 
 def load_settings(argv: list[str] | None = None) -> Settings:
     parser = argparse.ArgumentParser(description="Local Kairopsis research dashboard")
+    parser.add_argument("--self-check", action="store_true",
+                        help="Check the installed app with temporary mock data; no server or live access")
     parser.add_argument("--config", type=Path, help="Absolute path to an optional TOML configuration")
     parser.add_argument("--mode", choices=("mock", "live"))
     parser.add_argument("--host")
@@ -57,6 +59,11 @@ def load_settings(argv: list[str] | None = None) -> Settings:
     for name in ("workspace", "config-dir", "cache-dir", "log-dir"):
         parser.add_argument(f"--{name}", type=Path)
     args = vars(parser.parse_args(argv))
+    if args.pop("self_check"):
+        if any(value is not None for value in args.values()):
+            parser.error("--self-check cannot be combined with launch settings")
+        from .self_check import main
+        raise SystemExit(main())
     config = args.pop("config") or os.environ.get("KAIROPSIS_CONFIG")
     values: dict = {}
     if config:

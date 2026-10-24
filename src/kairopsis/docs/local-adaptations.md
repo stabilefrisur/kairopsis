@@ -71,10 +71,12 @@ a passing mock check does not validate adapter changes or provider semantics.
 For an adapter or findings change, check returned values, observation dates,
 provenance, eligibility and affected findings, including Current, Change and
 Standing where applicable. Cover successful retrieval, missing/partial data,
-failures, stale observations and legacy bindings. Confirm documented provider
-dates take precedence over inferred dates. Cache bypass alone establishes neither
-native observation dates nor freshness; keep any provider-specific inference
-scoped to evidence and preserve conservative behavior elsewhere.
+failures, stale observations and legacy bindings. Unaligned market-data retrievals
+now use Metapyle row dates as observation dates, without requiring an extra provider
+column. Drop or narrow a local patch that supplied this behavior once its checks
+pass upstream. Preserve explicitly configured date-column precedence and the
+local-file declaration rule. Cache bypass establishes retrieval success separately
+from observation age; stale and missing observations must still prevent findings.
 
 Use the Analysis skill before selecting calculation settings or interpreting
 findings. Preserve stale-data and eligibility safeguards. Check other behavior

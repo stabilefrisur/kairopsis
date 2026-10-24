@@ -7,6 +7,21 @@ Verify the built artifacts as well as the source checkout. Source tests establis
 application behavior; installed-package checks establish that the distribution
 contains the code, browser assets and guides needed outside the checkout.
 
+## Unreleased Metapyle row-date correction — 23 October 2026
+
+Unaligned market-data retrievals use Metapyle row dates as observation dates and
+report successful cache-bypassed retrievals as `fresh`. Stale/missing observations
+remain excluded from findings. Legacy mappings, local-file declarations and
+explicit date-column precedence retain their separate contracts.
+
+All 461 source tests pass; mypy passes for all 28 application modules. New checks
+cover catalogue and ad-hoc findings, stale/missing data, partial/failed retrieval,
+resource-close failure, explicit date precedence and empty requests. Tests using
+the real Metapyle client with a stubbed source confirm sparse rows remain unfilled.
+Provider access and target-environment acceptance remain installation checks.
+The versioned 0.2.3 transfer retains the earlier installation build; this runtime
+correction requires a separately prepared release before text-transfer deployment.
+
 ## 0.2.3 installation candidate — 23 October 2026
 
 The compact transfer builder omits the upstream lockfile while the full source

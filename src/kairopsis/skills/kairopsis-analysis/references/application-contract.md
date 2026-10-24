@@ -1,6 +1,6 @@
 # Mapping an Analysis to the current application
 
-This is the contract inspected on 11 October 2026. Source checkouts and installed
+This is the contract inspected on 23 October 2026. Source checkouts and installed
 distributions bearing the same development version may have different features.
 For existing evidence, resolve the captured contract and settings first. For new
 or revised definitions, inspect the running `/openapi.json`, installed models and
@@ -51,8 +51,10 @@ or leaving it disabled for a new Analysis. Saving a workspace does not save a
 Library Analysis or enable monitoring.
 
 Preserve captured mode, provenance and provider outcomes: `synthetic` is fabricated
-demonstration data, while `unverified` is a distinct retrieval outcome. Cache,
-partial and failed outcomes retain their own meanings. Missing evidence may leave
+demonstration data; `fresh` records successful market-data retrieval with cache
+bypass, while `unverified` remains a distinct retrieval outcome. Observation age
+and eligibility are checked separately. Cache, partial and failed outcomes retain
+their own meanings. Missing evidence may leave
 a claim unverifiable without changing the recorded category. In retained results,
 separate the latest attempt's outcome from the older displayed Evaluation.
 
@@ -212,6 +214,18 @@ to change Library defaults. A failed/delayed preview retains a labelled previous
 chart without replacing the user's draft.
 
 ## Dates and estimation
+
+Unaligned Metapyle market-data catalogue queries and supported ad-hoc market
+queries use the supplied row date as `observed_on` for nonmissing values. No extra
+upstream provenance column is required. An explicitly configured observation-date
+column takes precedence, including missing/invalid dates remaining unknown. Preserve
+the original observation date if values are carried forward; a repeated value
+alone does not establish that it was carried. Local files require an explicit
+`localfile_date_role: "observation"` declaration before using row dates, and their
+retrieval outcome remains `unverified`; legacy mappings also remain `unverified`.
+Successful retrieval does not make old observations current or waive the checks
+below. Earlier installed adapters may report all live queries as `unverified`;
+use the captured result and installed implementation when interpreting evidence.
 
 Daily uses the previous weekday. Weekly uses seven calendar days; monthly uses
 the previous calendar month with day clamping. Weekly/monthly baselines search

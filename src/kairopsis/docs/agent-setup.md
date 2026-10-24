@@ -420,11 +420,14 @@ through the application. The adapter requires compatible `Client`, catalogue
 validation/load/export, `get()` and `close()` behavior; see
 [runtime](../../../docs/runtime.md) in the extracted source.
 
-Check observations, dates and units against the authorized source. Provider
-failures remain explicit; never substitute demo observations. API freshness,
-native-date provenance and monitoring calibration remain unverified unless the
-implementation and actual data establish them. A chart alone does not establish
-fresh monitoring or calibrated thresholds.
+Check observations, dates and units against the authorized source. Unaligned
+market-data queries use Metapyle row dates as observation dates; a separate
+provider provenance column is unnecessary. Verify the installed adapter follows
+the [date contract](../skills/kairopsis-analysis/references/application-contract.md#dates-and-estimation),
+including local-file and legacy exceptions. Check a successful current retrieval
+and a stale or missing-data case: retrieval success alone must not enable stale
+findings. Provider failures remain explicit; never substitute demo observations.
+A chart alone does not establish monitoring eligibility or calibrated thresholds.
 
 If migrating runtime adaptations, complete the behavior comparisons and failure
 checks in [preserving local adaptations](local-adaptations.md). A successful
